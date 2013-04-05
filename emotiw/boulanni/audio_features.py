@@ -77,7 +77,7 @@ def export_features(path='../audios', out='../audio_features'):
     'MelSpectrum',
     'MFCC: MFCC CepsNbCoeffs=22',
     'MFCC_d1: MFCC %s > Derivate DOrder=1',
-    'MFCC_d1: MFCC %s > Derivate DOrder=2',
+    'MFCC_d2: MFCC %s > Derivate DOrder=2',
     'Envelope',
     'EnvelopeShapeStatistics',
     'AmplitudeModulation',
