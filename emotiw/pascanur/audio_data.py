@@ -25,7 +25,7 @@ class ListSequence(object):
             path='../audio_features',
             pca=True,
             subset='full',
-            fold='Train',
+            which='train',
             one_hot = True,
             nbits = 32):
         """
@@ -38,8 +38,8 @@ class ListSequence(object):
             If we want the PCA version of the dataset or not
         :param subset: String
             The subset of features (one of 'raw', 'minimal', 'full')
-        :param fold: String
-            The fold to load (one of 'Train' or 'Val')
+        :param which: String
+            Which dataset to load (one of 'train' or 'valid')
         :param one_hot: Bool
             If True, the target is given as a one-hot vector, otherwise as
             an index
@@ -53,9 +53,15 @@ class ListSequence(object):
             self.data_y = data[1]
             self.index = -1
         else:
-            assert fold in ('Train', 'Val')
+            assert which in ('train', 'valid')
             assert subset in ('raw', 'minimal', 'full')
             assert nbits in (32, 64)
+            if which == 'train':
+                # This is the convention / folder name picked by Mehdi or
+                # the ones who made the data
+                which = 'Train'
+            else:
+                which = 'Val'
             if pca:
                 suffix = '%s.pca.pkl' % subset
             else:
@@ -69,7 +75,7 @@ class ListSequence(object):
                 target = [(cls in audiofile) for cls in classes]
                 if not one_hot:
                     target = numpy.max(target)
-                if fold in audiofile:
+                if which in audiofile:
                     data_x.append(
                             numpy.array(data,
                                 dtype='float%d'%nbits))
@@ -102,6 +108,8 @@ class ListSequence(object):
         return self.get_example()
 
     def get_example(self):
+        if not self.__iterator_set__:
+            self.set_iterator()
         self.index += 1
         if self.order == 'rand':
             if self.index == self.n_examples:
@@ -178,6 +186,7 @@ class DenseSequences(object):
         self.__iterator_set__ = True
 
     def __iter__(self):
+        # TODO export a different iterator class
         if not self.__iterator_set__:
             self.set_iterator()
         return self
@@ -186,6 +195,8 @@ class DenseSequences(object):
         return self.get_example()
 
     def get_batch(self):
+        if not self.__iterator_set__:
+            self.set_iterator()
         self.index += 1
         if self.order == 'rand':
             if self.index == self.n_batches:
@@ -217,7 +228,7 @@ if __name__=='__main__':
             path='/home/pascanur/data/EmotiW/audio_features',
             pca=True,
             subset='full',
-            fold='Train',
+            which='train',
             one_hot = True,
             nbits = 32)
     diter = liter.export_dense_format()
