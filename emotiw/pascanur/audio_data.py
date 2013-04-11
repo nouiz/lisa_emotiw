@@ -86,6 +86,12 @@ class ListSequence(object):
             self.data_y = data_y
         self.nbits = nbits
         self.n_examples = len(self.data_x)
+        # hack .. should be replaced once a proper pylearn2 dataset class
+        # is created. It is meant to keep track if parameters for the
+        # iterator are set or not. I do not want to construct another class
+        # for the iterator for now to keep the code short and easy to
+        # parse, but the final version will do that (as any dataset in
+        # pylearn 2 does)
         self.__iterator_set__ = False
 
     def set_iterator(self,
