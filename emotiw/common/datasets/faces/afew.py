@@ -64,14 +64,17 @@ class ImageSequence(FaceImagesDataset):
 
 
 class AFEWImageSequenceDataset(ImageSequenceDataset):
+    emotionNames = {"Angry": "anger", "Disgust": "disgust", "Fear": "fear", "Happy": "happy",
+                    "Neutral": "neutral", "Sad": "sad", "Surprise": "surprise"}
+
+    absolute_base_directory = "/data/lisa/data/faces/AFEW/images/"
+    picasa_boxes_base_directory = "/data/lisa/data/faces/AFEW/picasa_boxes/"
+
     def __init__(self):
-        self.absolute_base_directory = "/data/lisa/data/faces/AFEW/images/"
         self.imagesequences = []
         self.labels = []
         self.trainIndexes = []
         self.validIndexes = []
-        self.emotionNames = {"Angry": "anger", "Disgust": "disgust", "Fear": "fear", "Happy": "happy",
-                             "Neutral": "neutral", "Sad": "sad", "Surprise": "surprise"}
         # For each emotion subfolder
         idx = 0
         directories = os.listdir(self.absolute_base_directory)
@@ -81,7 +84,7 @@ class AFEWImageSequenceDataset(ImageSequenceDataset):
             emotionDir = os.path.join(self.absolute_base_directory, emotionName)
             if not os.path.isdir(emotionDir) or emotionName not in self.emotionNames.keys():
                 continue
-            picassaBboxDir = os.path.join("/data/lisa/data/faces/AFEW/picasa_boxes/", emotionName)
+            picasa_bbox_dir = os.path.join(self.picasa_boxes_base_directory, emotionName)
 
             # Find all images
             fileNames = glob.glob(os.path.join(emotionDir, "*.jpg"))
@@ -93,7 +96,7 @@ class AFEWImageSequenceDataset(ImageSequenceDataset):
             # For each unique sequence
             for sequence in uniqueSequence:
                 # Load the Image Sequence object
-                seq = ImageSequence("AFEW", emotionDir, "{0}_*.jpg".format(sequence), picassaBboxDir,
+                seq = ImageSequence("AFEW", emotionDir, "{0}_*.jpg".format(sequence), picasa_bbox_dir,
                                     self.emotionNames[emotionName])
                 self.imagesequences.append(seq)
                 # Save label
