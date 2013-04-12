@@ -2,18 +2,20 @@ import glob
 import os
 import csv
 from imageseq import ImageSequenceDataset
-from faceimages import FaceImagesDataset
+from faceimages import FaceImagesDataset, basic_7emotion_names
 
 # Subclasses of FaceImagesDataset
 
 
 class ImageSequence(FaceImagesDataset):
-    def __init__(self, dataset_name, relative_image_base_directory, image_glob, relative_bbox_directory, emotionName):
+    def __init__(self, dataset_name, relative_image_base_directory,
+            image_glob, relative_bbox_directory, emotionName,
+            csv_delimiter=' '):
         super(ImageSequence, self).__init__(dataset_name, relative_image_base_directory)
 
         self.bbox = []
         self.imageRelativePath = []  # Relative path to images
-        self.emotionIndex = FaceImagesDataset.base_7emotion_names.index(emotionName.lower())
+        self.emotionIndex = basic_7emotion_names.index(emotionName.lower())
         self.imageIndex = {}
 
         # Fetch images
@@ -32,7 +34,7 @@ class ImageSequence(FaceImagesDataset):
             bbxName = os.path.join(relative_bbox_directory, bbxName)
             if os.path.exists(bbxName):
                 with open(bbxName) as f:
-                    reader = csv.reader(f, delimiter=' ')
+                    reader = csv.reader(f, delimiter=csv_delimiter)
                     for row in reader:
                         bboxList.append([float(x) for x in row[:4]])
             else:
