@@ -2,18 +2,20 @@ import glob
 import os
 import csv
 from imageseq import ImageSequenceDataset
-from faceimages import FaceImagesDataset
+from faceimages import FaceImagesDataset, basic_7emotion_names
 
 # Subclasses of FaceImagesDataset
 
 
 class ImageSequence(FaceImagesDataset):
-    def __init__(self, dataset_name, relative_image_base_directory, image_glob, relative_bbox_directory, emotionName):
+    def __init__(self, dataset_name, relative_image_base_directory,
+            image_glob, relative_bbox_directory, emotionName,
+            csv_delimiter=' '):
         super(ImageSequence, self).__init__(dataset_name, relative_image_base_directory)
 
         self.bbox = []
         self.imageRelativePath = []  # Relative path to images
-        self.emotionIndex = FaceImagesDataset.base_7emotion_names.index(emotionName.lower())
+        self.emotionIndex = basic_7emotion_names.index(emotionName.lower())
         self.imageIndex = {}
 
         # Fetch images
@@ -32,7 +34,7 @@ class ImageSequence(FaceImagesDataset):
             bbxName = os.path.join(relative_bbox_directory, bbxName)
             if os.path.exists(bbxName):
                 with open(bbxName) as f:
-                    reader = csv.reader(f, delimiter=' ')
+                    reader = csv.reader(f, delimiter=csv_delimiter)
                     for row in reader:
                         bboxList.append([float(x) for x in row[:4]])
             else:
@@ -64,14 +66,17 @@ class ImageSequence(FaceImagesDataset):
 
 
 class AFEWImageSequenceDataset(ImageSequenceDataset):
+    emotionNames = {"Angry": "anger", "Disgust": "disgust", "Fear": "fear", "Happy": "happy",
+                    "Neutral": "neutral", "Sad": "sad", "Surprise": "surprise"}
+
+    absolute_base_directory = "/data/lisa/data/faces/AFEW/images/"
+    picasa_boxes_base_directory = "/data/lisa/data/faces/AFEW/picasa_boxes/"
+
     def __init__(self):
-        self.absolute_base_directory = "/data/lisa/data/faces/AFEW/images/"
         self.imagesequences = []
         self.labels = []
         self.trainIndexes = []
         self.validIndexes = []
-        self.emotionNames = {"Angry": "anger", "Disgust": "disgust", "Fear": "fear", "Happy": "happy",
-                             "Neutral": "neutral", "Sad": "sad", "Surprise": "surprise"}
         # For each emotion subfolder
         idx = 0
         directories = os.listdir(self.absolute_base_directory)
@@ -81,7 +86,7 @@ class AFEWImageSequenceDataset(ImageSequenceDataset):
             emotionDir = os.path.join(self.absolute_base_directory, emotionName)
             if not os.path.isdir(emotionDir) or emotionName not in self.emotionNames.keys():
                 continue
-            picassaBboxDir = os.path.join("/data/lisa/data/faces/AFEW/picasa_boxes/", emotionName)
+            picasa_bbox_dir = os.path.join(self.picasa_boxes_base_directory, emotionName)
 
             # Find all images
             fileNames = glob.glob(os.path.join(emotionDir, "*.jpg"))
@@ -93,7 +98,7 @@ class AFEWImageSequenceDataset(ImageSequenceDataset):
             # For each unique sequence
             for sequence in uniqueSequence:
                 # Load the Image Sequence object
-                seq = ImageSequence("AFEW", emotionDir, "{0}_*.jpg".format(sequence), picassaBboxDir,
+                seq = ImageSequence("AFEW", emotionDir, "{0}_*.jpg".format(sequence), picasa_bbox_dir,
                                     self.emotionNames[emotionName])
                 self.imagesequences.append(seq)
                 # Save label
