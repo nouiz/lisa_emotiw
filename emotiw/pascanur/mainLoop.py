@@ -33,9 +33,11 @@ class MainLoop(object):
         ###################
         self.train_data = train_data
         self.valid_data = valid_data
-        self.valid_data.set_iterator(batchsize=1)
-        self.test_data.set_iterator(batchsize=1)
         self.test_data = test_data
+        self.valid_data.set_iterator()
+        if self.test_data:
+            self.test_data.set_iterator()
+
         self.state = state
         self.channel = channel
         self.model = model
@@ -64,7 +66,7 @@ class MainLoop(object):
         cost = 0
         for batch in self.valid_data.__iter__():
             n_elems += 1
-            cost += self.model.validate(*batch)
+            cost += 100*self.model.validate(*batch)
         cost /= numpy.float32(n_elems)
         print ('** validation cost %6.3f computed in %s'
                ', best cost is %6.3f, test %6.3f, whole time %6.3f min') % (
@@ -88,12 +90,15 @@ class MainLoop(object):
     def test(self):
         self.model.best_params = [(x.name, x.get_value()) for x in
                                   self.model.params]
-        n_elems = 0
-        cost = 0
-        for batch in self.valid_data.__iter__():
-            n_elems += 1
-            cost += self.model.validate(*batch)
-        cost /= numpy.float32(n_elems)
+        if self.test_data is not None:
+            n_elems = 0
+            cost = 0
+            for batch in self.valid_data.__iter__():
+                n_elems += 1
+                cost += self.model.validate(*batch)
+            cost /= numpy.float32(n_elems)
+        else:
+            cost = numpy.nan
         print '>>> Test cost', cost
         pos = self.step // self.state['validFreq']
         self.timings['test'][pos] = float(cost)
@@ -148,7 +153,7 @@ class MainLoop(object):
                         self.channel.save()
                     print 'Got NaN while training'
                     last_cost = 0
-                if self.step % self.state['validFreq'] == 0:
+                if self.step % self.state['validFreq'] == 0 and self.step>0:
                     self.validate()
                 self.step += 1
             except:
@@ -158,7 +163,7 @@ class MainLoop(object):
                     self.channel.save()
 
                 last_cost = 0
-                print 'Error in running natgrad (lr issue)'
+                print 'Error in running algo (lr issue)'
                 print 'BEST SCORE'
                 print 'Validation', self.state['validcost']
                 print 'Validation time', print_time(self.state['validtime'])
