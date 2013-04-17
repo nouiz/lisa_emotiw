@@ -46,7 +46,7 @@ class forloop(theano.gof.Op):
             mem[0] = out.get_value(return_internal_type=True, borrow=True)
 
 
-
+import theano.sandbox.cuda
 if theano.sandbox.cuda.cuda_available:
     from theano.gof import local_optimizer
     from theano.sandbox.cuda.opt import register_opt

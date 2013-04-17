@@ -44,7 +44,7 @@ class SGD(object):
         self.state = state
         self.profile = profile
         self.data = data
-        seld.data.set_iterator(order = 'sequence',
+        self.data.set_iterator(order = 'sequence',
                                rng = self.rng,
                                batchsize = self.state['bs'])
         self.data_iter = data.__iter__()
@@ -54,7 +54,7 @@ class SGD(object):
         # Step 1. Compile function for computing eucledian gradients
         ############################################################
         print 'Constructing grad function'
-        gs = TT.grad(self.train_cost, model.params)
+        gs = TT.grad(self.model.train_cost, model.params)
         update = [(g, lg) for g, lg in zip(self.gs, gs)]
         print 'Compiling grad function'
         st = time.time()
@@ -92,6 +92,7 @@ class SGD(object):
         self.compute_rho = theano.function(
             [old_cost, new_cost, lr], [rho, norm_grads], name='compute_rho', profile=profile)
         self.old_cost = 1e20
+        self.step = 0
         self.return_names = ['cost',
                              'error',
                              'time_grads',
@@ -103,11 +104,11 @@ class SGD(object):
 
     def __call__(self):
 
-        batch = self.data_iter.next()
+        batch = self.data_iter.get_batch()
         g_st = time.time()
         self.grad_fn(*batch)
         g_ed = time.time()
-        elif self.state['lr_adapt'] == 1:
+        if self.state['lr_adapt'] == 1:
             if self.step > self.state['lr_adapt_start']:
                 self.lr = self.state['lr0'] /\
                     (1. + float(self.step - self.state['lr_adapt_start'])/self.state['lr_beta'])
@@ -117,8 +118,8 @@ class SGD(object):
         new_cost, error = self.compute_new_cost(self.lr, *batch)
         rho, norm_grad = self.compute_rho(old_cost, new_cost, self.lr)
 
-        if new_cost > self.old_cost:
-            orint ('Error increasing !? ')
+        if new_cost > old_cost:
+            print ('Error increasing !? ')
             self.lr = self.lr / 2.
 
         while (numpy.isnan(new_cost) or
@@ -127,7 +128,7 @@ class SGD(object):
         self.old_cost = new_cost
         self.update_params(self.lr)
         e_ed = time.time()
-        msg = ('.. iter %4d cost %.3g, error %.3g step_size %.3g '
+        msg = ('.. iter %4d cost %.3g (before update %.3g), error %.3g step_size %.3g '
                'rho %.3g '
                'norm grad %.3g '
                'time [grad] %s,'
@@ -137,6 +138,7 @@ class SGD(object):
         print msg % (
             self.step,
             new_cost,
+            old_cost,
             error,
             self.lr,
             rho,
