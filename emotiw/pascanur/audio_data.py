@@ -3,11 +3,11 @@
 A basic data class for the audio of the challange. We can provide other a
 list of sequences or clip them into a dense format.
 
+See run_birnn for an example for running biRNN
 
 TODO:
     (1) More documentation
     (2) Unit Tests
-    (3) Build a simple example (the bidirectional RNN !?)
     (4) Collect some feedback
 
 maintainer: Razvan (r.pascanu@gmail)
