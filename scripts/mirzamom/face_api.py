@@ -1,0 +1,138 @@
+"""
+Script for face keypoint detection using mashape face api.
+-Sing up here https://www.mashape.com
+-Store your key in ~/.key_chain
+-Install the pinkish unicorn from http://getunicorn.io
+"""
+
+import os
+import glob
+import ConfigParser
+import unicorn
+import urllib
+import json
+from PIL import Image, ImageDraw
+from pylearn2.utils.string_utils import preprocess
+import ipdb
+
+def get_key(config_file = '${HOME}/.key_chain'):
+    """
+    read and returns auth key from config file
+    """
+
+    config_file = preprocess(config_file)
+    f = open(config_file)
+    config = ConfigParser.RawConfigParser()
+    config.read(preprocess(config_file))
+    return config.get('mashape', 'key')
+
+
+def detect(img_url):
+    """
+    runs the api and retuns the tags, returns None if failed
+    """
+
+    global MY_KEY
+    url = urllib.quote(img_url)
+    response = unicorn.get(
+          "https://lambda-face-detection-and-recognition.p.mashape.com/detect?images={}".format(url),
+            {
+                "X-Mashape-Authorization": MY_KEY
+            })
+
+    if response.body['status'] == 'success':
+        return response.body['photos'][0]['tags']
+
+
+def get_image(url, save_path):
+    """
+    Download an image from web
+    """
+
+    f = open(save_path,'wb')
+    f.write(urllib.urlopen(url).read())
+    f.close()
+
+def draw(img, points):
+    """
+    draw points on top of image
+    """
+
+    img = Image.open(img)
+    draw = ImageDraw.Draw(img)
+    x = 30
+    y = 30
+    r = 5
+    for point in points:
+        box = (point[0] -r, point[1] -r, point[0] + r, point[1] + r)
+        color = point[2]
+        draw.ellipse(box, fill = color)
+    img.show()
+
+
+def draw_key_point(img_url, save_path = '/tmp/'):
+    """
+    detect keypoints, draw them on image and show/save it
+    """
+
+    tags = detect(img_url)
+    if tags is not None:
+        save_name = save_path + img_url.split('/')[-1]
+        if not os.path.isfile(save_name):
+            get_image(img_url, save_name)
+        points = []
+        colors = []
+        for tag in tags:
+            points.append([tag['eye_left']['x'], tag['eye_left']['y'], '#800080'])
+            points.append([tag['eye_right']['x'], tag['eye_right']['y'], '#FF0000'])
+            points.append([tag['eye_right']['x'], tag['eye_right']['y'], '#00FF00'])
+            points.append([tag['mouth_left']['x'], tag['mouth_left']['y'], '#008000'])
+            points.append([tag['mouth_right']['x'], tag['mouth_right']['y'], '#0000A0'])
+            points.append([tag['mouth_center']['x'], tag['mouth_center']['y'], '#FFFF00'])
+            points.append([tag['nose']['x'], tag['nose']['y'], '#FFA500'])
+        draw(save_name, points)
+    else:
+        print 'failed'
+
+
+def batch_job():
+
+    """
+    Copy data to a web server and run the api in batch
+    NOTE: To keep the admins happy transfering
+        each folder in turn
+    """
+
+    base_url = "http://www-etud.iro.umontreal.ca/~mirzamom/data/"
+    base_path = "/home/www-etud/usagers/mirzamom/HTML/data/"
+    save_path = "/data/lisa/data/faces/EmotiW/mashape_keypoints/Train/Angry/"
+
+    file_list = glob.glob(base_path + "*.png")
+    for item in file_list:
+        url = base_url + item.split("/")[-1]
+        tags = detect(url)
+        if tags is not None:
+            print "Passed: {}".format(item)
+            save_name = save_path + item.split("/")[-1].rstrip(".png") + ".json"
+            with open(save_name, 'w') as outf:
+                json.dump(tags, outf)
+        else:
+            print "Failed: {}".format(item)
+
+
+def test_run():
+    """
+    test run
+    """
+    imgs = ['http://mojoimage.com/free-image-hosting-12/31778.jpg',
+            'http://mojoimage.com/free-image-hosting-12/91738.jpg',
+            'http://mojoimage.com/free-image-hosting-12/266445.jpg']
+    for img in imgs:
+        draw_key_point(img)
+
+if __name__ == "__main__":
+
+    global MY_KEY
+    MY_KEY = get_key()
+
+    batch_job()
