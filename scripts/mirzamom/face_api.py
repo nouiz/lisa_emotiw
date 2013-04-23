@@ -7,6 +7,7 @@ Script for face keypoint detection using mashape face api.
 
 import os
 import glob
+import time
 import ConfigParser
 import unicorn
 import urllib
@@ -39,10 +40,13 @@ def detect(img_url):
             {
                 "X-Mashape-Authorization": MY_KEY
             })
-
-    if response.body['status'] == 'success':
-        return response.body['photos'][0]['tags']
-
+    try:
+        if response.body['status'] == 'success':
+            return response.body['photos'][0]['tags']
+    except TypeError:
+        "waiting and trying again"
+        time.sleep(10)
+        detect(img_url)
 
 def get_image(url, save_path):
     """
@@ -105,7 +109,7 @@ def batch_job():
 
     base_url = "http://www-etud.iro.umontreal.ca/~mirzamom/data/"
     base_path = "/home/www-etud/usagers/mirzamom/HTML/data/"
-    save_path = "/data/lisa/data/faces/EmotiW/mashape_keypoints/Train/Angry/"
+    save_path = "/data/lisa/data/faces/EmotiW/mashape_keypoints/Val/Neutral/"
 
     file_list = glob.glob(base_path + "*.png")
     for item in file_list:
