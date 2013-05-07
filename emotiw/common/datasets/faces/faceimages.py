@@ -1,30 +1,12 @@
 import os
 import cv
 
+from emotiw.common.utils.pathutils import locate_data_path
+
 #sys.path.append(os.getcwd()+"/../../../vincentp")
 #from preprocess_face import * # getEyesPositions,getFaceBoundingBox
 
 basic_7emotion_names = ["anger", "disgust", "fear", "happy", "sad", "surprise", "neutral"]
-
-
-def locate_data_path(filename, path_starts=None):
-    """
-        looks for filename under the various options listed in path_starts
-    """
-    # TO DO: look up DATAPTH environment variable to include its content to the path_starts
-
-    if path_starts is None:
-        path_starts = [
-                os.path.join(os.path.expanduser("~"), "data"),
-                "/data/lisa/data"]
-    for start in path_starts:
-        path = os.path.join(start, filename)
-        if os.path.exists(path):
-            return path
-    raise IOError("Could not locate file or directory "+filename+" in "+str(path_starts))
-
-
-
 
 class FaceImagesDataset(object):
     """
