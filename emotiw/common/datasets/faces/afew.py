@@ -1,5 +1,6 @@
 import glob
 import os
+import os.path
 import csv
 from imageseq import ImageSequenceDataset
 from faceimages import FaceImagesDataset, basic_7emotion_names
@@ -73,6 +74,8 @@ class AFEWImageSequenceDataset(ImageSequenceDataset):
     picasa_boxes_base_directory = "/data/lisa/data/faces/AFEW/picasa_boxes/"
 
     def __init__(self):
+        if not os.path.isdir(AFEWImageSequenceDataset.absolute_base_directory):
+            raise IOError("Data directory not found")
         self.imagesequences = []
         self.labels = []
         self.trainIndexes = []

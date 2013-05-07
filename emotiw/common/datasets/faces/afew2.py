@@ -19,6 +19,9 @@ class AFEW2ImageSequenceDataset(afew.AFEWImageSequenceDataset):
         If preload_facetubes is True, all facetubes will be loaded
         when the dataset is built, which takes around 1.2 GB.
         """
+        if not os.path.isdir(AFEW2ImageSequenceDataset.absolute_base_directory):
+            raise IOError("Data directory not found")
+        
         self.preload_facetubes = preload_facetubes
         self.imagesequences = []
         self.labels = []

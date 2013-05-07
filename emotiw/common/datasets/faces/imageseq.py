@@ -1,6 +1,10 @@
 
 
 class ImageSequenceDataset(object):
+
+    def get_name(self):
+        return ""
+
     def __len__(self):
         """
         Returns the total number of sequences in the dataset.
@@ -47,3 +51,24 @@ class ImageSequenceDataset(object):
         Returns None if not available"""
         return None
     
+
+class SimpleImageSequenceDataset(ImageSequenceDataset):
+
+    def __init__(self, name, image_sequence_list, label_list=None):
+        self.name = name
+        self.image_sequence_list = image_sequence_list
+        self.label_list = label_list
+
+    def get_name(self):
+        return self.name
+
+    def __len__(self):
+        return len(self.image_sequence_list)
+
+    def get_sequence(self, i):
+        return self.image_sequence_list[i]
+
+    def get_label(self, i):
+        if self.label_list is None:
+            return None
+        return self.label_list[i]
