@@ -6,22 +6,27 @@ import os
 
 import numpy as np
 
+from emotiw.common.utils.pathutils import locate_data_path
 import afew
 
 
 class AFEW2ImageSequenceDataset(afew.AFEWImageSequenceDataset):
-    absolute_base_directory = "/data/lisa/data/faces/EmotiW/images"
-    picasa_boxes_base_directory = "/data/lisa/data/faces/EmotiW/picasa_boxes"
-    face_tubes_base_directory = "/data/lisa/data/faces/EmotiW/picasa_face_tubes_96_96"
+    # These directories are relative to the data path.
+    base_dir = "faces/EmotiW/images"
+    picasa_boxes_base_dir = "faces/EmotiW/picasa_boxes"
+    face_tubes_base_dir = "faces/EmotiW/picasa_face_tubes_96_96"
 
     def __init__(self, preload_facetubes=False):
         """
         If preload_facetubes is True, all facetubes will be loaded
         when the dataset is built, which takes around 1.2 GB.
         """
-        if not os.path.isdir(AFEW2ImageSequenceDataset.absolute_base_directory):
-            raise IOError("Data directory not found")
-        
+        self.absolute_base_directory = locate_data_path(self.base_dir)
+        self.picasa_boxes_base_directory = locate_data_path(
+                self.picasa_boxes_base_dir)
+        self.face_tubes_base_directory = locate_data_path(
+                self.face_tubes_base_dir)
+
         self.preload_facetubes = preload_facetubes
         self.imagesequences = []
         self.labels = []
@@ -122,3 +127,6 @@ class AFEW2ImageSequenceDataset(afew.AFEWImageSequenceDataset):
         for f in npy_files:
             rval.append(np.load(f))
         return tuple(rval)
+
+    def get_name(self):
+        return "AFEW2"

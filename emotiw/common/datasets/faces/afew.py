@@ -2,6 +2,8 @@ import glob
 import os
 import os.path
 import csv
+
+from emotiw.common.utils.pathutils import locate_data_path
 from imageseq import ImageSequenceDataset
 from faceimages import FaceImagesDataset, basic_7emotion_names
 
@@ -70,12 +72,15 @@ class AFEWImageSequenceDataset(ImageSequenceDataset):
     emotionNames = {"Angry": "anger", "Disgust": "disgust", "Fear": "fear", "Happy": "happy",
                     "Neutral": "neutral", "Sad": "sad", "Surprise": "surprise"}
 
-    absolute_base_directory = "/data/lisa/data/faces/AFEW/images/"
-    picasa_boxes_base_directory = "/data/lisa/data/faces/AFEW/picasa_boxes/"
+    # These directories are relative to the data path.
+    base_dir = "faces/AFEW/images"
+    picasa_boxes_base_dir = "faces/AFEW/picasa_boxes"
 
     def __init__(self):
-        if not os.path.isdir(AFEWImageSequenceDataset.absolute_base_directory):
-            raise IOError("Data directory not found")
+        self.absolute_base_directory = locate_data_path(self.base_dir)
+        self.picasa_boxes_base_directory = locate_data_path(
+                self.picasa_boxes_base_dir)
+
         self.imagesequences = []
         self.labels = []
         self.trainIndexes = []
@@ -126,9 +131,5 @@ class AFEWImageSequenceDataset(ImageSequenceDataset):
         # Only one fold
         return [(self.trainIndexes, self.validIndexes)]
 
-
-
-
-    
-    
-
+    def get_name(self):
+        return "AFEW"
