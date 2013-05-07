@@ -97,16 +97,16 @@ class AFEWImageSequenceDataset(ImageSequenceDataset):
             picasa_bbox_dir = os.path.join(self.picasa_boxes_base_directory, emotionName)
 
             # Find all images
-            fileNames = glob.glob(os.path.join(emotionDir, "*.jpg"))
+            fileNames = glob.glob(os.path.join(emotionDir, "*.png"))
 
             # Find all unique sequences
-            uniqueSequence = list(set([name.split("_")[0] for name in fileNames]))
+            uniqueSequence = list(set([name.split("-")[0] for name in fileNames]))
             uniqueSequence.sort()
 
             # For each unique sequence
             for sequence in uniqueSequence:
                 # Load the Image Sequence object
-                seq = ImageSequence("AFEW", emotionDir, "{0}_*.jpg".format(sequence), picasa_bbox_dir,
+                seq = ImageSequence("AFEW", emotionDir, "{0}-*.png".format(sequence), picasa_bbox_dir,
                                     self.emotionNames[emotionName])
                 self.imagesequences.append(seq)
                 # Save label
