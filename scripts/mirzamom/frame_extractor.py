@@ -5,6 +5,7 @@ Extracts frame images from avi files
 import subprocess
 import glob
 import os
+import sys
 import ipdb
 
 def get_output_size(path, width = 1024):
@@ -23,7 +24,13 @@ def get_output_size(path, width = 1024):
     p = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
     res = p.communicate()[0]
     asr = res[res.find("DAR "):].split(']')[0][4:].split(':')
-    asr = map(float, asr)
+    try:
+        asr = map(float, asr)
+    except ValueError:
+        asr = res[res.find("DAR "):].split(' ')[1].split(':')
+        asr[1] = asr[1].split(",")[0]
+        asr = map(float, asr)
+
     height = int(width / (asr[0]/asr[1]))
     return "{}x{}".format(width, height)
 
@@ -44,15 +51,39 @@ def extract_frames(src, dest, asr):
 
 if __name__ == "__main__":
 
-    avi_path = "/data/lisa/data/faces/EmotiW/AFEW_2_Distribute/"
-    img_path = "/data/lisa/data/faces/EmotiW/images/"
-    emots = ["Angry", "Fear", "Disgust", "Happy", "Surprise", "Sad", "Neutral"]
+    _, which = sys.argv
 
-    for set in ["Train", "Val"]:
+    if which == 'AFEW2':
+        avi_path = "/data/lisa/data/faces/EmotiW/AFEW_2_Distribute/"
+        img_path = "/data/lisa/data/faces/EmotiW/images/"
+        emots = ["Angry", "Fear", "Disgust", "Happy", "Surprise", "Sad", "Neutral"]
+
+        for set in ["Train", "Val"]:
+            for emot in emots:
+                file_list = glob.glob("{}{}/{}/*.avi".format(avi_path, set, emot))
+                # make path if not exist
+                save_path = "{}{}/{}".format(img_path, set, emot)
+                if not os.path.isdir(save_path):
+                    os.makedirs(save_path)
+
+                for item in file_list:
+                    # get proper size of image from aspect ration info
+                    asr = get_output_size(item)
+
+                    #extract frame images
+                    output = "{}/{}-%3d.png".format(save_path, item.split("/")[-1].rstrip(".avi"))
+                    extract_frames(item, output, asr)
+
+
+    elif which == 'AFEW':
+        avi_path = "/data/lisa/data/faces/AFEW/SingleAFEW/"
+        img_path = "/data/lisa/data/faces/AFEW/images/"
+        emots = ["Angry", "Fear", "Disgust", "Happy", "Surprise", "Sad", "Neutral"]
+
         for emot in emots:
-            file_list = glob.glob("{}{}/{}/*.avi".format(avi_path, set, emot))
+            file_list = glob.glob("{}{}/*.avi".format(avi_path, emot))
             # make path if not exist
-            save_path = "{}{}/{}".format(img_path, set, emot)
+            save_path = "{}{}/".format(img_path, emot)
             if not os.path.isdir(save_path):
                 os.makedirs(save_path)
 
@@ -61,5 +92,5 @@ if __name__ == "__main__":
                 asr = get_output_size(item)
 
                 #extract frame images
-                output = "{}/{}-%3d.png".format(save_path, item.split("/")[-1].rstrip(".avi"))
+                output = "{}{}-%3d.png".format(save_path, item.split("/")[-1].rstrip(".avi"))
                 extract_frames(item, output, asr)
