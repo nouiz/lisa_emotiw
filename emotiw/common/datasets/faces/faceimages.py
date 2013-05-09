@@ -355,7 +355,8 @@ class FaceImagesDataset(object):
         for feature_name in feature_list:
             method = getattr(self, "get_"+feature_name)
             not_none_count, none_count, error_count = self.count(method)
-            print >>out, "%25s: %d (%.2f%%, %d None, %d errors)" % (feature_name, not_none_count, 100.0*not_none_count/length, none_count, error_count)
+            print >>out, "%25s: %6d / %d \t (%.2f%%, %d None, %d errors)" % \
+                  (feature_name, not_none_count, length, 100.0*not_none_count/length, none_count, error_count)
         print >>out
         
         # class counts and proportions
@@ -371,13 +372,14 @@ class FaceImagesDataset(object):
         for feature_name in feature_list:
             method = getattr(self, "get_"+feature_name)
             not_none_count, none_count, error_count = self.count(method)
-            print >>out, "%25s: %d (%.2f%%, %d None, %d errors)" % (feature_name, not_none_count, 100.0*not_none_count/length, none_count, error_count)
+            print >>out, "%25s: %6d / %d \t (%.2f%%, %d None, %d errors)" % \
+                  (feature_name, not_none_count, length, 100.0*not_none_count/length, none_count, error_count)
             
             if not_none_count>0:
                 values_counts = self.count_values(method)
                 for val in values_counts:
                     if val is not None:                        
-                        print >>out, "%30s: %d \t (%.2f%%)" % (val, values_counts[val], 100.0*values_counts[val]/not_none_count)
+                        print >>out, "%30s: %6d / %d \t (%.2f%%)" % (val, values_counts[val], not_none_count, 100.0*values_counts[val]/not_none_count)
             print >>out
 
 

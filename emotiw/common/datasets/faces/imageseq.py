@@ -93,10 +93,10 @@ class ImageSequenceDataset(object):
         if None in values_counts:
             none_count = values_counts[None]
             del values_counts[None]
-        print "( None:", none_count, "/", length, ")"
+        print "( None: %6d / %d, \t %.2f%% )" % ( none_count, length, 100.0*none_count/length)
         not_none_count = length-none_count
         for val in values_counts:
-            print >>out, "%30s: %d \t (%.2f%%)" % (val, values_counts[val], 100.0*values_counts[val]/not_none_count)
+            print >>out, "%30s: %6d / %d \t (%.2f%%)" % (val, values_counts[val], not_none_count, 100.0*values_counts[val]/not_none_count)
         print >>out
 
         

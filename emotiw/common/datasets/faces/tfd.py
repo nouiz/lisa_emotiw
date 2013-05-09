@@ -53,6 +53,9 @@ class TorontoFaceDataset(FaceImagesDataset):
     def get_original_image_path_relative_to_base_directory(self, i):
         return None
 
+    def get_original_image_path(self, i):
+        return None
+
     def get_source_dataset_position(self, idx, datasetDict=None):
         """
         Returns tuple (string, int) -> (Name of dataset, position image dans le dataset d'origine)
