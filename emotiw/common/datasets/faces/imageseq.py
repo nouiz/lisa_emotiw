@@ -1,4 +1,4 @@
-
+import sys
 
 class ImageSequenceDataset(object):
 
@@ -50,7 +50,57 @@ class ImageSequenceDataset(object):
         (containing indexes of sequence that can be passed to get_sequence)
         Returns None if not available"""
         return None
+
+    def count_values(self, method):
+        """Returns a dictionary mapping values returned by a method call to their count over the __len__ examples
+        Ex:
+        dataset.count_values(dataset.get_label)
+        """
+        counts = {}
+        for i in xrange(self.__len__()):
+            try:
+                feature = method(i)
+            except:
+                pass
+            if feature not in counts:
+                counts[feature] = 1
+            else:
+                counts[feature] += 1
+        return counts
     
+    def print_info(self, out=sys.stdout):
+        """Prints various info and statistics about this dataset, such as class counts"""
+
+        length = self.__len__()
+        print >>out, "**********************************************"
+        print >>out, "IMAGE SEQUENCE DATASET ", self.get_name()
+        print >>out, "length (# examples):", length
+
+        # report split counts
+        splits = self.get_standard_train_test_splits()
+        splitcounts = None
+        if splits is not None:
+            splitcounts = []
+            for split in splits:
+                splitcounts.append( [ len(indices) for indices in split ] )
+        print >>out, "standard splits:"
+        print >>out, splitcounts
+        print >>out
+
+        print "Label counts:"
+        values_counts = self.count_values(self.get_label)
+        none_count  = 0
+        if None in values_counts:
+            none_count = values_counts[None]
+            del values_counts[None]
+        print "( None:", none_count, "/", length, ")"
+        not_none_count = length-none_count
+        for val in values_counts:
+            print >>out, "%30s: %d \t (%.2f%%)" % (val, values_counts[val], 100.0*values_counts[val]/not_none_count)
+        print >>out
+
+        
+
 
 class SimpleImageSequenceDataset(ImageSequenceDataset):
 

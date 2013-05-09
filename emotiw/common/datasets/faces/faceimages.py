@@ -1,4 +1,5 @@
 import os
+import sys
 import cv
 
 from emotiw.common.utils.pathutils import locate_data_path
@@ -82,6 +83,7 @@ class FaceImagesDataset(object):
         imgFileName is usually only the filename. When dataset use the same file names in different folders for various
         images, then imgFileName is the shortest path to distinguish all images.
         """
+        pass
 
     def get_bbox(self, i):
         """
@@ -280,11 +282,111 @@ class FaceImagesDataset(object):
         Returns None if not available"""
         return None
 
-# Helper class
+    def count(self, method):
+        """Counts the number of times the givenmethod returns None or raises an error
+        Returns a triple (n_not_None, n_None, n_errors) of the times over the __len__ examples,
+        that the method returned None or raised an error.
+        Ex:
+        dataset.count(dataset.get_facs)
+        """
 
+        not_none_count = 0
+        none_count = 0
+        error_count = 0
+        for i in xrange(self.__len__()):
+            try:
+                feature = method(i)
+                if feature is None:
+                    none_count += 1
+                else:
+                    not_none_count += 1
+            except:
+                error_count += 1
+        return (not_none_count, none_count, error_count)
+        
+
+    def count_values(self, method):
+        """Returns a dictionary mapping values returned by a method call to their count over the __len__ examples
+        Ex:
+        dataset.count_values(dataset.get_7emotion_label)
+        """
+        counts = {}
+        for i in xrange(self.__len__()):
+            try:
+                feature = method(i)
+            except:
+                pass
+            if feature not in counts:
+                counts[feature] = 1
+            else:
+                counts[feature] += 1
+        return counts
+
+    def print_info(self, out=sys.stdout):
+        """Prints various info and statistics about this dataset, such as class counts"""
+
+        length = self.__len__()
+        print >>out, "**********************************************"
+        print >>out, "FACE IMAGE DATASET ", self.get_name()
+        print >>out, "length (# examples):", length
+        print >>out, "n_subjects:", self.get_n_subjects()
+
+        # report split counts
+        splits = self.get_standard_train_test_splits()
+        splitcounts = None
+        if splits is not None:
+            splitcounts = []
+            for split in splits:
+                splitcounts.append( [ len(indices) for indices in split ] )
+        print >>out, "standard splits:"
+        print >>out, splitcounts
+        print >>out
+
+        # count number of features available
+
+        feature_list = ["bbox",
+                        "picasa_bbox",
+                        "opencv_bbox",
+                        "original_bbox",
+                        "eyes_location",
+                        "keypoints_location",
+                        "facs" ]
+
+        for feature_name in feature_list:
+            method = getattr(self, "get_"+feature_name)
+            not_none_count, none_count, error_count = self.count(method)
+            print >>out, "%25s: %d (%.2f%%, %d None, %d errors)" % (feature_name, not_none_count, 100.0*not_none_count/length, none_count, error_count)
+        print >>out
+        
+        # class counts and proportions
+        feature_list = ["7emotion_label",
+                        "7emotion_index",
+                        "subject_id_of_ith_face",
+                        "detailed_emotion_label",
+                        "head_pose",
+                        "light_source_direction",
+                        "gaze_direction",
+                        "gender",
+                        "is_mouth_opened"]
+        for feature_name in feature_list:
+            method = getattr(self, "get_"+feature_name)
+            not_none_count, none_count, error_count = self.count(method)
+            print >>out, "%25s: %d (%.2f%%, %d None, %d errors)" % (feature_name, not_none_count, 100.0*not_none_count/length, none_count, error_count)
+            
+            if not_none_count>0:
+                values_counts = self.count_values(method)
+                for val in values_counts:
+                    if val is not None:                        
+                        print >>out, "%30s: %d \t (%.2f%%)" % (val, values_counts[val], 100.0*values_counts[val]/not_none_count)
+            print >>out
+
+
+# Helper classes
 
 class FaceImagesSubset(FaceImagesDataset):
-    
+    """
+    A subset view of a FaceImagesDataset. This view is itself a FaceImagesDataset.
+    """
     def __init__(self, img_dataset, indices, dataset_name=None):
         if dataset_name is None:
             dataset_name = "subset of "+img_dataset.get_name()
@@ -375,6 +477,11 @@ class FaceImagesSubset(FaceImagesDataset):
 
 
 class FaceDatasetExample(object):
+    """
+    A view of a single example of a FaceImagesDataset
+    Presented as an object with properties.
+    Property names match accessor methods of the FaceImagesDataset.
+    """
     
     property_names = frozenset([
         "original_image",
