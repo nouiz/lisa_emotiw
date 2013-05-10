@@ -50,7 +50,8 @@ class MultiPie(FaceImagesDataset):
         for c in cam:
             files = os.listdir(label+c)
             for f in files:
-                imrelpath=self.absolute_base_directory+'data/'
+                # imrelpath=self.absolute_base_directory+'data/'
+                imrelpath='data/'
                 parts = f.split('.')[0].split('_')
                 subject = int(parts[0])
                 session= parts[1]
