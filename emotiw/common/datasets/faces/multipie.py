@@ -56,7 +56,9 @@ class MultiPie(FaceImagesDataset):
                 session= parts[1]
                 imrelpath += 'session'+session+'/multiview/'+parts[0]+'/'+parts[2]+'/'+parts[3][0]+parts[3][1]+"_"+parts[3][2]+'/'
                 imrelpath += "_".join(parts[0:5])+'.png'
-                points = scipy.io.loadmat(label+c+'/'+f)['pts']
+                filename = label+c+'/'+f
+                print "loading ", filename
+                points = scipy.io.loadmat(filename)['pts']
                 #There are some subjects with out male or female information                
                 if subject<len(self.lstgender):
                     self.lstImages.append([imrelpath,subject,points,self.lstgender[subject]])
