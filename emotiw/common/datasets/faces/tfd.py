@@ -52,50 +52,51 @@ def get_dataset_constructors():
 # Subclasses of FaceImagesDataset
 
 class TorontoFaceDataset(FaceImagesDataset):
-"""
-The Toronto Face Dataset (TFD) was set up by Josh Susskind as a union of several face datasets
-It has both a labeled examples (with 7 basic emotion labels) and unlabeled examples.
+    """
+    The Toronto Face Dataset (TFD) was set up by Josh Susskind as a union of several face datasets
+    It has both a labeled examples (with 7 basic emotion labels) and unlabeled examples.
+    
+    See the techreport here:
+    http://aclab.ca/users/josh/TFD.html
+    
+    Here are the original links to download the data:
+    http://www.cs.toronto.edu/~jsusskin/TFD/TFD_48x48.mat
+    http://www.cs.toronto.edu/~jsusskin/TFD/TFD_96x96.mat
+    http://www.cs.toronto.edu/~jsusskin/TFD/TFD_info.mat
+    
+    For each original dataset we indicate (when we know them):
+    usual abbreviated name,
+    full name,
+    abbreviaiton in TFD mat file or TFD tech report table 1,
+    path relative to data directory (/data/lisa/data/)
 
-See the techreport here:
-http://aclab.ca/users/josh/TFD.html
+    The following should have emotion labels and FACS info:
+    - JACFEE: Japanese and Caucasian Facial Expressions of Emotion ('jacfee') faces/JACFEE/standard_expressor_set/
+    - MMI: MMI Facial Expression Database ('MMI') faces/mmifacedb/
+    - MSFDE: Montreal Set of Facial Displays of Emotion ('msfde')   faces/MSFDE/MSFDE/MSFDE/
+    - CK+: The Extended Kohn Kanade Dataset ('dfat')  faces/cmu_expression/CK+/
+    
+    The following have emotions but no FACS:
+    - IndianFace: The Indian Face Database ('indian') faces/IndianFaceDatabase
+    - JAFFE: The Japanese Female Facial Expression Database ('jaffe') faces/jaffe 
+    - POFA: Pictures of Facial Affect ('pofa') faces/POFA/POFA/
+    - KDEF: The Karolinska Directed Emotional Faces ('kdef') faces/KDEF_and_AKDEF 
+    - NimStim: The NimStim face stimulus set ('nim') faces/NimStim
 
-Here are the original links to download the data:
-http://www.cs.toronto.edu/~jsusskin/TFD/TFD_48x48.mat
-http://www.cs.toronto.edu/~jsusskin/TFD/TFD_96x96.mat
-http://www.cs.toronto.edu/~jsusskin/TFD/TFD_info.mat
-
-For each original dataset we indicate (when we know them):
-  usual abbreviated name,
-  full name,
-  abbreviaiton in TFD mat file or TFD tech report table 1,
-  path relative to data directory (/data/lisa/data/)
-
-The following should have emotion labels and FACS info:
-- JACFEE: Japanese and Caucasian Facial Expressions of Emotion ('jacfee') faces/JACFEE/standard_expressor_set/
-- MMI: MMI Facial Expression Database ('MMI') faces/mmifacedb/
-- MSFDE: Montreal Set of Facial Displays of Emotion ('msfde')   faces/MSFDE/MSFDE/MSFDE/
-- CK+: The Extended Kohn Kanade Dataset ('dfat')  faces/cmu_expression/CK+/
-
-The following have emotions but no FACS:
-- IndianFace: The Indian Face Database ('indian') faces/IndianFaceDatabase
-- JAFFE: The Japanese Female Facial Expression Database ('jaffe') faces/jaffe 
-- POFA: Pictures of Facial Affect ('pofa') faces/POFA/POFA/
-- KDEF: The Karolinska Directed Emotional Faces ('kdef') faces/KDEF_and_AKDEF 
-- NimStim: The NimStim face stimulus set ('nim') faces/NimStim
-
-Couldn't find the source for downloading:
-'inaoe'  Cruz, C., Sucar, L., & Morales, E. (2008). Real-time face recognition for human-robot interaction. Paper presented at the IEEE International Conference on Automatic Face and Gesture Recognition.
-'cafe'   California Facial Expressions (CAFÉ) (Dailey, Cottrell, & Reilly, 2001)
-
-Couldn't associate the abbreviation in the mat file and list of databases in the TFD tech report Table 1:
-'fotosearch'
-'aging'
-'cad'
-'josh'
-'livegoogemo'
-'relived'
-'spontaneous'
-"""
+    Couldn't find the source for downloading:
+    'inaoe'  Cruz, C., Sucar, L., & Morales, E. (2008). Real-time face recognition for human-robot interaction. Paper presented at the IEEE International Conference on Automatic Face and Gesture Recognition.
+    'cafe'   California Facial Expressions (CAFE) (Dailey, Cottrell, & Reilly, 2001)
+    
+    Couldn't associate the abbreviation in the mat file and list of databases in the TFD tech report Table 1:
+    'fotosearch'
+    'aging'
+    'cad'
+    'josh'
+    'livegoogemo'
+    'relived'
+    'spontaneous'
+    """
+    
     def __init__(self):
         super(TorontoFaceDataset, self).__init__("TFD", "faces/TFD/")
         # Load original 48x48 images
@@ -217,7 +218,7 @@ Couldn't associate the abbreviation in the mat file and list of databases in the
 
 
 class StaticCKPlus(FaceImagesDataset):
-
+    """Extended Cohn Kanade (CK+) with only all first (neutral) and last (emotiv) images of the sequences""" 
     def __init__(self):
 
         # Call parent constructor
@@ -258,15 +259,15 @@ class StaticCKPlus(FaceImagesDataset):
             #Non Neutral
             self.csubject +=1         
             
-            keypoints = self.getkeypoints('Landmarks'+p[0][18:len(p[0])]+"/"+files[len(files)-1][0:len(files[len(files)-1])-4]+'_landmarks.txt',z)
+            keypoints = self.read_keypoints('Landmarks'+p[0][18:len(p[0])]+"/"+files[len(files)-1][0:len(files[len(files)-1])-4]+'_landmarks.txt',z)
             self.lstImages.append([ p[0]+"/"+files[len(files)-1] ,emo[0],sub[0], keypoints])            
             #import pdb;pdb.set_trace()
             #Neutral:
-            keypoints = self.getkeypoints('Landmarks'+p[0][18:len(p[0])]+"/"+files[len(files)-1][0:len(files[len(files)-1])-4]+'_landmarks.txt',z)
+            keypoints = self.read_keypoints('Landmarks'+p[0][18:len(p[0])]+"/"+files[len(files)-1][0:len(files[len(files)-1])-4]+'_landmarks.txt',z)
             self.lstImages.append([ p[0]+"/"+files[1] ,6,sub[0],keypoints])
             #import pdb;pdb.set_trace()
 
-    def getkeypoints(self,path,z):
+    def read_keypoints(self,path,z):
         featurePoints=[]
         #import pdb;pdb.set_trace()
         try:
@@ -303,12 +304,15 @@ class StaticCKPlus(FaceImagesDataset):
     def get_subject_id_of_ith_face(self, i):
         return str(self.lstImages[i][2])
     
-    def getkeypoints(self,i):
+    def get_keypoints_list(self,i):
         """
         This will return a bunch of points. to know what each index means, refere to an image called keypoints inside the ck+ directory        
         """
         return self.lstImages[i][3]
 
+    def get_keypoints_location(self, i):
+        # To be written to return a dictionary with the proper semantic
+        return None
 
 class SFEW(FaceImagesDataset):
 
