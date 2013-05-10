@@ -79,7 +79,9 @@ class MultiPie(FaceImagesDataset):
         """
         returns left eye (left corner, right corner), right eye (left corner, right corner)
         """
-        return [self.lstImages[i][2][37], self.lstImages[i][2][40],self.lstImages[i][2][43],self.lstImages[i][2][46]]
+        lefteye = 0.5*(self.lstImages[i][2][37]+self.lstImages[i][2][40])
+        righteye = 0.5*(self.lstImages[i][2][43]+self.lstImages[i][2][46])
+        return lefteye[0], lefteye[1], righteye[0], righteye[1]
     
     def get_keypoints_location(self,i):
         """
