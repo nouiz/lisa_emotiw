@@ -31,7 +31,8 @@ from faceimages import FaceImagesDataset
 
 class AFLW(FaceImagesDataset):
     """
-    Note: sibjects id starts from 39341 to 65384
+    Annotated Facial Landmarks in the Wild dataset
+    Note: subjects id starts from 39341 to 65384
     """
     
     def __init__(self):

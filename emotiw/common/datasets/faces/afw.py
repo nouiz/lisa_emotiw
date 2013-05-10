@@ -29,7 +29,8 @@ from faceimages import FaceImagesDataset
 import numpy as np
 
 class AFW(FaceImagesDataset):
-    
+    """Annotated Face in-the-Wild (from Ramanan, images obtained from flickr)"""
+
     def __init__(self):
         super(AFW,self).__init__("AFW", "faces/AFW/testimages/")
         self.lstImages= []             

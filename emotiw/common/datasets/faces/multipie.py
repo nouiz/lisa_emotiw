@@ -31,6 +31,7 @@ import scipy.io
 from faceimages import FaceImagesDataset
 
 class MultiPie(FaceImagesDataset):
+    """The CMU Multi-PIE Face Database"""
     
     def __init__(self):
         super(MultiPie,self).__init__("MultiPie", "faces/Multi-Pie/")

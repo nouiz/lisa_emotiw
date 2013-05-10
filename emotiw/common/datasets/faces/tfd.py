@@ -52,7 +52,50 @@ def get_dataset_constructors():
 # Subclasses of FaceImagesDataset
 
 class TorontoFaceDataset(FaceImagesDataset):
+"""
+The Toronto Face Dataset (TFD) was set up by Josh Susskind as a union of several face datasets
+It has both a labeled examples (with 7 basic emotion labels) and unlabeled examples.
 
+See the techreport here:
+http://aclab.ca/users/josh/TFD.html
+
+Here are the original links to download the data:
+http://www.cs.toronto.edu/~jsusskin/TFD/TFD_48x48.mat
+http://www.cs.toronto.edu/~jsusskin/TFD/TFD_96x96.mat
+http://www.cs.toronto.edu/~jsusskin/TFD/TFD_info.mat
+
+For each original dataset we indicate (when we know them):
+  usual abbreviated name,
+  full name,
+  abbreviaiton in TFD mat file or TFD tech report table 1,
+  path relative to data directory (/data/lisa/data/)
+
+The following should have emotion labels and FACS info:
+- JACFEE: Japanese and Caucasian Facial Expressions of Emotion ('jacfee') faces/JACFEE/standard_expressor_set/
+- MMI: MMI Facial Expression Database ('MMI') faces/mmifacedb/
+- MSFDE: Montreal Set of Facial Displays of Emotion ('msfde')   faces/MSFDE/MSFDE/MSFDE/
+- CK+: The Extended Kohn Kanade Dataset ('dfat')  faces/cmu_expression/CK+/
+
+The following have emotions but no FACS:
+- IndianFace: The Indian Face Database ('indian') faces/IndianFaceDatabase
+- JAFFE: The Japanese Female Facial Expression Database ('jaffe') faces/jaffe 
+- POFA: Pictures of Facial Affect ('pofa') faces/POFA/POFA/
+- KDEF: The Karolinska Directed Emotional Faces ('kdef') faces/KDEF_and_AKDEF 
+- NimStim: The NimStim face stimulus set ('nim') faces/NimStim
+
+Couldn't find the source for downloading:
+'inaoe'  Cruz, C., Sucar, L., & Morales, E. (2008). Real-time face recognition for human-robot interaction. Paper presented at the IEEE International Conference on Automatic Face and Gesture Recognition.
+'cafe'   California Facial Expressions (CAFÉ) (Dailey, Cottrell, & Reilly, 2001)
+
+Couldn't associate the abbreviation in the mat file and list of databases in the TFD tech report Table 1:
+'fotosearch'
+'aging'
+'cad'
+'josh'
+'livegoogemo'
+'relived'
+'spontaneous'
+"""
     def __init__(self):
         super(TorontoFaceDataset, self).__init__("TFD", "faces/TFD/")
         # Load original 48x48 images
