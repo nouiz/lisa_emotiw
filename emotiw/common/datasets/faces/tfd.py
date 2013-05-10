@@ -182,10 +182,11 @@ class StaticCKPlus(FaceImagesDataset):
 
         emotionsDic = { "anger":0, "disgust":1, "fear":2 , "happy":3, "sadness":4, "surprise":5, "neutral":6, "contempt":7}
 
+        import zipfile
+        z = zipfile.ZipFile(self.absolute_base_directory+'Landmarks.zip', 'r')
 
         path = self.absolute_base_directory+"cohn-kanade-images/"
         emotionFile = self.absolute_base_directory + "emotions.txt"
-
 
         lstEmotions =[]
         lstpaths = []
@@ -207,13 +208,36 @@ class StaticCKPlus(FaceImagesDataset):
         self.csubject = 0 # Subject Counts
         for p in zip(lstpaths,lstEmotions,lstsubject):
             imp,emo, sub = zip(p)
-            #import pdb
-            #pdb.set_trace()
+
             files = os.listdir(self.absolute_base_directory+imp[0])
-            np.sort(files)
-            self.csubject +=1
-            self.lstImages.append([ p[0]+"/"+files[len(files)-1] ,emo[0],sub[0]])
-            self.lstImages.append([ p[0]+"/"+files[1] ,6,sub[0]])
+            np.sort(files)            
+            
+            #Non Neutral
+            self.csubject +=1         
+            
+            keypoints = self.getkeypoints('Landmarks'+p[0][18:len(p[0])]+"/"+files[len(files)-1][0:len(files[len(files)-1])-4]+'_landmarks.txt',z)
+            self.lstImages.append([ p[0]+"/"+files[len(files)-1] ,emo[0],sub[0], keypoints])            
+            #import pdb;pdb.set_trace()
+            #Neutral:
+            keypoints = self.getkeypoints('Landmarks'+p[0][18:len(p[0])]+"/"+files[len(files)-1][0:len(files[len(files)-1])-4]+'_landmarks.txt',z)
+            self.lstImages.append([ p[0]+"/"+files[1] ,6,sub[0],keypoints])
+            #import pdb;pdb.set_trace()
+
+    def getkeypoints(self,path,z):
+        featurePoints=[]
+        #import pdb;pdb.set_trace()
+        try:
+            lstpoints = z.read(path).split('\n')
+            c = 0
+            while c<len(lstpoints):
+                point = lstpoints[c]
+                if point != '':
+                    featurePoints.append(point.split())
+                c+=1
+        except:
+            featurePoints=[]
+        #import pdb;pdb.set_trace()    
+        return featurePoints
 
     def __len__(self):
         return len(self.lstImages)
@@ -235,12 +259,19 @@ class StaticCKPlus(FaceImagesDataset):
 
     def get_subject_id_of_ith_face(self, i):
         return str(self.lstImages[i][2])
+    
+    def getkeypoints(self,i):
+        """
+        This will return a bunch of points. to know what each index means, refere to an image called keypoints inside the ck+ directory        
+        """
+        return self.lstImages[i][3]
 
 
 class SFEW(FaceImagesDataset):
 
     def __init__(self):
-        super(SFEW,self).__init__("SFEW", "/data/lisa/data/faces/SFEW/")
+        # super(SFEW,self).__init__("SFEW", "/data/lisa/data/faces/SFEW/")
+        super(SFEW,self).__init__("SFEW", "faces/SFEW/")
         self.lstImages=[]
         self.keyPointsDict=[]
         emotionsDic = { "Angry":0, "Disgust":1, "Fear":2 , "Happy":3, "Sad":4, "Surprise":5, "Neutral":6}
@@ -296,7 +327,6 @@ class SFEW(FaceImagesDataset):
 
     def get_keypoints_location(self, i):
         return self.keyPointsDict[i]
-
 
 
 class MSFDE(FaceImagesDataset):
