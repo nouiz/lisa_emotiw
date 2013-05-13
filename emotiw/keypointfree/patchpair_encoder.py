@@ -139,27 +139,11 @@ class Patchpairencoder(object):
                 return x.flatten()
         self.grad = lambda x: numpy.concatenate([get_cudandarray_value(g) for g in self.grads(x)])
 
-    def updateparams(self, newparams):
-        def inplaceupdate(x, new):
-            x[...] = new
-            return x
-
-        paramscounter = 0
-        for p in self.params:
-            pshape = p.get_value().shape
-            pnum = numpy.prod(pshape)
-            p.set_value(inplaceupdate(p.get_value(borrow=True), newparams[paramscounter:paramscounter+pnum].reshape(*pshape)), borrow=True)
-            paramscounter += pnum 
-
-    def get_params(self):
-        return numpy.concatenate([p.get_value().flatten() for p in self.params])
-
     def save(self, filename):
         numpy.save(filename, self.get_params())
 
     def load(self, filename):
         self.updateparams(numpy.load(filename))
-
 
     def updateparams(self, newparams):
         def inplaceupdate(x, new):

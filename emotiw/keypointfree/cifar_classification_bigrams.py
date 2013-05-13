@@ -17,7 +17,9 @@ maxdelta = 10
 fixation_mask_size = 3
 numhid = 100
 pooling = "quadrants"
+numpatches_per_image = 50
 
+rng  = numpy.random.RandomState(1)
 
 
 def rgb2gray(image):
@@ -75,8 +77,8 @@ dispims_color.dispims_color(imstoshow, 1)
 
 
 #WHITENING
-patches = numpy.concatenate([crop_patches_color(im.reshape(3, 32, 32).transpose(1,2,0), numpy.array([numpy.random.randint(patchsize/2, 32-patchsize/2, 20), numpy.random.randint(patchsize/2, 32-patchsize/2, 20)]).T, patchsize) for im in trainims]).astype("float32")
-R = numpy.random.permutation(patches.shape[0])
+patches = numpy.concatenate([crop_patches_color(im.reshape(3, 32, 32).transpose(1,2,0), numpy.array([rng.randint(patchsize/2, 32-patchsize/2, 20), rng.randint(patchsize/2, 32-patchsize/2, 20)]).T, patchsize) for im in trainims]).astype("float32")
+R = rng.permutation(patches.shape[0])
 patches = patches[R, :]
 meanstd = patches.std()
 patches -= patches.mean(1)[:,None]
@@ -94,7 +96,7 @@ print "done"
 
 
 #EXTRACT PATCH PAIRS 
-print "extracting patch pairs"
+print "extracting patch pairs from images"
 alldata = []
 print "xxxxx", 
 for i, image in enumerate(allims):
@@ -102,19 +104,30 @@ for i, image in enumerate(allims):
     patch_pairs = []
     keypoint_deltas = []
     image = image.reshape(3, 32, 32).transpose(1,2,0)
-    keypoints = harris.get_harris_points(rgb2gray(image), min_distance=3, border=border, threshold=0.1)
-    numpy.random.shuffle(keypoints)
-    #add some random positions so we will certainly be able to use the image:
-    keypoints.append(numpy.array([12,12]))
-    keypoints.append(numpy.array([15,15]))
-    keypoints = numpy.array(keypoints)
+
+    #use random keypoints:
+    keypoints = numpy.array([(i,j) for i in numpy.arange(border,32-border) for j in numpy.arange(border,32-border)])
+    rng.shuffle(keypoints)
+    #-use random keypoints 
+
+    #use harris keypoints:
+    #keypoints = harris.get_harris_points(rgb2gray(image), min_distance=3, border=border, threshold=0.1)
+    #rng.shuffle(keypoints)
+    ##add some random positions to ensure we will be able to use the image:
+    #keypoints.append(numpy.array([12,12]))
+    #keypoints.append(numpy.array([15,15]))
+    #keypoints = numpy.array(keypoints)
+    #-use harris keypoints
+
     patches = crop_patches_color(image, keypoints, patchsize)
     patches -= patches.mean(1)[:,None] 
     patches /= patches.std(1)[:,None] + 0.1 * meanstd
     patches = numpy.dot(patches, pca_backward.T)
-    for patch_index_1 in range(len(patches)):
+    #for patch_index_1 in range(len(patches)):
+    keypoints_with_replacements = numpy.arange(len(patches))[rng.randint(0, len(patches)-1, numpatches_per_image)]
+    for patch_index_1, patch_index_2 in zip(keypoints_with_replacements[::-1], keypoints_with_replacements[1:]):
         #for patch_index_2 in range(len(patches)):
-        patch_index_2 = (patch_index_1+1) % len(patches)
+        #patch_index_2 = (patch_index_1+1) % len(patches)
         if numpy.sum(numpy.abs(keypoints[patch_index_1]-keypoints[patch_index_2]) >= (maxdelta,maxdelta)) != 0:
             continue      #include only keypoints that are fairly close to each other 
         patch_pairs.append(numpy.hstack((patches[patch_index_1], patches[patch_index_2])))
@@ -144,14 +157,24 @@ model = patchpair_encoder.Patchpairencoder(numvisD=9, numvisY=pca_forward.shape[
                        weightcost=0.0, contraction=0.5, 
                        numpy_rng=numpy_rng, theano_rng=theano_rng)
 
-trainfeatures = theano.shared(numpy.concatenate(alldata[:numtrain]).astype("float32"))
-trainer = train.GraddescentMinibatch(model, trainfeatures, batchsize=100, learningrate=0.01, normalizefilters=False) 
+bigramtrainfeatures = theano.shared(numpy.concatenate(alldata[:numtrain]).astype("float32"))
+trainer = train.GraddescentMinibatch(model, bigramtrainfeatures, batchsize=100, learningrate=0.01, normalizefilters=False) 
 
 
 print "training model"
-for epoch in xrange(200):
+for epoch in xrange(100):
     trainer.step()
-    if epoch % 1 == 0:
+    if epoch % 10 == 0:
+        pylab.figure(1)
+        pylab.clf()
+        for i in range(3):
+            for j in range(3):
+                pylab.subplot(3,3,i*3+j+1)
+                W = model.wdfh.get_value()[i*3+j,:model.numvisY, :]
+                W_ = numpy.dot(pca_forward, W)
+                dispims_color.dispims_color(W_.T.reshape(-1, patchsize, patchsize, 3))
+                pylab.draw(); pylab.show()
+        pylab.figure(2)
         pylab.clf()
         for i in range(3):
             for j in range(3):
