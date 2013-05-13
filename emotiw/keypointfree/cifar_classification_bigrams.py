@@ -13,11 +13,11 @@ import train
 numclasses = 10 
 patchsize = 6
 border = patchsize/2
-maxdelta = 10
+maxdelta = 5
 fixation_mask_size = 3
 numhid = 100
-pooling = "quadrants"
-numpatches_per_image = 50
+#pooling = "quadrants"
+numpatches_per_image = 500
 
 rng  = numpy.random.RandomState(1)
 
