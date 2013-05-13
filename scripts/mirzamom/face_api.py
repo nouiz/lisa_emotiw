@@ -107,21 +107,31 @@ def batch_job():
         each folder in turn
     """
 
-    base_url = "http://www-etud.iro.umontreal.ca/~mirzamom/data/"
-    base_path = "/home/www-etud/usagers/mirzamom/HTML/data/"
-    save_path = "/data/lisa/data/faces/EmotiW/mashape_keypoints/Val/Neutral/"
+    #base_url = "http://www-etud.iro.umontreal.ca/~mirzamom/data/"
+    base_url = "http://deeplearning.net/data/IHDPHeadPose/"
 
-    file_list = glob.glob(base_path + "*.png")
-    for item in file_list:
-        url = base_url + item.split("/")[-1]
-        tags = detect(url)
-        if tags is not None:
-            print "Passed: {}".format(item)
-            save_name = save_path + item.split("/")[-1].rstrip(".png") + ".json"
-            with open(save_name, 'w') as outf:
-                json.dump(tags, outf)
+    base_path = "/data/lisa/data/faces/headpose/IHDPHeadPose/"
+    #save_path = "/data/lisa/data/faces/EmotiW/mashape_keypoints/Val/Neutral/"
+    save_path = "/data/lisa/data/faces/headpose/mashapeKpts/IHDPHeadPose/"
+
+    #file_list = glob.glob(base_path + "*.png")
+    file_list = glob.glob(base_path + "*/*.jpg")
+    for item in file_list:      
+        print item
+        url = base_url + item.split("/")[-2] + '/' + item.split("/")[-1]
+        save_name = save_path + item.split("/")[-2] + '/' + item.split("/")[-1].rstrip(".jpg") + ".json"
+        if (os.path.isfile(save_name)):
+            print "Already Processed: {}".format(save_name)
         else:
-            print "Failed: {}".format(item)
+            print url
+            tags = detect(url)
+            if tags is not None:
+                print "Passed: {}".format(item)
+                save_name = save_path + item.split("/")[-2] + '/' + item.split("/")[-1].rstrip(".jpg") + ".json"
+                with open(save_name, 'w') as outf:
+                    json.dump(tags, outf)
+            else:
+                print "Failed: {}".format(item)
 
 
 def test_run():
