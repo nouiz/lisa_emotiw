@@ -1,0 +1,19 @@
+files in this directory: 
+
+cifar_classification_bigrams.py - main script to do patch-pair based classification using the "mini cifar" dataset 
+
+patchpair_encoder.py - defines a three-way autoencoder for learning representations of patch-pairs and their spatial relations (used by cifar_classification_bigrams.py) 
+
+train.py - helper module that defines the trainer object used by cifar_classification_bigrams.py 
+
+dispims_color.py - helper module for displaying learned color filters 
+
+harris.py - helper module for extracting keypoints 
+
+logreg.py - logistic regression 
+
+minimize.py - conjugate gradients code (originially by carl rasmussen) used by logreg.py
+
+make_cifarmini.py - script that makes the mini cifar dataset and dumps it in the curret directory
+
+
