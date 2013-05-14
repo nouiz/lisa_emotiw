@@ -30,8 +30,11 @@ import sys
 
 class ImageSequenceDataset(object):
 
-    def get_name(self):
-        return ""
+    def __init__(self, name):
+        self.name = name
+
+    def get_name(self):        
+        return self.name
 
     def __len__(self):
         """
@@ -53,13 +56,11 @@ class ImageSequenceDataset(object):
             return self.get_sequence(i)
 
         elif isinstance(i, slice):
-            raise NotImplementedError(str(type(self)) + " does not implement __getitem__ for a slice")
-            # return ImageSequenceSubset(self,range(i.start, i.stop, i.step))
+            return ImageSequenceSubset(self,range(i.start, i.stop, i.step))
 
         else: # assume list of indexes
-            raise NotImplementedError(str(type(self)) + " does not implement __getitem__ for a list of indexes")
-            # li = [idx for idx in i] # build list fro any iterable
-            # return FaceSequenceSubset(self,li)
+            li = [idx for idx in i] # build list fro any iterable
+            return ImageSequenceSubset(self,li)
 
     def get_sequence(self, i):
         """Returns a sequence of image frames that will typically be a subclass of FaceImagesDataset.
@@ -127,13 +128,35 @@ class ImageSequenceDataset(object):
             print >>out, "%30s: %6d / %d \t (%.2f%%)" % (val, values_counts[val], not_none_count, 100.0*values_counts[val]/not_none_count)
         print >>out
 
+
+# Helper classes
+
+class ImageSequenceSubset(ImageSequenceDataset):
+    """
+    A subset view of an ImageSequenceDataset. This view is itself a ImageSequenceDataset.
+    """
+    def __init__(self, orig_dataset, indices, name=None):
+        if name is None:
+            name = "subset of "+orig_dataset.name
+        super(ImageSequenceSubset,self).__init__(name)
+        self.orig_dataset = orig_dataset
+        self.indices = indices
+        
+    def __len__(self):
+        return len(self.indices)
+        
+    def get_sequence(self, i):
+        return self.orig_dataset.get_sequence(self.indices[i])        
+
+    def get_label(self, i):
+        return self.orig_dataset.get_label(self.indices[i])        
         
 
 
 class SimpleImageSequenceDataset(ImageSequenceDataset):
 
     def __init__(self, name, image_sequence_list, label_list=None):
-        self.name = name
+        super(SimpleImageSequenceDataset,self).__init__(name)
         self.image_sequence_list = image_sequence_list
         self.label_list = label_list
 

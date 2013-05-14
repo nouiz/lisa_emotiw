@@ -50,6 +50,8 @@ class AFEW2ImageSequenceDataset(afew.AFEWImageSequenceDataset):
         If preload_facetubes is True, all facetubes will be loaded
         when the dataset is built, which takes around 1.2 GB.
         """
+        super(AFEW2ImageSequenceDataset,self).__init__("AFEW2")
+
         self.absolute_base_directory = locate_data_path(self.base_dir)
         self.picasa_boxes_base_directory = locate_data_path(
                 self.picasa_boxes_base_dir)
@@ -157,5 +159,3 @@ class AFEW2ImageSequenceDataset(afew.AFEWImageSequenceDataset):
             rval.append(np.load(f))
         return tuple(rval)
 
-    def get_name(self):
-        return "AFEW2"
