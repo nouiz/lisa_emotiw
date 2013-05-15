@@ -104,7 +104,9 @@ class AFEWImageSequenceDataset(ImageSequenceDataset):
     base_dir = "faces/AFEW/images"
     picasa_boxes_base_dir = "faces/AFEW/picasa_boxes"
 
-    def __init__(self):
+    def __init__(self, name="AFEW"):
+        super(AFEWImageSequenceDataset,self).__init__(name)
+
         self.absolute_base_directory = locate_data_path(self.base_dir)
         self.picasa_boxes_base_directory = locate_data_path(
                 self.picasa_boxes_base_dir)
@@ -159,5 +161,3 @@ class AFEWImageSequenceDataset(ImageSequenceDataset):
         # Only one fold
         return [(self.trainIndexes, self.validIndexes)]
 
-    def get_name(self):
-        return "AFEW"

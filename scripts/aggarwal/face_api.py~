@@ -108,20 +108,21 @@ def batch_job():
     """
 
     #base_url = "http://www-etud.iro.umontreal.ca/~mirzamom/data/"
-    base_url = "http://deeplearning.net/data/IHDPHeadPose/"
+    base_url = "http://deeplearning.net/data/InrialapesHeadPose/"
 
-    base_path = "/data/lisa/data/faces/headpose/IHDPHeadPose/"
+    base_path = "/data/lisa/data/faces/headpose/InrialpesHeadPose/"
     #save_path = "/data/lisa/data/faces/EmotiW/mashape_keypoints/Val/Neutral/"
-    save_path = "/data/lisa/data/faces/headpose/mashapeKpts/IHDPHeadPose/"
+    save_path = "/data/lisa/data/faces/headpose/mashapeKpts/InrialpesHeadPose/"
 
     #file_list = glob.glob(base_path + "*.png")
     file_list = glob.glob(base_path + "*/*.jpg")
     for item in file_list:      
-        print item
+        print item.split("/")[-1]
         url = base_url + item.split("/")[-2] + '/' + item.split("/")[-1]
         save_name = save_path + item.split("/")[-2] + '/' + item.split("/")[-1].rstrip(".jpg") + ".json"
         if (os.path.isfile(save_name)):
-            print "Already Processed: {}".format(save_name)
+            #print "Already Processed: {}".format(save_name)
+            doNothing = 1
         else:
             print url
             tags = detect(url)
@@ -139,7 +140,8 @@ def test_run():
     """
     test run
     """
-    imgs = ['http://mojoimage.com/free-image-hosting-12/31778.jpg',
+    imgs = [
+            'http://mojoimage.com/free-image-hosting-12/31778.jpg',
             'http://mojoimage.com/free-image-hosting-12/91738.jpg',
             'http://mojoimage.com/free-image-hosting-12/266445.jpg']
     for img in imgs:
@@ -149,5 +151,5 @@ if __name__ == "__main__":
 
     global MY_KEY
     MY_KEY = get_key()
-
+    #test_run
     batch_job()

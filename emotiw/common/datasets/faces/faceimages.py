@@ -47,7 +47,7 @@ class FaceImagesDataset(object):
         """
         Initilizes a dataset with the given name, and whose
         constituent files are located in the specified
-        directory. This directory is specified only relative to
+f        directory. This directory is specified only relative to
         some standard dataset root location (found with locate_data_path ) 
         """
         self.dataset_name = dataset_name
@@ -101,6 +101,16 @@ class FaceImagesDataset(object):
         Returns the relative path that needs to be concatenated to the
         relative_base_directory (which locates this dataset's directory) 
         in order to access the image file containing the ith face example.
+        """
+        raise NotImplementedError()
+
+    def get_pan_tilt_and_roll(self, i):
+        """
+        Return a tuple that contains (Pan Angle/value, Tilt Angle/value, Role Angle/value)
+        where Pan angle can be from -90:90 degree (left to right from  subject's perspective)
+        and Tilt Angle can be from -90:90 (bottom to top)
+        Roll is head tilt angle side ways.Tilting towards left means negative angle. Upright head is 0 roll.
+        Eg: (-45,-45, 0) a person is looking to his left-bottom
         """
         raise NotImplementedError()
 
