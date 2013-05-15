@@ -1,12 +1,8 @@
 import numpy, pylab
-import cPickle
 
 import theano
 import theano.tensor as T
 from theano.tensor.shared_randomstreams import RandomStreams
-
-from tools import dispims
-from minimize import minimize  
 
 
 class Patchpairencoder(object):

@@ -11,13 +11,13 @@ import patchpair_encoder
 import train
 
 numclasses = 10 
-patchsize = 6
+patchsize = 12
 border = patchsize/2
-maxdelta = 5
+maxdelta = 7 
 fixation_mask_size = 3
 numhid = 100
 #pooling = "quadrants"
-numpatches_per_image = 500
+numpatches_per_image = 1000
 
 rng  = numpy.random.RandomState(1)
 
