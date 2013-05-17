@@ -52,5 +52,7 @@ if __name__ == "__main__":
                         rval.append(resize(frame, size))
 
                     rval = numpy.concatenate([item[numpy.newaxis, ...] for item in rval])
+                    rval *= 255.
+                    rval = rval.astype('uint8')
                     output = "{}{}/{}/{}-{}.npy".format(dest, set_n, emot, clip, tube)
                     numpy.save(output, rval)
