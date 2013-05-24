@@ -32,18 +32,19 @@ Nose keypoint usually slightly below nosetip.
 Mouth keypoint placement roughly around the lips' center.
 Eye keypoint placement roughly pupil position.
 Not very accurate on close shots.
+Various image sizes
 
 LEFT/RIGHT: relative to image
 
 ==
 HIIT6
 :::
-Extremely small images. Points somewhat inaccurate. (same data as ncku available).
+Extremely small images. Points somewhat inaccurate. (Same data as ncku available).
 
 ==
 IHDP
 :::
-Extremely small images. Points somewhat inaccurate. Same data as ncku available.
+Extremely small images. Points somewhat inaccurate. (Same data as ncku available).
 
 ==
 INRIALPES

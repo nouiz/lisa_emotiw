@@ -17,7 +17,7 @@ class DataReader(object):
         self.points = []
         self.point_names = []
 
-    def display_n(self, n, archive=None, drawFn = displayImageWithKeypoints, fnForDrawFn = displayPoint):
+    def display_n(self, n, archive=None, drawFn=displayImageWithKeypoints, fnForDrawFn=displayPoint):
         """
         displays the first available n images
         from the data loaded at __init__ time,
@@ -72,7 +72,11 @@ class InrialpesReader(DataReader):
                     self.points.append(lst)
 
     def display_n(self, n):
-        super(InrialpesReader, self).display_n(n, None, displayImageWithBoundingbox)
+        super(InrialpesReader, self).display_n(n, None, displayImageWithBoundingbox, None)
+
+    def display_n_with_index(self, n, archive):
+        pass
+        #unsupported
 
 class BioReader(DataReader):
     def __init__(self, top_dir='/data/lisa/data/faces/BioID/BioID-FaceDatabase-V1.2'):
@@ -109,8 +113,11 @@ class CaltechReader(DataReader):
 
         f.close()
 
-    def display_n(self, n):
-        return super(CaltechReader, self).display_n(n, self.archive)
+    def display_n(self, n, drawFn=displayImageWithKeypoints, fnForDrawFn=displayPoint):
+        return super(CaltechReader, self).display_n(n, self.archive, drawFn, fnForDrawFn)
+
+    def display_n_with_index(self, n):
+        return self.display_n(n, displayImageWithKeypoints, displayNum)
    
 class WildPartsReader(DataReader):
     def __init__(self, fname='/data/lisa/data/faces/labeled_face_parts_in_the_wild/test_with_ids.csv', reldir='test'):
@@ -167,7 +174,7 @@ class JsonBasedReader(DataReader):
                     
                     self.images.append(path.join(top_dir, folder, f[:-4]+ext))
                     self.points.append([data['eye_left']['x'], data['eye_left']['y'],
-                                    data['eye_right']['x'], data['eye_left']['y'],
+                                    data['eye_right']['x'], data['eye_right']['y'],
                                     data['center']['x'], data['center']['y'],
                                     data['mouth_right']['x'], data['mouth_right']['y'],
                                     data['mouth_left']['x'], data['mouth_left']['y'],
