@@ -78,17 +78,23 @@ class InrialpesReader(DataReader):
         pass
         #unsupported
 
-class BioReader(DataReader):
-    def __init__(self, top_dir='/data/lisa/data/faces/BioID/BioID-FaceDatabase-V1.2'):
-        self.images = [top_dir+'/BioID_'+str(i).zfill(4)+'.pgm' for i in range(1520)]
-        self.point_names = ['left_eye_x', 'left_eye_y', 'right_eye_x', 'right_eye_y']
+class points_n_reader(DataReader):
+    def __init__(self, top_dir, transform=lambda x: x):
         self.points = []
 
-        for a in self.images:
-            f = open(a[:-3]+'eye')
-            line = f.readlines()[1].strip()
-            self.points.append(line.split("\t"))            
+        for img in self.images:
+            points = []
+            f = open(path.join(top_dir, transform(img)))
+            for l in f.readlines()[3:-1]:
+                x_y = l.split(' ')
+                points.extend([float(x_y[0]), float(x_y[1])])
+            self.points.append(points)
             f.close()
+    
+class BioReader(points_n_reader):
+    def __init__(self, top_dir='/data/lisa/data/faces/BioID/BioID-FaceDatabase-V1.2'):
+        self.images = [top_dir+'/BioID_'+str(i).zfill(4)+'.pgm' for i in range(1520)]
+        super(BioReader, self).__init__(path.join(path.dirname(top_dir), 'points_20/'), lambda x: x[-14:-3].lower() + 'pts')
 
 class CaltechReader(DataReader):
     def __init__(self, archive='/data/lisa/data/faces/caltech/Caltech_WebFaces.tar', points_file='/data/lisa/data/faces/caltech/WebFaces_GroundThruth.txt'):
@@ -192,6 +198,10 @@ class HIIT6Reader(JsonBasedReader):
 class IHDPReader(JsonBasedReader):
     def __init__(self, top_dir='/data/lisa/data/faces/headpose/IHDPHeadPose', points_dir='/data/lisa/data/faces/headpose/mashapeKpts/IHDPHeadPose', ext='jpg'):
         super(IHDPReader, self).__init__(top_dir, points_dir, ext)
+
+class InrialpesPoints(JsonBasedReader):
+    def __init__(self, top_dir='/data/lisa/data/faces/headpose/InrialpesHeadPose', points_dir='/data/lisa/data/faces/headpose/mashapeKpts/InrialpesHeadPose', ext='jpg'):
+        super(InrialpesPoints, self).__init__(top_dir, points_dir, ext)
 
 class MultipieReader(DataReader):
     def __init__(self, image_dir='/data/lisa/data/faces/Multi-Pie/data', labels_dir='/data/lisa/data/faces/Multi-Pie/MPie_Labels/labels'):
