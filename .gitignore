@@ -36,3 +36,7 @@ nosetests.xml
 
 # OS Files
 *.DS_Store
+
+#vim swap files
+*.swp
+*.swo

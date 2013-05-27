@@ -34,8 +34,9 @@ class AFW(FaceImagesDataset):
     def __init__(self):
         super(AFW,self).__init__("AFW", "faces/AFW/testimages/")
         self.lstImages= []             
+        self.lstkeypoints = []
         import h5py
-        f = h5py.File(self.absolute_base_directory+'anno.mat')
+        f = h5py.File(self.absolute_base_directory+'anno.mat', 'r')
         entryCount = f["anno"].shape[1]
 
         lstImages= []
@@ -61,10 +62,10 @@ class AFW(FaceImagesDataset):
             ref4 = f["anno"].value[3].item(imIndex)
             count4= f[ref4].value.shape[0]
             for k in xrange(count4):
-                lstkeypoints.append( f[f[ref4].value[k][0]].value)  #[[x1 x2 ..],[y1 y2 ...]]                
+                self.lstkeypoints.append( f[f[ref4].value[k][0]].value)  #[[x1 x2 ..],[y1 y2 ...]]                
                 
             for c in xrange(len(lstfacebb)):
-                self.lstImages.append([name,lstfacebb[c],lstPose[c],lstkeypoints[c]])
+                self.lstImages.append([name,lstfacebb[c],lstPose[c],self.lstkeypoints[c]])
         
             
     def __len__(self):
@@ -78,11 +79,11 @@ class AFW(FaceImagesDataset):
 
     def get_eyes_location(self, i):
         
-        return [lstkeypoints[i][3][0][0],lstkeypoints[i][3][1][0],lstkeypoints[i][3][0][1],lstkeypoints[i][3][1][1]]
+        return [self.lstkeypoints[i][3][0][0],self.lstkeypoints[i][3][1][0],self.lstkeypoints[i][3][0][1],self.lstkeypoints[i][3][1][1]]
     
     def get_keypoints_location(self,i):
         """
         contains 6 landmarks. [(the center of eyes, tip of nose, the two corners and center of mouth)]
         """
-        return lstkeypoints[i][3]
+        return self.lstkeypoints[i]
 
