@@ -1,6 +1,6 @@
 AFLW
 :::
-['right_eyebrow_outer_end', 'right_eyebrow_center', 'right_eyebrow_inner_end', 'left_eyebrow_inner_end', 'left_eyebrow_center', 'left_eyebrow_outer_end', 'right_eye_outer_corner', 'right_eye_pupil', 'right_eye_inner_corner', 'left_eye_inner_corner', 'left_eye_center', 'left_eye_outer_corner', 'right_ear', 'left_ear', 'right_nostril', 'nose_tip', 'left_nostril', 'mouth_right_corner', 'mouth_center', 'mouth_left_corner', 'chin_center']
+['right_eyebrow_outer_end', 'right_eyebrow_center', 'right_eyebrow_inner_end', 'left_eyebrow_inner_end', 'left_eyebrow_center', 'left_eyebrow_outer_end', 'right_eye_outer_corner', 'right_eye_pupil', 'right_eye_inner_corner', 'left_eye_inner_corner', 'left_eye_pupil', 'left_eye_outer_corner', 'right_ear', 'left_ear', 'right_nostril', 'nose_tip', 'left_nostril', 'mouth_right_corner', 'mouth_center', 'mouth_left_corner', 'chin_center']
 
 Ear means the point where the lobe connects with the face.
 
