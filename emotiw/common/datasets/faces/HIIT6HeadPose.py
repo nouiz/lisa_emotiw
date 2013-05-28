@@ -1,22 +1,8 @@
-# Wrapper to access headpose dataset given at
-# https://sites.google.com/site/diegotosato/ARCO/iit
-# coded by - abhi (abhiggarwal@gmail.com)
-
+from NckuBasedDataset import NckuBasedDataset
 import os
-import numpy as np
-import sys
-import glob
-from scipy import io as sio
-import unicodedata
 import math
-import json
 
-from emotiw.common.utils.pathutils import locate_data_path
-from faceimages import FaceImagesDataset
-
-# 4805 (24.025 percent) keypoints out of 20000 datasamples
-
-class HIIT6HeadPose(FaceImagesDataset):
+class HIIT6HeadPose(NckuBasedDataset):
     def __init__(self):
         super(HIIT6HeadPose, self).__init__("HIIT6HeadPose", "faces/headpose/HIIT6HeadPose")
 
@@ -69,64 +55,8 @@ class HIIT6HeadPose(FaceImagesDataset):
 
                         idx += 1
         self.read_json_keypoints()
-         
-    def get_keypoints_location(self, i):
-        if i >= 0 and i < len(self.images):
-            return self.keyPoints[i]
-        else:
-            return None
-
-    def read_json_keypoints(self):
-        self.keyPoints = []
-        print 'length ofimageIndex'
-        print len(self.imageIndex)
-        for file in self.imageIndex :
-             relPath = self.get_original_image_path_relative_to_base_directory(self.imageIndex[file])
-             pathJson = os.path.join(self.absolute_base_directory, '..', 'mashapeKpts', 'HIIT6HeadPose', relPath)
-             pathJson = os.path.splitext(pathJson)[0] + '.json'
-             jsonData = open(pathJson)
-             data = json.load(jsonData)
-             if len(data) == 0:
-                 self.keyPoints.append({})
-             else:
-                 keyDict = {}
-                 self.out += 1
-                 print self.out
-                 for key in data[0]:
-                     if key not in ['confidence', 'tid', 'attributes', 'height', 'width'] :
-                         keyDict[key] = (data[0][key]['x'],data[0][key]['y'])
-                         #print keyDict[key]
-                     elif key in ['height', 'width']:
-                         keyDict[key] = data[0][key]
-                        # print keyDict[key]
-                         
-                 self.keyPoints.append(keyDict)
-
-    
-         
-    def __len__(self):
-        return len(self.images)
-
-    def get_pan_tilt_and_roll(self, i):
-        if i >= 0 and i < len(self.images):
-            return (self.pan[i], self.tilt[i], self.roll[i])
-        else:
-            return None 
-
-    def get_original_image_path_relative_to_base_directory(self, i):
-        return self.relPaths[i]
-
-    def get_subject_id_of_ith_face(self, i):
-        return None
-
-    def get_head_pose(self, i):
-        return None
-    def get_index_from_image_filename(self, imgFileName):
-        return self.imageIndex[imgFileName]
-
 
 def testWorks():
-
     ncku = HIIT6HeadPose()
     print len(ncku)
     print 'number of keypoints'
@@ -137,7 +67,3 @@ def testWorks():
         print ncku.get_subject_id_of_ith_face(index)
         print ncku.get_index_from_image_filename(ncku.images[index])
         print ncku.get_pan_tilt_and_roll(index)
-
-
-if __name__ == '__main__':
-    testWorks() 

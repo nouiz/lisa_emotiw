@@ -4,19 +4,14 @@
 
 import os
 import numpy as np
-import sys
-import glob
 from scipy import io as sio
-import unicodedata
 import math
-import json
 
-from emotiw.common.utils.pathutils import locate_data_path
-from faceimages import FaceImagesDataset
+from NckuBasedDataset import NckuBasedDataset
 
 # (685) 24.55 percent data with keypoints out of 2790 SAMPLES
 
-class InrialpesHeadPose(FaceImagesDataset):
+class InrialpesHeadPose(NckuBasedDataset):
     def __init__(self):
         super(InrialpesHeadPose, self).__init__("InrialpesHeadPose", "faces/headpose/InrialpesHeadPose")
 
@@ -68,99 +63,6 @@ class InrialpesHeadPose(FaceImagesDataset):
 
                     #analyse the name
         self.read_json_keypoints()
-
-         
-    def __len__(self):
-        return len(self.images)
-
-    def get_keypoints_location(self, i):
-        if i >= 0 and i < len(self.images):
-            return self.keyPoints[i]
-        else:
-            return None
-
-    def read_json_keypoints(self):
-        self.keyPoints = []
-        for file in self.imageIndex :
-             relPath = self.get_original_image_path_relative_to_base_directory(self.imageIndex[file])
-             pathJson = os.path.join(self.absolute_base_directory, '..', 'mashapeKpts', 'InrialpesHeadPose', relPath)
-             pathJson = os.path.splitext(pathJson)[0] + '.json'
-             if(os.path.isfile(pathJson) is not True):
-                 return None
-
-             jsonData = open(pathJson)
-             data = json.load(jsonData)
-             if len(data) == 0:
-                 self.keyPoints.append({})
-             else:
-                 keyDict = {}
-                 self.out += 1
-                 for key in data[0]:
-                     if key not in ['confidence', 'tid', 'attributes', 'height', 'width'] :
-                         keyDict[key] = (data[0][key]['x'],data[0][key]['y'])
-                         #print keyDict[key]
-                     elif key in ['height', 'width']:
-                         keyDict[key] = data[0][key]
-                        # print keyDict[key]
-                         
-                 self.keyPoints.append(keyDict)
-
-
-
-    def get_pan_tilt_and_roll(self, i):
-        return (self.pan[i], self.tilt[i], self.roll[i])
-
-    def get_original_image_path_relative_to_base_directory(self, i):
-        return self.relPaths[i]
-
-    def get_subject_id_of_ith_face(self, i):
-        if i >= 0 and i < len(self.images):
-            return self.listOfSubjectId[i]
-        else:
-            return None
-
-    def get_head_pose(self, i):
-        if i >= 0 and i < len(self.images):
-            pan, tilt, roll = self.get_pan_tilt_and_roll(i)
-            panAngle = math.degrees(math.asin(pan))
-            tiltAngle = math.degrees(math.asin(tilt))
-
-            if(tiltAngle >= -90 and tiltAngle <=-60):
-                #subject vertically looking up
-                if(panAngle >= -90 and panAngle <= -30):
-                    self.poses[i] = 8
-                elif(panAngle >= -15 and panAngle <= 15):
-                    self.poses[i] = 7
-                elif(panAngle >= 30 and panAngle <= 90):
-                    self.poses[i] = 6
-            elif(tiltAngle >= -30 and tiltAngle <= 30):
-                #subject verticall looking in the center 
-                if(panAngle >= -90 and panAngle <= -60):
-                    self.poses[i] = 10
-                elif(panAngle >= -45 and panAngle <= -30):
-                    self.poses[i] = 5
-                elif(panAngle >= -15 and panAngle <= 15):
-                    self.poses[i] = 4
-                elif(panAngle >= 30 and panAngle <= 45):
-                    self.poses[i] = 3
-                elif(panAngle >= 60 and panAngle <= 90):
-                    self.poses[i] = 9    
-            else:
-                #subject vertically looking up
-                if(panAngle >= -90 and panAngle <= -30):
-                    self.poses[i] = 2
-                elif(panAngle >= -15 and panAngle <= 15):
-                    self.poses[i] = 1
-                elif(panAngle >= 30 and panAngle <= 90):
-                    self.poses[i] = 0
-
-            return self.poses[i]
-        else:
-            return None
-
-    def get_index_from_image_filename(self, imgFileName):
-        return self.imageIndex[imgFileName]
-
 
 def testWorks():
 
