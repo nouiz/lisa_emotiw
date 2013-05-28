@@ -30,6 +30,9 @@ import scipy.io
 
 from faceimages import FaceImagesDataset
 
+def avg_2(a, b):
+    return ((a[0] + b[0])/2, (a[1] + b[1])/2)
+
 class MultiPie(FaceImagesDataset):
     """The CMU Multi-PIE Face Database"""
     
@@ -59,11 +62,30 @@ class MultiPie(FaceImagesDataset):
                 imrelpath += 'session'+session+'/multiview/'+parts[0]+'/'+parts[2]+'/'+parts[3][0]+parts[3][1]+"_"+parts[3][2]+'/'
                 imrelpath += "_".join(parts[0:5])+'.png'
                 filename = label+c+'/'+f
-                print "loading ", filename
+                #print "loading ", filename #printing is slow and lots of files are being loaded.
+                pts_idx_dict = {0: 'right_ear_top', 1: 'right_ear_center', 2: 'right_ear_bottom', 7: 'chin_right', 
+                                8: 'chin_center', 9: 'chin_left', 14: 'left_ear_bottom', 15: 'left_ear_center', 
+                                16: 'left_ear_top', 17: 'right_eyebrow_outer_end', 19: 'right_eyebrow_center', 
+                                21: 'right_eyebrow_inner_end', 22: 'left_eyebrow_inner_end', 24: 'left_eyebrow_center', 
+                                26: 'left_eyebrow_outer_end', 27: 'nose_center_top', 30: 'nose_tip', 
+                                31: 'right_nostril', 34: 'nostrils_center', 35: 'right_nostril', 
+                                36: 'right_eye_outer_corner', 39: 'right_eye_inner_corner', 42: 'left_eye_inner_corner', 
+                                45: 'left_eye_outer_corner', 48: 'mouth_right_corner', 51: 'mouth_center_top_lip', 
+                                54: 'mouth_left_corner', 57: 'mouth_center_bottom_lip', 62: 'mouth_center'}
+    
                 points = scipy.io.loadmat(filename)['pts']
-                #There are some subjects with out male or female information                
+                this_dict = {}
+                prev_p = None
+                for idx, p in enumerate(points):
+                        if idx in pts_idx_dict:
+                            name = pts_idx_dict[idx]
+                        else:
+                            name = 'point_' + str(idx)
+                        this_dict[name] = (p[0], p[1])
+
+                #There are some subjects without male or female information                
                 if subject<len(self.lstgender):
-                    self.lstImages.append([imrelpath,subject,points,self.lstgender[subject]])
+                    self.lstImages.append([imrelpath,subject,this_dict,self.lstgender[subject]])
                 else:
                     self.lstImages.append([imrelpath,subject,points,""])
                 
@@ -78,11 +100,17 @@ class MultiPie(FaceImagesDataset):
     
     def get_eyes_location(self, i):
         """
-        returns left eye (left corner, right corner), right eye (left corner, right corner)
+        returns the eye on the left in the image (assumed to be the right eye),
+        and then the rigth-most eye (assumed to be the left eye).        
+        The eye center is calculated from the average of the top and bottom for each eye,
+        which itself is calculated from the average of the points left or right of those
+        top or bottom centers (37, 38; 40, 41 for the right eye and 43, 44; 46, 47 for the left eye).
         """
-        lefteye = 0.5*(self.lstImages[i][2][37]+self.lstImages[i][2][40])
-        righteye = 0.5*(self.lstImages[i][2][43]+self.lstImages[i][2][46])
-        return lefteye[0], lefteye[1], righteye[0], righteye[1]
+        righteye = avg_2(avg_2(self.lstImages[i][2]['point_37'], self.lstImages[i][2]['point_38']),
+                        avg_2(self.lstImages[i][2]['point_40'], self.lstImages[i][2]['point_41']))
+        lefteye = avg_2(avg_2(self.lstImages[i][2]['point_43'], self.lstImages[i][2]['point_44']),
+                        avg_2(self.lstImages[i][2]['point_46'], self.lstImages[i][2]['point_47']))
+        return righteye[0], righteye[1], lefteye[0], lefteye[1]
     
     def get_keypoints_location(self,i):
         """

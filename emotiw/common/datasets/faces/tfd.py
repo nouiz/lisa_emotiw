@@ -920,7 +920,7 @@ class ArFace(FaceImagesDataset):
     def get_eyes_location(self, i):
         d = self.keyPointsDict[i]
         if d is not None:
-            return d['left_eye_pupil'] + d['right_eye_pupil']
+            return d['right_eye_pupil'] + d['left_eye_pupil']
         else:
             return None
 

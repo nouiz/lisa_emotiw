@@ -168,23 +168,64 @@ f        directory. This directory is specified only relative to
 
         Possible names for the keypoints should be one of FGNet definition :
         *** Left = left of subject therefore at the right of the image in frontal view ***
-        left_eye_pupil
-        right_eye_pupil
-        left_eye_center
-        right_eye_center
-        left_eye_inner_corner
-        left_eye_outer_corner
-        right_eye_inner_corner
-        right_eye_outer_corner
+
         left_eyebrow_inner_end
-        left_eyebrow_outer_end
-        right_eyebrow_inner_end
-        right_eyebrow_outer_end
+        mouth_top_lip_bottom
+        right_ear_canal
+        right_ear_top
+        mouth_top_lip
+        mouth_bottom_lip_top
+        right_eyebrow_center
+        chin_left
         nose_tip
+        left_eyebrow_center_top
+        left_eye_outer_corner
+        right_ear
+        mouth_bottom_lip
+        left_eye_center
+        left_mouth_outer_corner
+        left_eye_center_top
+        left_ear_center
+        nostrils_center
+        right_eye_outer_corner
+        right_eye_center_bottom
+        chin_center
+        left_eye_inner_corner
+        right_mouth_outer_corner
+        left_ear_bottom
+        right_eye_center_top
+        right_eyebrow_inner_end
+        left_eyebrow_outer_end
+        left_ear_top
+        right_ear_center
+        nose_center_top
+        face_center
+        right_eye_inner_corner
+        right_eyebrow_center_top
+        left_eyebrow_center
+        right_eye_pupil
+        right_ear_bottom
         mouth_left_corner
-        mouth_right_corner
-        mouth_center_top_lip
+        left_eye_center_bottom
+        left_eyebrow_center_bottom
         mouth_center_bottom_lip
+        mouth_right_corner
+        right_nostril
+        right_eye_center
+        face_dimensions
+        chin_right
+        right_eyebrow_outer_end
+        left_eye_pupil
+        mouth_center
+        left_nostril
+        right_eyebrow_center_bottom
+        left_ear_canal
+        left_ear
+        face_right
+        face_left
+        (NOTE: a list of those keypoints formated as a python list is available in 
+            emotiw/keypoints_desc/keypoints_desc)
+
         """
         return None
 

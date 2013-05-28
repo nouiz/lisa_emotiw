@@ -44,12 +44,15 @@ class Lfpw(FaceImagesDataset):
                 #first coord for this point and we store it.
                 #if it's odd, then this is the second coord and we may
                 #add the point as a (prev_coord, this_coord) tuple.
+                #The value of the 3rd (meta-)coord must be 0 for the point
+                #to be included in the dictionary
                 for idx, point_xy in enumerate(entries[3:]):
                     if (idx - 2) % 3 == 0: #the first index to ignore is 2, and then x+3 from there.
                         continue
 
                     if (idx - 1) % 3 == 0: #likewise, from index 1, every 3rd entry is the y coord.
-                        self.keyPointsDict[-1][point_names[idx//3]] = (float(prev_coord), float(point_xy))
+                        if entries[idx + 1 + 3] == '0': #we started counting at 3
+                            self.keyPointsDict[-1][point_names[idx//3]] = (float(prev_coord), float(point_xy))
                         prev_coord = None
 
                     else:
@@ -60,7 +63,7 @@ class Lfpw(FaceImagesDataset):
         self.last_test_index = lastIndices[test_file]
 
     def get_original_image_path_relative_to_base_directory(self, i):
-        if within_bounds(i, len(self.lstImages))
+        if within_bounds(i, len(self.lstImages)):
             return self.lstImages[i]
         return None
 
