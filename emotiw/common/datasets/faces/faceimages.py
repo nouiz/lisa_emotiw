@@ -30,6 +30,11 @@
 import os
 import sys
 import cv
+import Image
+import ImageDraw
+import ImageFont
+import numpy
+import sys
 
 from emotiw.common.utils.pathutils import locate_data_path
 
@@ -95,6 +100,63 @@ f        directory. This directory is specified only relative to
         """
         relpath = self.get_original_image_path_relative_to_base_directory(i)
         return os.path.join(self.absolute_base_directory, relpath)
+    
+    def verify_samples(self, i=None):
+        '''
+        displays sample image with keypoints and bounding boxes 
+        and all the information that is there is displayes
+        '''
+        entered = False
+        while(True):
+            if(i==None or entered == True):
+                i = int(numpy.random.random((1)) * self.__len__())
+            
+        
+            filepath = self.get_original_image_path(i)
+            img = Image.open(filepath)
+            img.show('Original Image')
+            print 'Size:', img.size
+            bbox = self.get_bbox(i)
+            factorX = 1.0
+            factorY = 1.0
+            draw = ImageDraw.Draw(img)
+
+            if bbox[0] == None:
+                print 'No bounding box information'
+                    
+            else:
+                print 'bbox:', bbox
+                w,h = (bbox[2]-bbox[0], bbox[3]-bbox[1])
+                width, height = img.size
+                if w < 200 or h < 200:
+                    factorX = 200.0/w
+                    factorY = 200.0/h
+                    img = img.resize((int(width*factorX), int(height*factorY)))
+                
+                draw = ImageDraw.Draw(img)
+                bbox = [bbox[0]*factorX, bbox[1]*factorY, bbox[2]*factorX, bbox[3]*factorY]
+                draw.rectangle(bbox , outline="#FF00FF")
+
+                    
+            print 'keypoints:'
+            keypoints = self.get_keypoints_location(i)
+            if len(keypoints) == 0:
+                print 'No keypoint information available'
+            else:
+                index = 1
+                for key in keypoints:
+                    print index, ':' , key, '=', keypoints[key]
+                    (x, y ) = keypoints[key]
+                    draw.text((x * factorX, y * factorY), str(index))
+                    index += 1
+            img.show()
+            print 'press any q to exit, any other key to continue..'
+            ui = sys.stdin.readline()  
+            ui = ui.rstrip("\n")
+            entered = True
+            if ui=="q":  
+                return
+        
 
     def get_original_image_path_relative_to_base_directory(self, i):
         """

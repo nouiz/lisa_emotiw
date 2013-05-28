@@ -1,13 +1,13 @@
 from NckuBasedDataset import NckuBasedDataset
 import os
 import math
+import pickle
 
 class HIIT6HeadPose(NckuBasedDataset):
     def __init__(self):
         super(HIIT6HeadPose, self).__init__("HIIT6HeadPose", "faces/headpose/HIIT6HeadPose")
 
         print 'Working...'
-
         self.images = [] 
         self.tilt = []
         self.imageIndex = {}
@@ -57,13 +57,22 @@ class HIIT6HeadPose(NckuBasedDataset):
         self.read_json_keypoints()
 
 def testWorks():
-    ncku = HIIT6HeadPose()
-    print len(ncku)
-    print 'number of keypoints'
-    print ncku.out
-    for index in range(1):    
-        print ncku.get_original_image_path(index)
-        print ncku.get_head_pose(index)
-        print ncku.get_subject_id_of_ith_face(index)
-        print ncku.get_index_from_image_filename(ncku.images[index])
-        print ncku.get_pan_tilt_and_roll(index)
+    save = 0
+    if (save):
+        HIIT6 = HIIT6HeadPose()
+        output = open('HIIT6HeadPose.pkl', 'wb')
+        data = HIIT6
+        pickle.dump(data, output)
+        output.close()
+    else:
+        pkl_file = open('HIIT6HeadPose.pkl', 'rb')
+        HIIT6 = pickle.load(pkl_file)
+        pkl_file.close()
+
+    HIIT6.verify_samples()
+
+if __name__ == '__main__':
+    testWorks()
+
+
+    
