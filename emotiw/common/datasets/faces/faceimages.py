@@ -212,7 +212,6 @@ f        directory. This directory is specified only relative to
         mouth_right_corner
         right_nostril
         right_eye_center
-        face_dimensions
         chin_right
         right_eyebrow_outer_end
         left_eye_pupil
