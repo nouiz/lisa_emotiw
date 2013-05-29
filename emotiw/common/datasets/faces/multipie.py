@@ -63,7 +63,7 @@ class MultiPie(FaceImagesDataset):
                 imrelpath += "_".join(parts[0:5])+'.png'
                 filename = label+c+'/'+f
                 #print "loading ", filename #printing is slow and lots of files are being loaded.
-                pts_idx_dict = {0: 'right_ear_top', 1: 'right_ear_center', 2: 'right_ear_bottom', 7: 'chin_right', 
+                pts_idx_dict_68 = {0: 'right_ear_top', 1: 'right_ear_center', 2: 'right_ear_bottom', 7: 'chin_right', 
                                 8: 'chin_center', 9: 'chin_left', 14: 'left_ear_bottom', 15: 'left_ear_center', 
                                 16: 'left_ear_top', 17: 'right_eyebrow_outer_end', 19: 'right_eyebrow_center', 
                                 21: 'right_eyebrow_inner_end', 22: 'left_eyebrow_inner_end', 24: 'left_eyebrow_center', 
@@ -72,13 +72,28 @@ class MultiPie(FaceImagesDataset):
                                 36: 'right_eye_outer_corner', 39: 'right_eye_inner_corner', 42: 'left_eye_inner_corner', 
                                 45: 'left_eye_outer_corner', 48: 'mouth_right_corner', 51: 'mouth_center_top_lip', 
                                 54: 'mouth_left_corner', 57: 'mouth_center_bottom_lip', 62: 'mouth_center'}
-    
+             
+                pts_idx_dict_39 = {0: 'nose_center_top', 3: 'nose_tip', 4: 'nostrils_center', 5: 'left_nostril', 
+                                6: 'left_eyebrow_outer_end', 9: 'left_eyebrow_inner_end', 10: 'left_eye_outer_end', 
+                                15: 'mouth_center_top_lip', 18: 'mouth_left_corner', 21: 'mouth_center_bottom_lip', 
+                                22: 'mouth_center', 30: 'chin_center', 36: 'left_ear_bottom', 
+                                37: 'left_ear_center', 38: 'left_ear_bottom'}
+
                 points = scipy.io.loadmat(filename)['pts']
                 this_dict = {}
+                translation_dict = pts_idx_dict_68
+    
+                if len(points) < 68:
+                    translation_dict = pts_idx_dict_39
+
                 prev_p = None
                 for idx, p in enumerate(points):
-                        if idx in pts_idx_dict:
-                            name = pts_idx_dict[idx]
+                        if idx in translation_dict:
+                            name = translation_dict[idx]
+
+                            if '/01_0/' in imrelpath or '/24_0/' in imrelpath:
+                                name = name.replace('left', 'right') #The points for left-facing and
+                                                                     #right-facing cameras are symmetric!
                         else:
                             name = 'point_' + str(idx)
                         this_dict[name] = (p[0], p[1])
