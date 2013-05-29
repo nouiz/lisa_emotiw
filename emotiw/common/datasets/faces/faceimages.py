@@ -108,10 +108,14 @@ f        directory. This directory is specified only relative to
         '''
         entered = False
         while(True):
+            index1 = self.get_id_of_kth_subject(0)
+            if isinstance(index1, int ) == 0:
+                index1 = 0
+              
             if(i==None or entered == True):
-                i = int(numpy.random.random((1)) * self.__len__())
-            
-        
+                i = index1 + int(numpy.random.random((1)) * self.__len__())
+            print 'Dataset Size:', self.__len__()
+            print 'Index:', i
             filepath = self.get_original_image_path(i)
             img = Image.open(filepath)
             img.show('Original Image')
@@ -121,7 +125,7 @@ f        directory. This directory is specified only relative to
             factorY = 1.0
             draw = ImageDraw.Draw(img)
 
-            if bbox[0] == None:
+            if bbox == None:
                 print 'No bounding box information'
                     
             else:
@@ -144,6 +148,7 @@ f        directory. This directory is specified only relative to
                 print 'No keypoint information available'
             else:
                 index = 1
+                print keypoints
                 for key in keypoints:
                     print index, ':' , key, '=', keypoints[key]
                     (x, y ) = keypoints[key]
@@ -300,7 +305,7 @@ f        directory. This directory is specified only relative to
         """
         Retruns a string uniquely identifying the kth subject from this database (or None if unknown)
         """
-        return None
+        return k
 
     def get_face_examples_for_subject(self, k):
         """

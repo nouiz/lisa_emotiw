@@ -6,6 +6,7 @@ import os
 import numpy as np
 import math
 from NckuBasedDataset import NckuBasedDataset
+import pickle
 
 class NCKUHeadPose(NckuBasedDataset):
     def __init__(self):
@@ -62,18 +63,19 @@ class NCKUHeadPose(NckuBasedDataset):
         self.read_json_keypoints()
 
 def testWorks():
+    save = 0
+    if (save):
+        obj = NCKUHeadPose()
+        output = open('ncku.pkl', 'wb')
+        data = obj
+        pickle.dump(data, output)
+        output.close()
+    else:
+        pkl_file = open('ncku.pkl', 'rb')
+        obj = pickle.load(pkl_file)
+        pkl_file.close()
 
-    ncku = NCKUHeadPose()
-    print len(ncku.images)
-    print 'data with keypoints'
-    print ncku.out
-    for index in range(100):
-        print ncku.get_original_image_path(index)
-        print ncku.get_head_pose(index)
-        print ncku.get_subject_id_of_ith_face(index)
-        print ncku.get_index_from_image_filename(ncku.images[index])
-        print ncku.get_pan_tilt_and_roll(index)
-        print ncku.get_keypoints_location(index)
+    obj.verify_samples()
 
 if __name__ == '__main__':
-    testWorks() 
+    testWorks()

@@ -4,6 +4,7 @@
 
 from NckuBasedDataset import NckuBasedDataset
 import os
+import pickle
 
 class IHDPHeadPose(NckuBasedDataset):
     def __init__(self):
@@ -58,21 +59,21 @@ class IHDPHeadPose(NckuBasedDataset):
     def get_standard_train_test_splits(self):
         return (range(self.numTrain), range(self.numTrain, len(self.images)))
 
+
 def testWorks():
+    save = 0
+    if (save):
+        IHDP = IHDPHeadPose()
+        output = open('IHDPHeadPose.pkl', 'wb')
+        data = IHDP
+        pickle.dump(data, output)
+        output.close()
+    else:
+        pkl_file = open('IHDPHeadPose.pkl', 'rb')
+        IHDP = pickle.load(pkl_file)
+        pkl_file.close()
 
-    ncku = IHDPHeadPose()
-    print len(ncku)
-    print "number of keys"
-    print ncku.out
-    for index in range(1):
-        print ncku.get_original_image_path(index)
-        print ncku.get_head_pose(index)
-        print ncku.get_subject_id_of_ith_face(index)
-        print ncku.get_index_from_image_filename(ncku.images[index])
-        print ncku.get_pan_tilt_and_roll(index)
-        print ncku.get_keypoints_location(index)
-        #print ncku.get_standard_train_test_splits()
-
+    IHDP.verify_samples()
 
 if __name__ == '__main__':
-    testWorks() 
+    testWorks()

@@ -41,7 +41,7 @@ class BioID(FaceImagesDataset):
     def __len__(self):
         return len(self.lstImages)
 
-    def original_image_path_relative_to_base_directory(self, i):
+    def get_original_image_path_relative_to_base_directory(self, i):
         return self.lstImages[i]
 
     def get_eyes_location(self, i):
@@ -65,3 +65,23 @@ class BioID(FaceImagesDataset):
             return self.keyPointsDict[i]
         else:
             return None
+
+
+def testWorks():
+    save = 0
+    import pickle
+    if (save):
+        obj = BioID()
+        output = open('BioID.pkl', 'wb')
+        data = obj
+        pickle.dump(data, output)
+        output.close()
+    else:
+        pkl_file = open('BioID.pkl', 'rb')
+        obj = pickle.load(pkl_file)
+        pkl_file.close()
+
+    obj.verify_samples()
+
+if __name__ == '__main__':
+    testWorks()

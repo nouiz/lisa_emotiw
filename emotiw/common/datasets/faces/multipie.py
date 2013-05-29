@@ -127,3 +127,21 @@ class MultiPie(FaceImagesDataset):
     def get_gender(self,i):        
         return str(self.lstImages[i][3])
             
+def testWorks():
+    save = 0
+    import pickle
+    if (save):
+        obj = MultiPie()
+        output = open('multipie.pkl', 'wb')
+        data = obj
+        pickle.dump(data, output)
+        output.close()
+    else:
+        pkl_file = open('multipie.pkl', 'rb')
+        obj = pickle.load(pkl_file)
+        pkl_file.close()
+
+    obj.verify_samples()
+
+if __name__ == '__main__':
+    testWorks()

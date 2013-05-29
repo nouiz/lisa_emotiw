@@ -51,3 +51,21 @@ class Caltech(FaceImagesDataset):
 
     def __len__(self):
         return len(self.lstImages)
+def testWorks():
+    save = 1
+    import pickle
+    if (save):
+        obj = Caltech()
+        output = open('caltech.pkl', 'wb')
+        data = obj
+        pickle.dump(data, output)
+        output.close()
+    else:
+        pkl_file = open('caltech.pkl', 'rb')
+        obj = pickle.load(pkl_file)
+        pkl_file.close()
+
+    obj.verify_samples()
+
+if __name__ == '__main__':
+    testWorks()

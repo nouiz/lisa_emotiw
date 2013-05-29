@@ -89,5 +89,24 @@ class AFLW(FaceImagesDataset):
     def get_original_image_path_relative_to_base_directory(self, i):    
         return self.absolute_base_directory +"aflw/Images/aflw/data/flickr/"+ self.conn.execute('select file_id from Faces where face_id ='+str(i)).fetchall()[0][0]
         
+
+def testWorks():
+    save = 1
+    import pickle
+    if (save):
+        obj = AFLW()
+    #    output = open('aflw.pkl', 'wb')
+    #    data = obj
+    #    pickle.dump(data, output)
+    #    output.close()
+    else:
+        pkl_file = open('aflw.pkl', 'rb')
+        obj = pickle.load(pkl_file)
+        pkl_file.close()
+
+    obj.verify_samples()
+
+if __name__ == '__main__':
+    testWorks()
         
         

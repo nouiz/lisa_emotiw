@@ -6,6 +6,7 @@ import os
 import numpy as np
 from scipy import io as sio
 import math
+import pickle
 
 from NckuBasedDataset import NckuBasedDataset
 
@@ -65,19 +66,19 @@ class InrialpesHeadPose(NckuBasedDataset):
         self.read_json_keypoints()
 
 def testWorks():
+    save = 0
+    if (save):
+        obj = InrialpesHeadPose()
+        output = open('inrialpes.pkl', 'wb')
+        data = obj
+        pickle.dump(data, output)
+        output.close()
+    else:
+        pkl_file = open('inrialpes.pkl', 'rb')
+        obj = pickle.load(pkl_file)
+        pkl_file.close()
 
-    ncku = InrialpesHeadPose()
-    print len(ncku)
-    print 'data with keypoints'
-    print ncku.out
-    for index in range(1):    
-        print ncku.get_original_image_path(index)
-        print ncku.get_head_pose(index)
-        print ncku.get_subject_id_of_ith_face(index)
-        print ncku.get_index_from_image_filename(ncku.images[index])
-        print ncku.get_pan_tilt_and_roll(index)
-        print ncku.get_keypoints_location(index)
-
+    obj.verify_samples()
 
 if __name__ == '__main__':
-    testWorks() 
+    testWorks()

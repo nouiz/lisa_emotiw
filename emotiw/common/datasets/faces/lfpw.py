@@ -23,18 +23,23 @@ class Lfpw(FaceImagesDataset):
 
         test_file = os.path.join(self.absolute_base_directory, 'test_with_ids.csv')
         train_file = os.path.join(self.absolute_base_directory, 'train_with_ids.csv')
-        test_dir = os.path.join(self.absolute_base_directory, 'test/')
-        train_dir = os.path.join(self.absolute_base_directory, 'train/')
-
-        lastIndices = {test_file: 0, train_file: 0}
-
+        
         for f in (test_file, train_file):
             ff = open(f)
             lines = ff.readlines()[1:] #skip the first line (metadata)
             point_entries = [x for x in [k.strip().split("\t") for k in lines] if x[2] == "average"]
-            
+            folder = 'train/'
+            if f == test_file:
+                folder = 'test/'
+
             for entry_idx, entries in enumerate(point_entries):
-                self.lstImages.append(entries[0] + ".png")
+                try:
+                    ftest = open(os.path.join(self.absolute_base_directory, folder, entries[0] + ".png"))
+                    ftest.close()
+                except IOError:
+                    continue
+
+                self.lstImages.append(os.path.join(folder, entries[0] + ".png"))
                 prev_coord = None
 
                 self.keyPointsDict.append({})
@@ -58,9 +63,9 @@ class Lfpw(FaceImagesDataset):
                     else:
                         prev_coord = point_xy
 
-            lastIndices[f] = entry_idx
+                if f == test_file:
+                    self.last_test_index = entry_idx	
             ff.close()
-        self.last_test_index = lastIndices[test_file]
 
     def get_original_image_path_relative_to_base_directory(self, i):
         if within_bounds(i, len(self.lstImages)):
@@ -93,3 +98,21 @@ class Lfpw(FaceImagesDataset):
     def __len__(self):
         return len(self.lstImages)
                 
+def testWorks():
+    save = 1
+    import pickle
+    if (save):
+        obj = Lfpw()
+        output = open('Lfpw.pkl', 'wb')
+        data = obj
+        pickle.dump(data, output)
+        output.close()
+    else:
+        pkl_file = open('Lfpw.pkl', 'rb')
+        obj = pickle.load(pkl_file)
+        pkl_file.close()
+
+    obj.verify_samples()
+
+if __name__ == '__main__':
+    testWorks()

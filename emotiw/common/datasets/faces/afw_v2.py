@@ -87,4 +87,23 @@ class AFW(FaceImagesDataset):
         if within_bounds(i, len(self.lstImages)):
             return self.lstImages[i]
         return None
+
+def testWorks():
+    save = 1
+    import pickle
+    if (save):
+        obj = AFW()
+        output = open('afw.pkl', 'wb')
+        data = obj
+        pickle.dump(data, output)
+        output.close()
+    else:
+        pkl_file = open('afw.pkl', 'rb')
+        obj = pickle.load(pkl_file)
+        pkl_file.close()
+
+    obj.verify_samples()
+
+if __name__ == '__main__':
+    testWorks()
          
