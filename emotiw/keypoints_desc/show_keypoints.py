@@ -17,7 +17,7 @@ class DataReader(object):
         self.points = []
         self.point_names = []
 
-    def display_n(self, n, archive=None, drawFn=displayImageWithKeypoints, fnForDrawFn=displayPoint):
+    def display_n(self, n, archive=None, drawFn=displayImageWithKeypoints, fnForDrawFn=displayPoint, start = 0):
         """
         displays the first available n images
         from the data loaded at __init__ time,
@@ -35,8 +35,8 @@ class DataReader(object):
         while i < n and i < len(self.images):
             try:
                 try:
-                    img = Image.open(action(self.images[i]))
-                    drawFn(img, self.points[i], fnForDrawFn)
+                    img = Image.open(action(self.images[i+start]))
+                    drawFn(img, self.points[i+start], fnForDrawFn)
                 except IOError:
                     n = n+1
             finally:
@@ -45,12 +45,12 @@ class DataReader(object):
         if archive is not None:
             arch.close()
 
-    def display_n_with_index(self, n, archive=None):        
+    def display_n_with_index(self, n, archive=None, start=0):        
         """
         displays point index alongside the points
         """
 
-        self.display_n(n, archive, displayImageWithKeypoints, displayNum)
+        self.display_n(n, archive, displayImageWithKeypoints, displayNum, start)
 
 class InrialpesReader(DataReader):
     def __init__(self, top_dir='/data/lisa/data/faces/headpose/InrialpesHeadPose'):
