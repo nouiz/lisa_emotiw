@@ -76,7 +76,7 @@ class MultiPie(FaceImagesDataset):
                 pts_idx_dict_39 = {0: 'nose_center_top', 3: 'nose_tip', 4: 'nostrils_center', 5: 'left_nostril', 
                                 6: 'left_eyebrow_outer_end', 9: 'left_eyebrow_inner_end', 10: 'left_eye_outer_end', 
                                 15: 'mouth_center_top_lip', 18: 'mouth_left_corner', 21: 'mouth_center_bottom_lip', 
-                                22: 'mouth_center', 28: 'chin_center', 29: 'chin_left', 36: 'left_ear_bottom', 
+                                22: 'mouth_center', 30: 'chin_center', 36: 'left_ear_bottom', 
                                 37: 'left_ear_center', 38: 'left_ear_bottom'}
 
                 points = scipy.io.loadmat(filename)['pts']
