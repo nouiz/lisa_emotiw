@@ -46,6 +46,7 @@ class MultiPie(FaceImagesDataset):
         #read male and female
         metaPath = self.absolute_base_directory+'meta/subject_list.txt'
         f = open(metaPath)
+
         for line in f:
             if line!='':
                 self.lstgender.append(line.split(' ')[2])
@@ -53,6 +54,7 @@ class MultiPie(FaceImagesDataset):
         cam = os.listdir(label)
         for c in cam:
             files = os.listdir(label+c)
+            files.sort()
             for f in files:
                 # imrelpath=self.absolute_base_directory+'data/'
                 imrelpath='data/'
@@ -68,7 +70,7 @@ class MultiPie(FaceImagesDataset):
                                 16: 'left_ear_top', 17: 'right_eyebrow_outer_end', 19: 'right_eyebrow_center', 
                                 21: 'right_eyebrow_inner_end', 22: 'left_eyebrow_inner_end', 24: 'left_eyebrow_center', 
                                 26: 'left_eyebrow_outer_end', 27: 'nose_center_top', 30: 'nose_tip', 
-                                31: 'right_nostril', 34: 'nostrils_center', 35: 'right_nostril', 
+                                31: 'right_nostril', 34: 'nostrils_center', 35: 'left_nostril', 
                                 36: 'right_eye_outer_corner', 39: 'right_eye_inner_corner', 42: 'left_eye_inner_corner', 
                                 45: 'left_eye_outer_corner', 48: 'mouth_right_corner', 51: 'mouth_center_top_lip', 
                                 54: 'mouth_left_corner', 57: 'mouth_center_bottom_lip', 62: 'mouth_center'}
@@ -77,7 +79,7 @@ class MultiPie(FaceImagesDataset):
                                 6: 'left_eyebrow_outer_end', 9: 'left_eyebrow_inner_end', 10: 'left_eye_outer_end', 
                                 15: 'mouth_center_top_lip', 18: 'mouth_left_corner', 21: 'mouth_center_bottom_lip', 
                                 22: 'mouth_center', 30: 'chin_center', 36: 'left_ear_bottom', 
-                                37: 'left_ear_center', 38: 'left_ear_bottom'}
+                                37: 'left_ear_center', 38: 'left_ear_top'}
 
                 points = scipy.io.loadmat(filename)['pts']
                 this_dict = {}
@@ -86,23 +88,23 @@ class MultiPie(FaceImagesDataset):
                 if len(points) < 68:
                     translation_dict = pts_idx_dict_39
 
-                prev_p = None
                 for idx, p in enumerate(points):
-                        if idx in translation_dict:
-                            name = translation_dict[idx]
+                    if idx in translation_dict:
+                        name = translation_dict[idx]
 
-                            if '/01_0/' in imrelpath or '/24_0/' in imrelpath:
-                                name = name.replace('left', 'right') #The points for left-facing and
-                                                                     #right-facing cameras are symmetric!
-                        else:
-                            name = 'point_' + str(idx)
-                        this_dict[name] = (p[0], p[1])
+                        if '/01_0/' in imrelpath or '/24_0/' in imrelpath:
+                            name = name.replace('left', 'right') #The points for left-facing and
+                                                                 #right-facing cameras are symmetric!
+                    else:
+                        name = 'point_' + str(idx)
+                    
+                    this_dict[name] = (p[0], p[1])
 
                 #There are some subjects without male or female information                
                 if subject<len(self.lstgender):
                     self.lstImages.append([imrelpath,subject,this_dict,self.lstgender[subject]])
                 else:
-                    self.lstImages.append([imrelpath,subject,points,""])
+                    self.lstImages.append([imrelpath,subject,this_dict,""])
                 
     
     
@@ -121,11 +123,16 @@ class MultiPie(FaceImagesDataset):
         which itself is calculated from the average of the points left or right of those
         top or bottom centers (37, 38; 40, 41 for the right eye and 43, 44; 46, 47 for the left eye).
         """
-        righteye = avg_2(avg_2(self.lstImages[i][2]['point_37'], self.lstImages[i][2]['point_38']),
-                        avg_2(self.lstImages[i][2]['point_40'], self.lstImages[i][2]['point_41']))
-        lefteye = avg_2(avg_2(self.lstImages[i][2]['point_43'], self.lstImages[i][2]['point_44']),
-                        avg_2(self.lstImages[i][2]['point_46'], self.lstImages[i][2]['point_47']))
-        return righteye[0], righteye[1], lefteye[0], lefteye[1]
+        try:
+            righteye = avg_2(avg_2(self.lstImages[i][2]['point_37'], self.lstImages[i][2]['point_38']),
+                            avg_2(self.lstImages[i][2]['point_40'], self.lstImages[i][2]['point_41']))
+            lefteye = avg_2(avg_2(self.lstImages[i][2]['point_43'], self.lstImages[i][2]['point_44']),
+                            avg_2(self.lstImages[i][2]['point_46'], self.lstImages[i][2]['point_47']))
+
+            return righteye[0], righteye[1], lefteye[0], lefteye[1]
+    
+        except KeyError:
+            return None
     
     def get_keypoints_location(self,i):
         """
