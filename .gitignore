@@ -36,3 +36,15 @@ nosetests.xml
 
 # OS Files
 *.DS_Store
+
+*.py~
+*.swp
+
+#Don't track the binary data files:
+*.npy
+*.pkl
+*.pickle
+
+#Don't track the image files:
+*.png
+*.jpg
