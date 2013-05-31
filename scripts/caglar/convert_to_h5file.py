@@ -6,18 +6,8 @@ from PIL import Image
 import os
 
 import warnings
-"""
-Bounding boxes class.
-"""
-class BoundingBox(IsDescription):
-    picasaBatchNumber = Int32Col()
-    idxInPicasaBatch = Int32Col()
-    faceno = Int32Col()
-    imgno = Int32Col()
-    row = Int32Col()
-    col = Int32Col()
-    height = Int32Col()
-    width = Int32Col()
+
+from emotiw.caglar.bbox import BoundingBox
 
 """
 Convert the images to grayscale.
@@ -31,7 +21,7 @@ def get_grayscale(path):
 """
 Resize the image given img and newsize.
 """
-def resize_image(img, newsize):
+def resize_image(img, newsize, mode=None):
     return img.resize(newsize)
 
 """
@@ -86,6 +76,8 @@ def save_img_data(img_path=None,
         save_path=None,
         h5_name=None,
         limit=None,
+        optimized=True,
+        batchsize=100,
         newsize=None):
 
     if newsize is None:
@@ -103,11 +95,19 @@ def save_img_data(img_path=None,
     else:
         assert h5_name.endswith(".h5")
 
-    filename = save_path + h5_name
+    filename = os.path.join(save_path, h5_name)
+
+    if not optimized:
+        complevel = 2
+    else:
+        complevel = 1
+
     h5file = openFile(filename, mode = "w", title = "Face bounding boxes data.")
     gcolumns = h5file.createGroup(h5file.root, "Data", title="Face Data")
-    filters = Filters(complib='blosc', complevel=1)
-    table = h5file.createTable(gcolumns, 'bboxes', BoundingBox, "Bounding boxes")
+
+    filters = Filters(complib='blosc', complevel=complevel)
+
+    table = h5file.createTable(gcolumns, 'bboxes', BoundingBox, "Bounding boxes", filters=filters)
 
     print "Loading bounding boxes..."
     bboxes, nbboxes = get_bounding_boxes(bbox_path, bbox_dirs, limit=limit)
@@ -125,25 +125,40 @@ def save_img_data(img_path=None,
     i = 0
     print "Started saving the h5 file."
 
+    files_in_bucket = 0
+    faces_in_bucket = []
     for (key, bbox) in bboxes.iteritems():
         for (name, val) in bbox.iteritems():
             face_path = "{}/{}/{}.png".format(img_path, key, name)
 
-            if os.access(face_path, os.R_OK):
+            if optimized:
                 face_img = get_grayscale(face_path)
             else:
-                warnings.warn("%s is dead!" % face_path)
-                continue
+                if os.access(face_path, os.R_OK):
+                    face_img = get_grayscale(face_path)
+                else:
+                    warnings.warn("%s is dead!" % face_path)
+                    continue
+
             #Warning PIL returns the size as: h, v or x*y not as row and columns.
             orig_size = face_img.size
-            resized_face = resize_image(face_img, newsize)
             face_no = 0
             tbl_bboxes = table.row
 
+            if files_in_bucket == batchsize:
+                table.flush()
+                images[i-batchsize:i] = faces_in_bucket
+                #Empty the buckets
+                files_in_bucket = 0
+                faces_in_bucket = []
+
+            resized_face = resize_image(face_img, newsize)
+            faces_in_bucket.append(numpy.array(resized_face.getdata()))
+
             for j in xrange(len(val)):
                 resized_bbox = get_scaled_bbox(val[j], orig_size, newsize)
-                tbl_bboxes["picasaBatchNumber"] = resized_bbox[0]
-                tbl_bboxes["idxInPicasaBatch"] = resized_bbox[1]
+                tbl_bboxes["picasaBatchNumber"] = int(resized_bbox[0])
+                tbl_bboxes["idxInPicasaBatch"] = int(resized_bbox[1])
                 tbl_bboxes["faceno"] = face_no
                 tbl_bboxes["imgno"] = i
                 tbl_bboxes["row"] = resized_bbox[2]
@@ -153,9 +168,16 @@ def save_img_data(img_path=None,
                 tbl_bboxes.append()
                 face_no +=1
 
-            table.flush()
-            images[i] = numpy.array(resized_face.getdata())
             i += 1
+            files_in_bucket += 1
+
+    print "There are %d images in the dataset." %(i)
+
+    if files_in_bucket !=0:
+        table.flush()
+        images[i-len(faces_in_bucket):i] = faces_in_bucket
+
+
     indexrows = table.cols.imgno.createIndex()
     print "Saving %s has been completed." % h5_name
     h5file.close()

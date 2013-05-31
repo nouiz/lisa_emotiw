@@ -25,7 +25,7 @@ def test4():
     save_path = "/data/lisatmp/data/faces_bbox/"
     newsize = [256, 256]
     h5_name = "test_face.h5"
-    save_img_data(img_path, bbox_path, save_path, newsize=newsize, h5_name=h5_name, limit=200)
+    save_img_data(img_path, bbox_path, save_path, newsize=newsize, h5_name=h5_name, limit=1400)
 
 if __name__=="__main__":
     test4()
