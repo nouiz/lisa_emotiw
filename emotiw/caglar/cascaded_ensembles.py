@@ -5,11 +5,27 @@ import theano.tensor as T
 from circular_iterator import circle_around
 from pylearn2.train import Train
 
+#OpenCV imports for the laplacian pyramids
+import numpy as np
+import cv2
+
+class CascadeMemberProps(object):
+    """
+    Properties of a cascade
+    """
+    def __init__(self, receptive_field_size=None, stride=None, isconv=False, cascade_no=None):
+        self.__dict__.update(locals())
+        del self.self
+
 class ProbMode(object):
+    """
+    Models of Probabilistic model.
+    """
     LIN_INTERP = "LINEAR_INTERPOLATE"
     CONSTANT = "CONSTANT"
 
 class Detector(object):
+
     """
     Base class for the detectors.
     """
@@ -17,6 +33,7 @@ class Detector(object):
         pass
 
 class Ensemble(object):
+
     """
     Base class for Ensemble training, like boosting, ...etc.
     """
@@ -42,6 +59,7 @@ class Ensemble(object):
         pass
 
 class CascadedDetectorEnsembles(Ensemble, Detector):
+
     """
     Cascaded ensembles class.
 

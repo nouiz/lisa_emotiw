@@ -1,5 +1,6 @@
 from face_bbox import *
 from pylearn2.utils.iteration import SequentialSubsetIterator
+from laplacian import LaplacianPyramid
 
 def test1():
     which_set = "train"
@@ -24,28 +25,15 @@ def test1():
                         size_of_receptive_field=size_of_receptive_field,
                         path=path)
 
+    dataset_iterator = dataset1.iterator(batch_size=batch_size, num_batches=num_batches, mode=mode, targets=True)
+    paths = [ "/data/lisatmp/data/faces_bbox/test_face_lvl1.h5",
+            "/data/lisatmp/data/faces_bbox/test_face_lvl2.h5",
+            "/data/lisatmp/data/faces_bbox/test_face_lvl3.h5"]
 
-    print "Dataset 1"
-    for data in dataset1.iterator(batch_size=batch_size, num_batches=num_batches, mode=mode,
-            targets=True):
-        targets1.append(data[1])
-    del dataset1
+    laplacian = LaplacianPyramid(dataset_iterator, 3, img_shape=(256, 256),
+            batch_size=1000, paths=paths)
 
-    dataset2 = FaceBBox(which_set=which_set,
-                        start=start,
-                        stop=stop,
-                        bbox_conversion_type="Exhaustive",
-                        use_output_map=use_output_map,
-                        stride=stride,
-                        size_of_receptive_field=size_of_receptive_field,
-                        path=path)
-
-
-    print "Dataset 2"
-    for data in dataset2.iterator(batch_size=batch_size, num_batches=num_batches, mode=mode,
-            targets=True):
-        targets2.append(data[1])
-
+    laplacian.gen_pyr_to_path(dataset1)
 
     import ipdb; ipdb.set_trace()
 
