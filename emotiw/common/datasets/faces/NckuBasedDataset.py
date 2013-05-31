@@ -97,7 +97,16 @@ class NckuBasedDataset(FaceImagesDataset):
 
     def get_eyes_location(self, i):
         try:
-            return [self.keyPoints[i]['right_eye_pupil'][0], self.keyPoints[i]['right_eye_pupil'][1],
-                    self.keyPoints[i]['left_eye_pupil'][0], self.keyPoints[i]['left_eye_pupil'][1]]
-        except KeyError:
-            return None
+            try:
+                left = [self.keyPoints[i]['right_eye_pupil'][0], self.keyPoints[i]['right_eye_pupil'][1]]
+            except KeyError:
+                left = [None, None]
+        finally:
+            try:
+                try:
+                    right = [self.keyPoints[i]['left_eye_pupil'][0], self.keyPoints[i]['left_eye_pupil'][1]]
+                except KeyError:
+                    right = [None, None]
+            finally:
+                left.extend(right)
+                return left

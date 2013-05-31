@@ -47,18 +47,23 @@ class BioID(FaceImagesDataset):
     def get_eyes_location(self, i):
         if within_bounds(i, len(self.keyPointsDict)):
             points = self.keyPointsDict[i]
-
             try:
-                #the interface calls 'left' the right of the subject and vice versa for this function.
-                left = [x0 + (x1 - x0)/2 for x0, x1 in zip(points['left_eye_outer_corner'], points['left_eye_inner_corner'])]
-                right = [x0 + (x1 - x0)/2 for x0, x1 in zip(points['right_eye_inner_corner'], points['right_eye_outer_corner'])]
-                right.extend(left) 
-                return tuple(right)
-
-            except KeyError:
-                return None    
+                try:
+                    #the interface calls 'left' the right of the subject and vice versa for this function.
+                    left = [x0 + (x1 - x0)/2 for x0, x1 in zip(points['left_eye_outer_corner'], points['left_eye_inner_corner'])]
+                except KeyError:
+                    left = [None, None]
+            finally:
+                try:
+                    try:
+                        right = [x0 + (x1 - x0)/2 for x0, x1 in zip(points['right_eye_inner_corner'], points['right_eye_outer_corner'])]
+                    except KeyError:
+                        right = [None, None]
+                finally:
+                    right.extend(left) 
+                    return right
         else:
-            return None
+            return [None, None, None, None]
 
     def get_keypoints_location(self, i):
         if within_bounds(i, len(self.keyPointsDict)):

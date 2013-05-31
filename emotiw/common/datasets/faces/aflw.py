@@ -51,11 +51,13 @@ class AFLW(FaceImagesDataset):
             return  [res[0][0], res[0][1],res[1][0], res[1][1]]
         elif len(res)==1:
             if res[0][2]==8:
-                res.extend([None,None])
-                return res
+                eye = [res[0][0], res[0][1]]
+                eye.extend([None,None])
+                return eye
             else:
                 w= [None,None]
-                w.extend(res)
+                w.extend([res[1][0], res[1][1]])
+                print 'w: ', w
                 return w
         else:
             return[None,None,None,None]

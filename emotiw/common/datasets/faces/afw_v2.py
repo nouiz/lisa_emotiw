@@ -67,10 +67,21 @@ class AFW(FaceImagesDataset):
             points = self.keyPointsDict[i]
             
             try:
-                return (points['right_eye_center'], points['left_eye_center'])
-            except KeyError:
-                return None
-        return None
+                try:
+                    left = list(points['right_eye_center'])
+                except KeyError:
+                    left = [None, None]
+            finally:
+                try:
+                    try:
+                        right = list(points['left_eye_center'])
+                    except KeyError:
+                        right = [None, None]
+                finally:
+                    left.extend(right)
+                    return left
+        else:    
+            return None
 
     def __len__(self):
         return len(self.lstImages)

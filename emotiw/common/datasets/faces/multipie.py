@@ -76,7 +76,7 @@ class MultiPie(FaceImagesDataset):
                                 54: 'mouth_left_corner', 57: 'mouth_center_bottom_lip', 62: 'mouth_center'}
              
                 pts_idx_dict_39 = {0: 'nose_center_top', 3: 'nose_tip', 4: 'nostrils_center', 5: 'left_nostril', 
-                                6: 'left_eyebrow_outer_end', 9: 'left_eyebrow_inner_end', 10: 'left_eye_outer_end', 
+                                6: 'left_eyebrow_outer_end', 9: 'left_eyebrow_inner_end', 10: 'left_eye_outer_corner', 
                                 15: 'mouth_center_top_lip', 18: 'mouth_left_corner', 21: 'mouth_center_bottom_lip', 
                                 22: 'mouth_center', 30: 'chin_center', 36: 'left_ear_bottom', 
                                 37: 'left_ear_center', 38: 'left_ear_top'}
@@ -122,17 +122,44 @@ class MultiPie(FaceImagesDataset):
         The eye center is calculated from the average of the top and bottom for each eye,
         which itself is calculated from the average of the points left or right of those
         top or bottom centers (37, 38; 40, 41 for the right eye and 43, 44; 46, 47 for the left eye).
+        As for side cameras, the eye center becomes the average of points (11, 12; 13, 14) for whichever
+        eye is available.
         """
-        try:
-            righteye = avg_2(avg_2(self.lstImages[i][2]['point_37'], self.lstImages[i][2]['point_38']),
-                            avg_2(self.lstImages[i][2]['point_40'], self.lstImages[i][2]['point_41']))
-            lefteye = avg_2(avg_2(self.lstImages[i][2]['point_43'], self.lstImages[i][2]['point_44']),
-                            avg_2(self.lstImages[i][2]['point_46'], self.lstImages[i][2]['point_47']))
+        if(len(self.lstImages[i][2]) == 39):
+            eye_num = -1
+            try:
+                try: 
+                    self.lstImages[i][2]['right_eye_outer_corner']
+                    eye_num = 0
+                except KeyError:
+                    eye_num = 1
+            finally:
+                try:
+                    eye = avg_2(avg_2(self.lstImages[i][2]['point_11'], self.lstImages[i][2]['point_12']),
+                                avg_2(self.lstImages[i][2]['point_13'], self.lstImages[i][2]['point_14']))
+                    if eye_num == 0:
+                        return list(eye + (None, None))
+                    else:
+                        return list((None, None) + eye)
+                except KeyError:
+                    return list((None, None, None, None))
+        else:
+            try:
+                try:
+                    righteye = avg_2(avg_2(self.lstImages[i][2]['point_37'], self.lstImages[i][2]['point_38']),
+                                avg_2(self.lstImages[i][2]['point_40'], self.lstImages[i][2]['point_41']))
+                except KeyError:
+                    righteye = (None, None)
 
-            return righteye[0], righteye[1], lefteye[0], lefteye[1]
-    
-        except KeyError:
-            return None
+            finally:
+                try:
+                    try:
+                        lefteye = avg_2(avg_2(self.lstImages[i][2]['point_43'], self.lstImages[i][2]['point_44']),
+                            avg_2(self.lstImages[i][2]['point_46'], self.lstImages[i][2]['point_47']))
+                    except KeyError:
+                        lefteye = (None, None)
+                finally:
+                    return [righteye[0], righteye[1], lefteye[0], lefteye[1]]
     
     def get_keypoints_location(self,i):
         """
