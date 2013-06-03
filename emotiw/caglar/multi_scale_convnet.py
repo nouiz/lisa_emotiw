@@ -2,23 +2,24 @@ import numpy
 
 
 class MultiScaleDistinctMLP(object):
+
     """
-        Implementation of MultiScale Distinct Convnet
-        We assume that we are trying N different convolutional neural networks
-        on different scales without any parameter sharing.
+        Implementation of MultiScale Distinct Convnet. We assume that we are
+    trying N different convolutional neural networks on different scales
+    without any parameter sharing.
     """
     def __init__(self, trainers, models, pyramids, nlevels, seed=None):
+        assert len(trainers) == nlevels
+        assert len(pyramids) == nlevels
+        assert len(models) == nlevels
+
+
         self.models = models
         self.trainers = trainers
         self.pyramids = pyramids
         self.algorithms = [ trainers[i].algorithm for i in xrange(len(trainers))]
 
-        assert len(trainers) == nlevels
-        assert len(pyramids) == nlevels
-        assert len(models) == nlevels
-
         self.nlevels = nlevels
-
         self._setup_trainers()
 
         if seed is None:
@@ -35,6 +36,7 @@ class MultiScaleDistinctMLP(object):
         below = X
         outputs = []
         model = self.models[models_no]
+
         for layer in model.layers:
             above = layer.fprop(below)
             below = above
@@ -42,8 +44,34 @@ class MultiScaleDistinctMLP(object):
         assert len(outputs) > 0
         return outputs
 
+    def frop_mscale(self, Xs):
+        """
+            Fprop in a multiscale way.
+        """
+        if len(Xs) != self.nlevels:
+            raise ValueError("Number of levels should be should be same as the number of inputs.")
+
+        pyr_outs = []
+        for i in xrange(self.nlevels):
+            below = Xs[i]
+            outputs = []
+            model = self.models[models_no]
+            for layer in model.layers:
+                above = layer.fprop(below)
+                below = above
+                outputs.append(above)
+            if len(outputs) == 0:
+                raise ValueError("The length of the outputs should be larger than the 0.")
+            pyr_outs.append(outputs)
+
+        return pyr_outs
+
     def train(self, models_no):
         self.trainers[models_no].main_loop()
+
+    def train_mscale(self):
+        for trainer in self.trainers:
+            trainers.main_loop()
 
 class MultiScaleSharedMLP(object):
     """
@@ -106,6 +134,34 @@ class MultiScaleSharedMLP(object):
         assert len(outputs) > 0
         return outputs
 
+    def frop_mscale(self, Xs):
+        """
+        Fprop in a multiscale way.
+        """
+
+        if len(Xs) != self.nlevels:
+            raise ValueError("Number of levels should be should be same as the number of inputs.")
+
+        pyr_outs = []
+        for i in xrange(self.nlevels):
+            below = Xs[i]
+            outputs = []
+            model = self.models[models_no]
+            for layer in model.layers:
+                above = layer.fprop(below)
+                below = above
+                outputs.append(above)
+            if len(outputs) == 0:
+                raise ValueError("The length of the outputs should be larger than the 0.")
+            pyr_outs.append(outputs)
+        return pyr_outs
+
+
     def train(self, X, targets, models_no):
         self.trainers[models_no].main_loop()
+
+    def train_mscale(self):
+        for trainer in self.trainers:
+            trainers.main_loop()
+
 

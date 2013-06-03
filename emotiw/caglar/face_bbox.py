@@ -726,11 +726,11 @@ class FaceBBox(FaceBBoxDDMPytables):
         else:
             raise ValueError("This class only supports the exact file directories for the path constructor variable.")
 
-        self.h5file = tables.openFile(h5_file, mode=mode)
-        dataset = self.h5file.root
-
         if not os.path.isfile(h5_file):
             raise ValueError("Please enter a valid file path.")
+
+        self.h5file = tables.openFile(h5_file, mode=mode)
+        dataset = self.h5file.root
 
         if start != None or stop != None:
             self.h5file, data = self.resize(self.h5file, start, stop)
