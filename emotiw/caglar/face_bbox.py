@@ -672,24 +672,28 @@ class FaceBBoxDDMPytables(dense_design_matrix.DenseDesignMatrix):
         if remove_old_node:
             h5file.removeNode('/', "Data", 1)
             h5file.renameNode('/', "Data", node_name)
+
         h5file.flush()
         return h5file, gcolumns
 
-
 class FaceBBox(FaceBBoxDDMPytables):
     """
-        This is the pylearn2 interface class for the Google Faces bounding boxes
-        dataset.
+        This is the pylearn2 interface class for the Google Faces bounding
+    boxes dataset.
     """
     data_mapper = {
             "train": 0,
             "valid": 1,
             "test": 2
     }
-
     def __init__(self,
-            which_set, path=None, scale=False, center=False,
-            start=None, stop=None, img_shape=None,
+            which_set,
+            path=None,
+            scale=False,
+            center=False,
+            start=None,
+            stop=None,
+            img_shape=None,
             mode=None,
             axes = ('b', 0, 1, 'c'),
             bbox_conversion_type=ConversionType.GUID,

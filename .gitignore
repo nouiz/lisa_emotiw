@@ -44,6 +44,7 @@ nosetests.xml
 *.npy
 *.pkl
 *.pickle
+*.h5
 
 #Don't track the image files:
 *.png
