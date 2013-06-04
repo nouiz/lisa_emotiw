@@ -78,7 +78,7 @@ class Imagenet(dense_design_matrix.DenseDesignMatrixPyTables):
         elif center:
             data.X[:] -= 127.5
         elif scale:
-            data.X[:] /= 255.
+            data.X[:] /= 255.0
 
         view_converter = dense_design_matrix.DefaultViewConverter((w, h, 1),
                                                                         axes)
@@ -117,8 +117,8 @@ def test_works():
     train.view_shape()
 
     #testing 
-    batch_size = 1
-    num_batches = 5
+    batch_size = 10
+    num_batches = 1
     mode = SequentialSubsetIterator
     targets1 = []
     targets2 = []
