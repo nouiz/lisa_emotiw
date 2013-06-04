@@ -12,6 +12,10 @@ from pylearn2.datasets import dense_design_matrix
 from pylearn2.utils.serial import load
 from pylearn2.utils.string_utils import preprocess
 from pylearn2.datasets import preprocessing
+from pylearn2.utils.iteration import SequentialSubsetIterator
+import matplotlib.image as mpimg
+import matplotlib.pyplot as plt
+
 
 class Imagenet(dense_design_matrix.DenseDesignMatrixPyTables):
     mapper = {
@@ -22,13 +26,14 @@ class Imagenet(dense_design_matrix.DenseDesignMatrixPyTables):
 
     def __init__(self,
 	    which_set,
-            path,
+            path_org,
+	    path, 	 
             center,
 	    scale,
             start,
             stop,
-	    imageShape = (256,256),
-            mode='r',
+	    imageShape=(256,256),
+            mode='r+',
             axes=('b', 0, 1, 'c'),
             preprocessor=None):
 
@@ -40,7 +45,6 @@ class Imagenet(dense_design_matrix.DenseDesignMatrixPyTables):
         self.mode = mode
 	w,h = imageShape
 
-	path_org = '/Tmp/gulcehrc/imagenet_256x256_filtered.h5'
         h5file_org = tables.openFile(path_org, mode = 'r')
 
 	assert start != None and stop != None
@@ -56,7 +60,7 @@ class Imagenet(dense_design_matrix.DenseDesignMatrixPyTables):
 	atom = tables.Float32Atom() if config.floatX == 'float32' else tables.Float64Atom()
 	filters = tables.Filters(complib='blosc', complevel=5)
 	
-	x = self.h5file.createCArray(data, 'X', atom = atom, shape = ((stop-start, 256*256)),
+	x = self.h5file.createCArray(data, 'X', atom = atom, shape = ((stop-start, w*h)),
                                 title = "Data values", filters = filters)
 	y = self.h5file.createCArray(data, 'y', atom = atom, shape = ((stop-start, )),
                                 title = "Data targets", filters = filters)
@@ -88,9 +92,12 @@ class Imagenet(dense_design_matrix.DenseDesignMatrixPyTables):
 
 
 def test_works():
+    
+    path_org = '/Tmp/gulcehrc/imagenet_256x256_filtered.h5'
     path = '/Tmp/aggarwal/imagenetTemp.h5'
     train = Imagenet(which_set = 'train',
 	    path = path,
+	    path_org = path_org,
             center=True,
 	    scale=True,
             start=0,
@@ -107,6 +114,21 @@ def test_works():
 
     # apply preprocessing to train
     train.apply_preprocessor(pipeline, can_fit = True)
+    train.view_shape()
+
+    #testing 
+    batch_size = 1
+    num_batches = 5
+    mode = SequentialSubsetIterator
+    targets1 = []
+    targets2 = []
+
+    for data in train.iterator(batch_size=batch_size, num_batches=num_batches, mode=mode,targets=False):
+	imgplot = plt.imshow(data.reshape((256,256)))
+	plt.gray()
+        plt.show()
+	#print data.shape    
+
 
 
 if __name__ == '__main__':
