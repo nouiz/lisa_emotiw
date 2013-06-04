@@ -39,6 +39,7 @@ class AFLW(FaceImagesDataset):
         super(AFLW,self).__init__("AFLW", "faces/AFLW/")
         import sqlite3
         self.conn = sqlite3.connect(self.absolute_base_directory+'aflw/data/aflw.sqlite')
+        self.valid_id = self.conn.execute('select distinct face_id from FeatureCoords').fetchall()
         
     def __len__(self):
         
@@ -63,7 +64,7 @@ class AFLW(FaceImagesDataset):
             return[None,None,None,None]
             
     def get_id_of_kth_subject(self,i):
-        return 39341+i
+        return self.valid_id[i][0]
         
 
     def get_keypoints_location(self,i):
@@ -80,7 +81,7 @@ class AFLW(FaceImagesDataset):
                             'LeftBrowCenter': 'right_eyebrow_center', 'LeftBrowRightCorner': 'right_eyebrow_inner_end'}
         
         dic = {}
-        res = self.conn.execute('select FeatureCoords.x ,FeatureCoords.y,descr  from FeatureCoords,FeatureCoordTypes where face_id ='+str(i)+' and FeatureCoordTypes.feature_id =FeatureCoords.feature_id order by FeatureCoords.feature_id').fetchall()
+        res = self.conn.execute('select FeatureCoords.x ,FeatureCoords.y,descr  from FeatureCoords,FeatureCoordTypes where face_id ='+str(self.valid_id[i][0])+' and FeatureCoordTypes.feature_id =FeatureCoords.feature_id order by FeatureCoords.feature_id').fetchall()
         for t in res:
             dic[translation_dict[str(t[2])]] = (t[0], t[1])
         return dic
@@ -89,7 +90,7 @@ class AFLW(FaceImagesDataset):
         return self.__len__()
                 
     def get_original_image_path_relative_to_base_directory(self, i):    
-        return self.absolute_base_directory +"aflw/Images/aflw/data/flickr/"+ self.conn.execute('select file_id from Faces where face_id ='+str(i)).fetchall()[0][0]
+        return self.absolute_base_directory +"aflw/Images/aflw/data/flickr/"+ self.conn.execute('select file_id from Faces where face_id ='+str(self.valid_id[i][0])).fetchall()[0][0]
         
 
 def testWorks():

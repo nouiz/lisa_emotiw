@@ -65,21 +65,15 @@ class MultiPie(FaceImagesDataset):
                 imrelpath += "_".join(parts[0:5])+'.png'
                 filename = label+c+'/'+f
                 #print "loading ", filename #printing is slow and lots of files are being loaded.
-                pts_idx_dict_68 = {0: 'right_ear_top', 1: 'right_ear_center', 2: 'right_ear_bottom', 7: 'chin_right', 
-                                8: 'chin_center', 9: 'chin_left', 14: 'left_ear_bottom', 15: 'left_ear_center', 
-                                16: 'left_ear_top', 17: 'right_eyebrow_outer_end', 19: 'right_eyebrow_center', 
-                                21: 'right_eyebrow_inner_end', 22: 'left_eyebrow_inner_end', 24: 'left_eyebrow_center', 
-                                26: 'left_eyebrow_outer_end', 27: 'nose_center_top', 30: 'nose_tip', 
-                                31: 'right_nostril', 34: 'nostrils_center', 35: 'left_nostril', 
-                                36: 'right_eye_outer_corner', 39: 'right_eye_inner_corner', 42: 'left_eye_inner_corner', 
-                                45: 'left_eye_outer_corner', 48: 'mouth_right_corner', 51: 'mouth_center_top_lip', 
-                                54: 'mouth_left_corner', 57: 'mouth_center_bottom_lip', 62: 'mouth_center'}
-             
-                pts_idx_dict_39 = {0: 'nose_center_top', 3: 'nose_tip', 4: 'nostrils_center', 5: 'left_nostril', 
-                                6: 'left_eyebrow_outer_end', 9: 'left_eyebrow_inner_end', 10: 'left_eye_outer_corner', 
-                                15: 'mouth_center_top_lip', 18: 'mouth_left_corner', 21: 'mouth_center_bottom_lip', 
-                                22: 'mouth_center', 30: 'chin_center', 36: 'left_ear_bottom', 
-                                37: 'left_ear_center', 38: 'left_ear_top'}
+                pts_idx_dict_68 = {0: 'right_ear_top', 1: 'right_ear_center', 2: 'right_ear_bottom', 7: 'chin_right', 8: 'chin_center', 9: 'chin_left', 14: 'left_ear_bottom', 
+                                    15: 'left_ear_center', 16: 'left_ear_top', 17: 'right_eyebrow_outer_end', 19: 'right_eyebrow_center', 21: 'right_eyebrow_inner_end', 
+                                    22: 'left_eyebrow_inner_end', 24: 'left_eyebrow_center', 26: 'left_eyebrow_outer_end', 27: 'nose_center_top', 30: 'nose_tip', 31: 'right_nostril', 
+                                    34: 'nostrils_center', 35: 'left_nostril', 36: 'right_eye_outer_corner', 39: 'right_eye_inner_corner', 42: 'left_eye_inner_corner', 45: 'left_eye_outer_corner', 
+                                    48: 'mouth_right_corner', 51: 'mouth_top_lip', 54: 'mouth_left_corner', 57: 'mouth_bottom_lip', 62: 'mouth_center'}             
+                
+                pts_idx_dict_39 = {0: 'nose_center_top', 3: 'nose_tip', 4: 'nostrils_center', 5: 'left_nostril', 6: 'left_eyebrow_outer_end', 9: 'left_eyebrow_inner_end', 10: 'left_eye_outer_corner', 
+                                    15: 'mouth_top_lip', 18: 'mouth_left_corner', 21: 'mouth_bottom_lip', 22: 'mouth_center', 29: 'chin_center', 36: 'left_ear_bottom', 37: 'left_ear_center', 38: 'left_ear_top'}
+
 
                 points = scipy.io.loadmat(filename)['pts']
                 this_dict = {}

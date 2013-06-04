@@ -108,9 +108,7 @@ f        directory. This directory is specified only relative to
         '''
         entered = False
         while(True):
-            index1 = self.get_id_of_kth_subject(0)
-            if isinstance(index1, int ) == 0:
-                index1 = 0
+            index1 = 0
               
             if(i==None or entered == True):
                 i = index1 + int(numpy.random.random((1)) * self.__len__())
@@ -275,7 +273,6 @@ f        directory. This directory is specified only relative to
         mouth_left_corner
         left_eye_center_bottom
         left_eyebrow_center_bottom
-        mouth_center_bottom_lip
         mouth_right_corner
         right_nostril
         right_eye_center
@@ -657,7 +654,7 @@ class FaceDatasetExample(object):
     def __getattr__(self, property_name):
         if property_name in FaceDatasetExample.property_names:            
             dataset_method = getattr(self._dataset, "get_"+property_name)
-            return dataset_method(i)
+            return dataset_method(self._i)
         else:
             raise AttributeError()
 
