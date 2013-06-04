@@ -30,23 +30,6 @@ def test1():
             targets=True):
         targets1.append(data[1])
     del dataset1
-
-    dataset2 = FaceBBox(which_set=which_set,
-                        start=start,
-                        stop=stop,
-                        bbox_conversion_type="Exhaustive",
-                        use_output_map=use_output_map,
-                        stride=stride,
-                        size_of_receptive_field=size_of_receptive_field,
-                        path=path)
-
-
-    print "Dataset 2"
-    for data in dataset2.iterator(batch_size=batch_size, num_batches=num_batches, mode=mode,
-            targets=True):
-        targets2.append(data[1])
-
-
     import ipdb; ipdb.set_trace()
 
 if __name__=="__main__":

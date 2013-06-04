@@ -58,7 +58,6 @@ class Ensemble(object):
         pass
 
 class CascadedDetectorEnsembles(Ensemble, Detector):
-
     """
     Cascaded ensembles class.
 
@@ -197,8 +196,10 @@ class CascadedDetectorEnsembles(Ensemble, Detector):
             else:
                 reject_prob = self.reject_probabilities[i]
                 posteriors = self.predictors[i-1].get_posteriors(dataset)
+
                 face_map = self._check_threshold_non_max_suppression(posteriors,
                         threshold=reject_prob, radius=radius)
+
                 posteriors = self.predictors[i].get_posteriors(dataset.X, dataset.y, facemap=face_map)
         return posteriors
 
@@ -235,22 +236,30 @@ class CascadedDetectorEnsembles(Ensemble, Detector):
                 else:
                     #Remove the spatially close entries, hence check the, check the neighbours
                     #within radius neighbourhood.
-                    #The problem is that the spatially close outputs might be corresponding to the same face.
+                    #The problem is that the spatially close outputs might be
+                    #corresponding to the same face.
+
                     #Rows:
                     r = j % self.output_map_shp[1]
+
                     #Columns:
                     c = j - r*self.output_map_shp[1]
                     iterator = circle_around(r, c)
+
                     #Move on the grid in a circular fashion
                     for loc in iterator:
+
                         if loc[0] == radius:
                             break
+
                         y, x = loc[1]
                         n = y * self.output_map_shp[0] + self.output_map_shp[1]
+
                         if (loc[1][0] >= 0 and loc[1][0] <= self.img_shape[0] and
                                 loc[1][1] <= self.img_shape[1] and loc[1][1] >= 0):
                             if new_preds[pred_pos[n, 0]] < new_preds[pred_pos[j, 0]]:
                                 new_preds[pred_pos[n, 0]] = 0
+
             processed_probs = new_preds
         return new_preds
 

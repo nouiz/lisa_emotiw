@@ -6,15 +6,17 @@ import numpy
 import warnings
 
 try:
-        import scipy.sparse
+    import scipy.sparse
 except ImportError:
-        warnings.warn("Couldn't import scipy.sparse")
+    warnings.warn("Couldn't import scipy.sparse")
 
 import theano
 import gzip
+
 floatX = theano.config.floatX
 
 class OutputMapFile(object):
+    filters = tables.Filters(complib='blosc', complevel=1)
     """
         Size of the output map file.
     """
@@ -23,11 +25,15 @@ class OutputMapFile(object):
 
     @staticmethod
     def create_file(path, filename, n_examples, out_shape):
+        assert filename is not None
+        assert path is not None
         fileloc = os.path.join(path, filename)
-        h5file = tables.openFile(fileloc, title="Output maps", "w")
-        atom = tables.Float32Atom() if config.floatX == 'float32' else tables.Float64Atom()
-        filters = DenseDesignMatrixPyTables.filters
+        h5file = tables.openFile(fileloc, title="Output maps", mode="w")
+        atom = tables.Float32Atom() if floatX == 'float32' else tables.Float64Atom()
+
+        filters = OutputMapFile.filters
         gcolumns = h5file.createGroup(h5file.root, "Data", "Data")
+
         h5file.createCArray(gcolumns, 'Pt', atom = atom, shape = out_shape,
                                                 title = "Output Image Patches", filters = filters)
 
@@ -43,25 +49,25 @@ class OutputMapFile(object):
         return h5file, gcolumns
 
     @staticmethod
-    def load_file(path, filename, n_examples, out_shape):
+    def load_file(path, filename):
         fileloc = os.path.join(path, filename)
-        h5file = tables.openFile(fileloc, title="Output maps", "r")
+        h5file = tables.openFile(fileloc, title="Output maps", mode="r")
         return h5file
 
-    def save_output_map(self, h5file, output_map, imgnos, ilocs, targets, start=None, stop=None):
-
+    @staticmethod
+    def save_output_map(h5file, output_map, imgnos, ilocs, targets, start=None, stop=None):
         if start and stop is not None:
             h5file.root.Data.Pt[start:stop] = output_map
             h5file.root.Data.Ino[start:stop] = imgnos
             h5file.root.Data.Iloc[start:stop] = ilocs
-            h5file.root..Data.Tgt[start:stop] = targets
-        else:
-            h5file.root.Data.Pt = output_map
-            h5file.root.Data.Ino[start:stop] = imgnos
-            h5file.root.Data.Iloc[start:stop] = ilocs
             h5file.root.Data.Tgt[start:stop] = targets
-
+        else:
+            h5file.root.Data.Pt[:] = output_map
+            h5file.root.Data.Ino[:] = imgnos
+            h5file.root.Data.Iloc[:] = ilocs
+            h5file.root.Data.Tgt[:] = targets
         h5file.flush()
+
 
 class OutputMap(object):
     """
@@ -79,69 +85,78 @@ class OutputMap(object):
         self.out_shape = [(receptive_field_shape[0] - img_shape[0]) / stride,
                 (receptive_field_shape[1] - img_shape[1]) / stride]
 
-    def extract_patches(self, images, out_maps):
+    def extract_patches(self, images, out_maps, conv_targets):
         n_images = len(images)
-        i = 0
-        img_patches = []
+        img_idx = 0
+        cropped_patches = []
+        targets = []
         for out_map in out_maps:
-            cropped_patches = []
-            non_empty_rfs = numpy.where(out_maps!=1)
-            for non_empty_rf in non_empty_rfs:
-                x = non_empty_rfs % self.out_shape[1]
-                y = int(non_empty_rfs / self.out_shape[0])
+            non_empty_rfs = numpy.where(out_map!=0)
+            for non_empty_rf in non_empty_rfs[0]:
+                x = non_empty_rf % self.out_shape[1]
+                y = int(non_empty_rf / self.out_shape[0])
+                target = conv_targets[i]
                 image = numpy.reshape(images[i], newshape=self.img_shape)
-                patch = image[x:x+self.out_shape[0], y:y+self.out_shape[1]]
+                patch = image[x: x + self.out_shape[0], y: y + self.out_shape[1]]
                 cropped_patch = patch.flatten()
                 cropped_patches.append(cropped_patch)
-            img_patches.append(cropped_patches)
-        cropped_patches = numpy.asarray(img_patches)
+                img_locs.append(cropped_patche)
+
+            img_idx += 1
+
+        cropped_patches = numpy.asarray(cropped_patches)
         return cropped_patches
 
 class CroppedPatchesDataset(Dataset):
     """
     CroppedPatchesDataset is by itself an iterator.
     """
-    def __init__(self, img_shape, load_path=None, mode=None):
-
-        self.load_path = load_path
-        assert which_set in self.data_mapper.keys()
+    def __init__(self, img_shape, h5_file=None, start=None, stop=None, mode=None):
         self.__dict__.update(locals())
-        del self.self
-
-        if path is None:
-            raise ValueError("The path variable should not be empty!")
+        if self.self is not None:
+            del self.self
 
         if mode is not None:
-            mode = mode
-        elif start != None or stop != None:
-            mode = "r+"
+            self.mode = mode
+        elif start is not None or stop is not None:
+            self.mode = "r+"
         else:
-            mode = "r"
+            self.mode = "r"
 
         if not os.path.isfile(h5_file):
             raise ValueError("Please enter a valid file path.")
 
-        self.h5file = tables.openFile(h5_file, mode=mode)
-        dataset = self.h5file.root
+        self.initialize_dataset(h5_file)
 
-        self.patches = self.h5file.root.Data.Pt
-        self.targets = self.h5file.root.Data.Tgt
-        self.imgnos = self.h5file.root.Data.Ino
-        self.imglocs = self.h5file.root.Data.Iloc
+    def initialize_dataset(self, h5_file):
+        """
+        Set the files and the patches,...etc.
+        """
+        self.h5file = tables.openFile(h5_file, mode=self.mode)
+        self.dataset = self.h5file.root
+
+        self.patches = self.dataset.Data.Pt
+        self.targets = self.dataset.Data.Tgt
+        self.imgnos = self.dataset.Data.Ino
+        self.imglocs = self.dataset.Data.Iloc
+        self.data_n_rows = self.targets.shape[0]
 
     def get_design_matrix(self):
+        """
+        Return the patches as a dense design matrix.
+        """
         return self.patches
 
     def get_batch_design(self, batch_size, include_labels=False):
         """
-            Method inherited from the Dataset.
+        Method inherited from the Dataset.
         """
         self.iterator(mode='sequential', batch_size=batch_size, num_batches=None, topo=None)
         return self.next()
 
     def get_batch_topo(self, batch_size):
         """
-            Method inherited from the Dataset.
+        Method inherited from the Dataset.
         """
         raise NotImplementedError('Not implemented for sparse dataset')
 
@@ -153,7 +168,7 @@ class CroppedPatchesDataset(Dataset):
             targets=None,
             rng=None):
         """
-            Method inherited from the Dataset.
+        Method inherited from the Dataset.
         """
         self.mode = mode
         self.batch_size = batch_size
@@ -170,10 +185,16 @@ class CroppedPatchesDataset(Dataset):
         return self
 
     def next(self):
+        """
+        Method for the getting the next indices from the minibatch.
+        """
         indx = self.subset_iterator.next()
         try:
-            mini_batch = self.sparse_matrix[indx]
+            mini_batch_patches = self.patches[indx.start:indx.stop]
+            mini_batch_targets = self.targets[indx.start:indx.stop]
+            mini_batch_imgnos = self.imgnos[indx.start:indx.stop]
+            mini_batch_imglocs = self.imglocs[indx.start:indx.stop]
         except IndexError:
             print "The index of minibatch goes beyond the boundary."
             import ipdb; ipdb.set_trace()
-        return mini_batch
+        return (mini_batch_patches, mini_batch_targets, mini_batch_imgnos, mini_batch_imglocs)

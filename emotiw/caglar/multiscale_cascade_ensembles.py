@@ -10,7 +10,7 @@ import numpy as np
 import cv2
 
 from cascade_ensembles import CascadeMemberProps, ProbMode, Detector, Ensemble
-
+from output_map import OutputMapFile, OutputMap, CroppedPatchesDataset
 
 class MultiScaleCascadedDetectorEnsembles(Ensemble, Detector):
     """
@@ -113,6 +113,7 @@ class MultiScaleCascadedDetectorEnsembles(Ensemble, Detector):
         assert dataset.X is not None
         predictions = self.perform_detection(dataset)
         X = dataset.X
+
         results = np.all(X==0., axis=0)
         classifications = []
 
@@ -127,6 +128,7 @@ class MultiScaleCascadedDetectorEnsembles(Ensemble, Detector):
     def train_members(self, dataset=None):
         """
         Train the predictors.
+
         You need to do non-maximal suppression for training as well, as follows:
         - every learner sees ALL the positive examples from the training set, but
         - only the negative examples that have not been confidently detected by the previous predictors arrive to predictor
@@ -146,12 +148,12 @@ class MultiScaleCascadedDetectorEnsembles(Ensemble, Detector):
                 face_map = self._check_threshold_non_max_suppression(posteriors,
                         threshold=reject_prob,
                         radius=radius)
-
                 self.predictors[i].train(dataset.X, dataset.y, facemap=face_map)
 
     def perform_detection(self, dataset):
         """
-        Perform the detection on the images. Similar to training at each level of the cascade
+        Perform the detection on the images.
+        Similar to training at each level of the cascade
         perform thresholding and non-maximum suppression.
         """
         assert dataset is not None
@@ -164,7 +166,6 @@ class MultiScaleCascadedDetectorEnsembles(Ensemble, Detector):
                 posteriors = self.predictors[i-1].get_posteriors(dataset)
                 face_map = self._check_threshold_non_max_suppression(posteriors, threshold=reject_prob, radius=radius)
                 posteriors = self.predictors[i].get_posteriors(dataset.X, dataset.y, facemap=face_map)
-
         return posteriors
 
     def _check_threshold_non_max_suppression(self, probs, threshold, radius):
@@ -202,7 +203,6 @@ class MultiScaleCascadedDetectorEnsembles(Ensemble, Detector):
                     #within radius neighbourhood.
                     #The problem is that the spatially close outputs might be corresponding to the same face.
                     #Rows:
-
                     r = j % self.output_map_shp[1]
 
                     #Columns:
@@ -211,20 +211,24 @@ class MultiScaleCascadedDetectorEnsembles(Ensemble, Detector):
 
                     #Move on the grid in a circular fashion
                     for loc in iterator:
+
                         if loc[0] == radius:
                             break
+
                         y, x = loc[1]
                         n = y * self.output_map_shp[0] + self.output_map_shp[1]
+
                         if (loc[1][0] >= 0 and loc[1][0] <= self.img_shape[0] and
                                 loc[1][1] <= self.img_shape[1] and loc[1][1] >= 0):
-                            if new_preds[pred_pos[n, 0]] < new_preds[pred_pos[j, 0]]:
+                            if (new_preds[pred_pos[n, 0]] < new_preds[pred_pos[j, 0]]):
                                 new_preds[pred_pos[n, 0]] = 0
+
             processed_probs = new_preds
         return new_preds
 
     def _check_non_max_suppression(self, probs):
         """
-        Check the non maximum supression.
+        Check only the non maximum supression.
         """
         batch_size = self.output_map_shp[-1]
         for i in xrange(batch_size):
@@ -239,6 +243,46 @@ class MultiScaleCascadedDetectorEnsembles(Ensemble, Detector):
         """
         outputs[outputs < threshold] = 0
         return outputs
+
+    def get_posterior_patches(self, datasets, cascade_no):
+        """
+        Return the posterior probabilities of the cascadeMember. This returns the P(Face|x).
+        """
+        acts = []
+
+        for i in xrange(self.model.nlevels):
+
+            name = "cascade_%d_lvl_%d" % (cascade_no, i)
+            input_space = self.predictors[cascade_no].model.models[i].get_input_space()
+            X = input_space.make_theano_batch()
+
+            # doesn't support topo yets
+            if X.ndim > 2:
+                assert False
+
+            outputmap_file = OutputMapFile.create_file()
+            outputs = self.fprop(X)
+            batch_size = self.model.batch_size
+            fn = theano.function([X], outputs)
+
+            n_examples = X.shape[0]
+
+            out_file, gcols = OutputMapFile.create_file(self.model_file_path,
+                    name, n_examples=n_examples, out_shape=(n_examples,
+                        self.receptive_field_size[0], self.receptive_field_size[1]))
+
+            outmap = OutputMap(self.receptive_field_size, self.img_shape, self.predictors.stride)
+
+            for i in xrange(0, X.shape[0], batch_size):
+                batch = X[i:i+batch_size,:]
+                batch_act = fn(batch)
+                batch_act = np.concatenate([elem.reshape(elem.size) for elem in batch_act], axis=0)
+                new_preds = self._check_threshold_non_max_suppression(batch_act,
+                        self.reject_probabilities[cascade_no], self.non_max_radius)
+                patches = outmap.extract_patches(batch_act, out_maps)
+                imgnos = numpy.arange(i, i+batch_size)
+                OutputMapFile.save_output_map(out_file, new_preds, imgnos, )
+        return acts
 
 class MultiscaleConvolutionalCascadeMemberTrainer(object):
     """
@@ -255,11 +299,16 @@ class MultiscaleConvolutionalCascadeMemberTrainer(object):
             cascade_no,
             sparsity_level=0.5,
             receptive_field_size=None,
+            model_file_path=None,
+            self.stride=None,
             use_sparsity=False,
             model=None):
 
         self.use_sparsity = use_sparsity
         self.sparsity_level = sparsity_level
+        self.stride = stride
+        self.model_file_path = model_file_path
+
         self.receptive_field_size = receptive_field_size
         self.model = model
         self.cascade_no = cascade_no
@@ -288,7 +337,6 @@ class MultiscaleConvolutionalCascadeMemberTrainer(object):
             return sparsity_level
 
         #TODO, check that code again!.
-
         sparsity_lvl = check_sparsity(facemap)
         if self.use_sparsity:
             if sparsity_lvl <= self.sparsity_level:
@@ -297,18 +345,18 @@ class MultiscaleConvolutionalCascadeMemberTrainer(object):
                 r, c = facemap.shape
                 for i in xrange(r):
                     for j in xrange(c):
-                        if facemap[r,c] != 0.:
+                        if facemap[r, c] != 0.:
                             #Dataset class should have a set_loc class that iterator will
                             #only return the set_loc patches and labels extracted from the grid.
-                            self.dataset.set_loc(r,c)
+                            self.dataset.set_loc(r, c)
                             self.trainer.dataset = self.dataset
                             self.trainer.main_loop()
         else:
             r, c = facemap.shape
             for i in xrange(r):
                 for j in xrange(c):
-                    if facemap[r,c] != 0.:
-                        self.dataset.set_loc(r,c)
+                    if facemap[r, c] != 0.:
+                        self.dataset.set_loc(r, c)
                         self.trainer.dataset = self.dataset
                         self.trainer.main_loop()
 
@@ -349,4 +397,5 @@ class MultiscaleConvolutionalCascadeMemberTrainer(object):
             acts.append(act)
 
         return acts
+
 

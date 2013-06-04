@@ -22,8 +22,6 @@ class Imagenet(dense_design_matrix.DenseDesignMatrixPytables):
     def __init__(self, which_set,
             path,
             center,
-            size_of_receptive_field,
-            stride,
             start,
             stop,
             mode=None,
@@ -45,3 +43,4 @@ class Imagenet(dense_design_matrix.DenseDesignMatrixPytables):
         """
         TODO
         """
+

@@ -164,4 +164,3 @@ class MultiScaleSharedMLP(object):
         for trainer in self.trainers:
             trainers.main_loop()
 
-
