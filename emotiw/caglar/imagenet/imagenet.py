@@ -1,19 +1,14 @@
-import os
-import gc
 import warnings
+
 try:
         import tables
 except ImportError:
         warnings.warn("Couldn't import tables, so far SVHN is "
                             "only supported with PyTables")
-import numpy
 from theano import config
 from pylearn2.datasets import dense_design_matrix
-from pylearn2.utils.serial import load
-from pylearn2.utils.string_utils import preprocess
 from pylearn2.datasets import preprocessing
 from pylearn2.utils.iteration import SequentialSubsetIterator
-import matplotlib.image as mpimg
 import matplotlib.pyplot as plt
 
 
@@ -25,14 +20,14 @@ class Imagenet(dense_design_matrix.DenseDesignMatrixPyTables):
     }
 
     def __init__(self,
-	    which_set,
+            which_set,
             path_org,
-	    path, 	 
+            path,
             center,
-	    scale,
+            scale,
             start,
             stop,
-	    imageShape=(256,256),
+            imageShape=(256,256),
             mode='r+',
             axes=('b', 0, 1, 'c'),
             preprocessor=None):
@@ -59,7 +54,7 @@ class Imagenet(dense_design_matrix.DenseDesignMatrixPyTables):
 	data = self.h5file.createGroup(self.h5file.root, "Data", "Data")
 	atom = tables.Float32Atom() if config.floatX == 'float32' else tables.Float64Atom()
 	filters = tables.Filters(complib='blosc', complevel=5)
-	
+
 	x = self.h5file.createCArray(data, 'X', atom = atom, shape = ((stop-start, w*h)),
                                 title = "Data values", filters = filters)
 	y = self.h5file.createCArray(data, 'y', atom = atom, shape = ((stop-start, )),
@@ -69,8 +64,8 @@ class Imagenet(dense_design_matrix.DenseDesignMatrixPyTables):
 	x[:] = x_data[start:stop]
 	y[:] = y_data[start:stop]
 	self.h5file.flush()
-	    
-	    
+
+
         # rescale or center if permitted
         if center and scale:
             data.X[:] -= 127.5
@@ -85,51 +80,8 @@ class Imagenet(dense_design_matrix.DenseDesignMatrixPyTables):
         super(Imagenet, self).__init__(X = data.X, y = None,
                                     view_converter = view_converter)
         if preprocessor:
-            can_fit =False 
+            can_fit =False
             if which_set in ['train']:
                 can_fit = True
             preprocessor.apply(self, can_fit)
-
-
-def test_works():
-    
-    path_org = '/Tmp/gulcehrc/imagenet_256x256_filtered.h5'
-    path = '/Tmp/aggarwal/imagenetTemp.h5'
-    train = Imagenet(which_set = 'train',
-	    path = path,
-	    path_org = path_org,
-            center=True,
-	    scale=True,
-            start=0,
-            stop=1000,
-	    imageShape =(256,256),
-            mode='a',
-            axes=('b', 0, 1, 'c'),
-            preprocessor=None)
-    
-
-    pipeline = preprocessing.Pipeline()
-    pipeline.items.append(preprocessing.GlobalContrastNormalizationPyTables())
-    pipeline.items.append(preprocessing.LeCunLCN((256, 256), channels=[0], kernel_size=7))
-
-    # apply preprocessing to train
-    train.apply_preprocessor(pipeline, can_fit = True)
-    train.view_shape()
-
-    #testing 
-    batch_size = 10
-    num_batches = 1
-    mode = SequentialSubsetIterator
-    targets1 = []
-    targets2 = []
-
-    for data in train.iterator(batch_size=batch_size, num_batches=num_batches, mode=mode,targets=False):
-	imgplot = plt.imshow(data.reshape((256,256)))
-	plt.gray()
-        plt.show()
-	#print data.shape    
-
-
-if __name__ == '__main__':
-	test_works()
 

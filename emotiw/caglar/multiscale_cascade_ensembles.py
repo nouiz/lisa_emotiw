@@ -499,4 +499,3 @@ class MultiscaleConvolutionalCascadeMemberTrainer(object):
             acts.append(act)
         return acts
 
-
