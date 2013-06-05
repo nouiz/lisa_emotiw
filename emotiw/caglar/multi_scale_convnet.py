@@ -28,7 +28,13 @@ class MultiScaleDistinctMLP(object):
 
     def _setup_trainers(self):
         for i in xrange(self.nlevels):
+            self.trainers[i].dataset = self.pyramids[i]
+            self.trainers[i].setup_extensions()
             self.algorithms[i].setup(self.models[i], self.pyramids[i])
+
+    def setup_mscale(self, datasets):
+        self.pyramids = datasets
+        self._setup_trainers()
 
     def frop(self, X, models_no):
         if models_no >= self.nlevels:
@@ -102,7 +108,13 @@ class MultiScaleSharedMLP(object):
 
     def _setup_trainers(self):
         for i in xrange(self.nlevels):
+            self.trainers[i].dataset = self.pyramids[i]
+            self.trainers[i].setup_extensions()
             self.algorithms[i].setup(self.models[i], self.pyramids[i])
+
+    def setup_trainers(self, datasets):
+        self.pyramids = datasets
+        self._setup_trainers()
 
     def _check_param_sharing(self):
         for model in self.models:
@@ -162,5 +174,5 @@ class MultiScaleSharedMLP(object):
 
     def train_mscale(self):
         for trainer in self.trainers:
-            trainers.main_loop()
+            trainer.main_loop()
 
