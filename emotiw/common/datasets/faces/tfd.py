@@ -835,7 +835,7 @@ class ArFace(FaceImagesDataset):
         Reads the ArFace keypoints file and returns the KeyPoint dictionary
         """
         if not os.path.exists(keyPointsFileName):
-            return None
+            return {}
 
         with open(keyPointsFileName, 'r') as keyPointsFile:
             keyPointsLines = keyPointsFile.readlines()
@@ -853,8 +853,8 @@ class ArFace(FaceImagesDataset):
                      "nose_tip": (float(keyPointsLines[17].split(" ")[0]), float(keyPointsLines[17].split(" ")[1])),
                      "mouth_left_corner": (float(keyPointsLines[6].split(" ")[0]), float(keyPointsLines[6].split(" ")[1])),
                      "mouth_right_corner": (float(keyPointsLines[5].split(" ")[0]), float(keyPointsLines[5].split(" ")[1])),
-                     "mouth_center_top_lip": (float(keyPointsLines[20].split(" ")[0]), float(keyPointsLines[20].split(" ")[1])),
-                     "mouth_center_bottom_lip": (float(keyPointsLines[21].split(" ")[0]), float(keyPointsLines[21].split(" ")[1]))}
+                     "mouth_top_lip": (float(keyPointsLines[20].split(" ")[0]), float(keyPointsLines[20].split(" ")[1])),
+                     "mouth_bottom_lip": (float(keyPointsLines[21].split(" ")[0]), float(keyPointsLines[21].split(" ")[1]))}
 
         return keyPoints
 
@@ -919,8 +919,8 @@ class ArFace(FaceImagesDataset):
 
     def get_eyes_location(self, i):
         d = self.keyPointsDict[i]
-        if d is not None:
-            return d['right_eye_pupil'] + d['left_eye_pupil']
+        if len(d) != 0:
+            return [d['right_eye_pupil'][0], d['right_eye_pupil'][1], d['left_eye_pupil'][0], d['left_eye_pupil'][1]]
         else:
             return None
 

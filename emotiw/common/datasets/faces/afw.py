@@ -78,7 +78,9 @@ class AFW(FaceImagesDataset):
         return self.lstImages[i][1]
 
     def get_eyes_location(self, i):
-        
+        print '...'
+        print self.lstkeypoints[i][3]
+        print 'OK'
         return [self.lstkeypoints[i][3][0][0],self.lstkeypoints[i][3][1][0],self.lstkeypoints[i][3][0][1],self.lstkeypoints[i][3][1][1]]
     
     def get_keypoints_location(self,i):

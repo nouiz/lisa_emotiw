@@ -1,11 +1,20 @@
 import PIL
 import PIL.Image
 import numpy.random
+import math
 
 def crop_face(img, bbox, eyes, points={}):
-    img = img.convert("RGBA")
+    img = img.convert("RGBX")
     bb = bbox
     x0, y0, x1, y1 = (None, None, None, None)
+    to_remove = []
+    
+    for pt in points:
+        if math.isnan(points[pt][0]) or math.isnan(points[pt][1]):
+            to_remove.append(pt)
+
+    for tr in to_remove:
+        del points[tr]
     
     if bb is None:
         try:
@@ -51,6 +60,11 @@ def crop_face(img, bbox, eyes, points={}):
     x_delta = None #look to the sides more than the keypoints would suggest
     y_delta = None    
 
+    x0 = float(x0)
+    x1 = float(x1)
+    y0 = float(y0)
+    y1 = float(y1)
+
     try:
         x_delta = eyes[2] - eyes[0]
         y_delta = eyes[3] - eyes[1]
@@ -78,7 +92,7 @@ def crop_face(img, bbox, eyes, points={}):
     side_0 = x1 - x0
     side_1 = y1 - y0
 
-    clamped = [(p, (round((96.0*(points[p][0] - x0))/(side_0)), round((96.0*(points[p][1] - y0))/(side_1)))) for p in points if x1 > points[p][0] > x0 and y1 > points[p][1] > y0]
+    clamped = [(p, ((96.0*(points[p][0] - x0))/(side_0), (96.0*(points[p][1] - y0))/(side_1))) for p in points if x1 > points[p][0] > x0 and y1 > points[p][1] > y0]
 
     new_points = {}
     for c in clamped:
@@ -98,6 +112,7 @@ def crop_face(img, bbox, eyes, points={}):
 
 def display_1(ds, idx):
     img, pts = crop_face(PIL.Image.open(ds.get_original_image_path(idx)), ds.get_bbox(idx), ds.get_eyes_location(idx), ds.get_keypoints_location(idx))
+    img = img.convert("RGBA")
 
     data_str = ""
         

@@ -42,12 +42,27 @@ class Caltech(FaceImagesDataset):
     def get_eyes_location(self, i):
         if within_bounds(i, len(self.keyPointsDict)):
             points = self.keyPointsDict[i]
+
+            right = None
+            left = None
             
             try:
-                return (points['right_eye_pupil'], points['left_eye_pupil'])
-            except KeyError:
-                return None
-        return None
+                try:
+                    right = [points['right_eye_pupil'][0], points['right_eye_pupil'][1]]
+                    left = [points['left_eye_pupil'][0], points['left_eye_pupil'][1]]
+                except KeyError:
+                    if right is not None:
+                        left = [None, None]
+                    else:
+                        right = [None, None]
+                        try:
+                            left = [points['left_eye_pupil'][0], points['left_eye_pupil'][1]]
+                        except KeyError:
+                            left = [None, None]
+            finally:
+                right.extend(left)
+                return right
+        return [None, None, None, None]
 
     def __len__(self):
         return len(self.lstImages)

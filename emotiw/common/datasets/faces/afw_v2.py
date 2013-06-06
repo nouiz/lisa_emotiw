@@ -2,6 +2,7 @@ import os
 from helper import within_bounds, flatten
 from faceimages import FaceImagesDataset
 import h5py
+import math
 
 class AFW(FaceImagesDataset):
     def __init__(self):
@@ -69,12 +70,16 @@ class AFW(FaceImagesDataset):
             try:
                 try:
                     left = list(points['right_eye_center'])
+                    if math.isnan(left[0]) or math.isnan(left[1]):
+                        raise KeyError()
                 except KeyError:
                     left = [None, None]
             finally:
                 try:
                     try:
                         right = list(points['left_eye_center'])
+                        if math.isnan(right[0]) or math.isnan(right[1]):
+                            raise KeyError()
                     except KeyError:
                         right = [None, None]
                 finally:
