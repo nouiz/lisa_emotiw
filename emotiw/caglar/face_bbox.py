@@ -64,7 +64,9 @@ class FaceBBoxDDMIterator(iteration.FiniteDatasetIterator):
         self.area_ratio = area_ratio
         self.use_output_map = use_output_map
 
-        super(FaceBBoxDDMIterator, self).__init__(dataset, subset_iterator, topo=topo,
+        super(FaceBBoxDDMIterator, self).__init__(dataset,
+                subset_iterator,
+                topo=topo,
                 targets=targets)
 
     def next(self):
@@ -681,11 +683,13 @@ class FaceBBox(FaceBBoxDDMPytables):
         This is the pylearn2 interface class for the Google Faces bounding
     boxes dataset.
     """
+
     data_mapper = {
             "train": 0,
             "valid": 1,
             "test": 2
     }
+
     def __init__(self,
             which_set,
             path=None,
@@ -695,10 +699,12 @@ class FaceBBox(FaceBBoxDDMPytables):
             stop=None,
             img_shape=None,
             mode=None,
-            axes = ('b', 0, 1, 'c'),
+            axes=('b', 0, 1, 'c'),
             bbox_conversion_type=ConversionType.GUID,
-            use_output_map=False, size_of_receptive_field=None,
-            stride=1, preprocessor=None):
+            use_output_map=False,
+            size_of_receptive_field=None,
+            stride=1,
+            preprocessor=None):
         """
         m: The mode to open the h5file.
         bbox_conversion_type: What type of conversion to perform on the bounding boxes.
@@ -769,3 +775,4 @@ class FaceBBox(FaceBBoxDDMPytables):
 
         if self.h5file is not None:
             self.h5file.flush()
+

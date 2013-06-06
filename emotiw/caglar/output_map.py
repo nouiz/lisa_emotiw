@@ -98,6 +98,7 @@ class OutputMap(object):
         cropped_patches = []
         targets = []
         img_nos = []
+        img_locs = []
 
         for out_map in out_maps:
             non_empty_rfs = numpy.where(out_map!=0)
@@ -123,36 +124,40 @@ class OutputMap(object):
             patches,
             out_map,
             img_nos,
-            conv_target):
+            conv_targets):
         """
         Return the patches that are saved from the non_max_sup and thresholding.
         """
-        n_images = len(images)
+        n_images = len(patches)
         cropped_patches = []
         targets = []
         img_nos_p = []
+        img_locs = []
         non_empty_rfs = numpy.where(out_map!=0)
-        i = 0
+
+        patch_count = 0
+        rf_count = 0
 
         for patch in patches:
-            if conv_target[i] != 0:
+            if conv_targets[patch_count] != 0:
+                non_empty_rf = non_empty_rfs[rf_count]
                 x = non_empty_rf % self.out_shape[1]
                 y = int(non_empty_rf / self.out_shape[0])
 
-                target = conv_targets[non_empty_rf]
-
+                target = conv_targets[patch_count]
                 img_nos_p.append(patch)
                 cropped_patches.append(patch)
                 img_locs.append(non_empty_rf)
                 targets.append(conv_targets[non_empty_rf])
-            i += 1
+                rf_count +=1
+
+            patch_count += 1
 
         cropped_patches = numpy.asarray(cropped_patches)
         targets = numpy.asarray(targets)
         img_locs = numpy.asarray(img_locs)
         img_nos_p = numpy.asarray(img_nos_p)
         return (cropped_patches, targets, img_locs, img_nos_p)
-
 
 class CroppedPatchesDataset(Dataset):
     """
@@ -243,23 +248,21 @@ class CroppedPatchesDataset(Dataset):
         if self.cur_idx == -1:
             batch_start_indx = self.subset_iterator.next()
         else:
-            batch_start_idx = self.cur_idx
+            batch_start_indx = self.cur_idx
 
-        begining_img_no = self.imgnos[indx]
+        begining_img_no = self.imgnos[batch_start_indx]
 
         mini_batch_patches = []
         mini_batch_imglocs = []
         mini_batch_imgnos = []
         mini_batch_targets = []
 
+        indx = batch_start_indx
+
         while indx is not None:
-
-            indx = self.subset_iterator.next()
-
             if (mini_batch_targets[-1] is not None) and (mini_batch_imgnos[-1] != begining_img_no):
                 self.cur_idx = indx
                 break
-
             try:
                 mini_batch_patches.append(self.patches[indx.start])
                 mini_batch_targets.append(self.targets[indx.start])
@@ -268,6 +271,8 @@ class CroppedPatchesDataset(Dataset):
             except IndexError:
                 print "The index of minibatch goes beyond the boundary."
                 import ipdb; ipdb.set_trace()
+
+            indx = self.subset_iterator.next()
 
         if self.iter_mode == "train":
             return (mini_batch_patches, mini_batch_targets)

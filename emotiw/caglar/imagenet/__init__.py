@@ -27,6 +27,8 @@ class Imagenet(dense_design_matrix.DenseDesignMatrixPyTables):
             scale,
             start,
             stop,
+            size_of_receptive_field=None,
+            stride=1,
             imageShape=(256,256),
             mode='r+',
             axes=('b', 0, 1, 'c'),
@@ -37,14 +39,23 @@ class Imagenet(dense_design_matrix.DenseDesignMatrixPyTables):
         self.__dict__.update(locals())
         del self.self
 
-        self.mode = mode
-	w,h = imageShape
+        self.size_of_receptive_field = size_of_receptive_field
+        self.stride = stride
 
+
+        self.mode = mode
+	w, h = imageShape
+
+        cout_w = (w - size_of_receptive_field[0]) / stride + 1
+        cout_h = (h - size_of_receptive_field[1]) / stride + 1
+
+        if cout_h < 0 or cout_w < 0:
+            raise ValueError("Conv output size should not be less than 0.")
         h5file_org = tables.openFile(path_org, mode = 'r')
 
 	assert start != None and stop != None
 	x_data = h5file_org.getNode('/', 'x')
-	y_data = h5file_org.getNode('/', 'y')
+        #y_data = h5file_org.getNode('/', 'y')
 
 	#create new h5file at the specified path
 	self.h5file = tables.openFile(path, mode = mode, title = "ImageNet Dataset")
@@ -57,14 +68,12 @@ class Imagenet(dense_design_matrix.DenseDesignMatrixPyTables):
 
 	x = self.h5file.createCArray(data, 'X', atom = atom, shape = ((stop-start, w*h)),
                                 title = "Data values", filters = filters)
-	y = self.h5file.createCArray(data, 'y', atom = atom, shape = ((stop-start, )),
+	y = self.h5file.createCArray(data, 'y', atom = atom, shape = ((stop-start, cout_w*cout_h)),
                                 title = "Data targets", filters = filters)
 
 	#copy data from original h5file
 	x[:] = x_data[start:stop]
-	y[:] = y_data[start:stop]
 	self.h5file.flush()
-
 
         # rescale or center if permitted
         if center and scale:
@@ -77,7 +86,7 @@ class Imagenet(dense_design_matrix.DenseDesignMatrixPyTables):
 
         view_converter = dense_design_matrix.DefaultViewConverter((w, h, 1),
                                                                         axes)
-        super(Imagenet, self).__init__(X = data.X, y = None,
+        super(Imagenet, self).__init__(X = data.X, y = y,
                                     view_converter = view_converter)
         if preprocessor:
             can_fit =False
