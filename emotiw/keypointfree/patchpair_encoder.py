@@ -1,12 +1,8 @@
 import numpy, pylab
-import cPickle
 
 import theano
 import theano.tensor as T
 from theano.tensor.shared_randomstreams import RandomStreams
-
-from tools import dispims
-from minimize import minimize  
 
 
 class Patchpairencoder(object):
@@ -103,14 +99,14 @@ class Patchpairencoder(object):
         # DEFINE WEIGHTCOST
         self._weightcost = self.weightcost * (self.wdfh**2).sum() 
         if self.contraction > 0.0:
-            self._contraction_cost = T.sum( ((self._hiddens * (1 - self._hiddens))**2) * T.sum(T.sum(self.wdfh**2, axis=1), axis=0).dimshuffle('x', 0), axis=1)
+            self._contraction_cost = T.mean( ((self._hiddens * (1 - self._hiddens))**2) * T.sum(T.sum(self.wdfh**2, axis=1), axis=0).dimshuffle('x', 0), axis=1)
 
         # ATTACH COST FUNCTIONS
-        self._costpercaseD = -T.sum(0.5* (self.inputsD*T.log(self._reconsD)+(1.0-self.inputsD)*T.log(1.0-self._reconsD)), axis=1) 
+        self._costpercaseD = -T.mean(0.5* (self.inputsD*T.log(self._reconsD)+(1.0-self.inputsD)*T.log(1.0-self._reconsD)), axis=1) 
         if self.output_type == 'binary':
-            self._costpercaseY = - T.sum(0.5* (self.inputsY*T.log(self._reconsY) + (1.0-self.inputsY)*T.log(1.0-self._reconsY)), axis=1) 
+            self._costpercaseY = - T.mean(0.5* (self.inputsY*T.log(self._reconsY) + (1.0-self.inputsY)*T.log(1.0-self._reconsY)), axis=1) 
         elif self.output_type == 'real':
-            self._costpercaseY = T.sum(0.5*((self.inputsY-self._reconsY)**2), axis=1)
+            self._costpercaseY = T.mean(0.5*((self.inputsY-self._reconsY)**2), axis=1)
         else:
             assert False, "unknown output type (has to be either 'binary' or 'real')"
         if self.contraction > 0.0:

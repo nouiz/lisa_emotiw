@@ -4,36 +4,33 @@
 
 import os
 import numpy as np
-import sys
-import glob
-from scipy import io as sio
-import unicodedata
 import math
+from NckuBasedDataset import NckuBasedDataset
+import pickle
 
-from emotiw.common.utils.pathutils import locate_data_path
-from faceimages import FaceImagesDataset
-
-class NCKUHeadPose(FaceImagesDataset):
+class NCKUHeadPose(NckuBasedDataset):
     def __init__(self):
         super(NCKUHeadPose, self).__init__("NCKUHeadPose", "faces/headpose/ncku")
-
+        
         print 'Working...'
 
-        self.images = [] 
+        self.images = []
         self.tilt = []
         self.listOfSubjectId = []
         self.poses =[]
         self.imageIndex = {}
         self.pan = []
         self.roll = []
-
+        self.relPaths = []
+        self.out = 0
         idx = 0
         for root, subdirs, files in os.walk(self.absolute_base_directory):
             for file in files:
                 if os.path.splitext(file)[1].lower() in ('.jpg', '.jpeg'):
                     subjectID = int(file[2:4])
                     angle = file[5:-4]
-                    
+                    relPath = os.path.join(root.split('/')[-1], file)
+                    self.relPaths.append(relPath)
                     #because the dataset follows opposite convention to what we are using
                     if(angle[0] == '-'):
                         angle = +1 * int(angle[1:])
@@ -63,45 +60,22 @@ class NCKUHeadPose(FaceImagesDataset):
                     self.imageIndex[file] = idx
                     idx += 1
                     #analyse the name
-         
-    def __len__(self):
-        return len(self.images)
-
-    def get_pan_tilt_and_roll(self, i):
-        if i >= 0 and i < len(self.images):
-            return (self.pan[i], self.tilt[i], self.roll[i])
-        else:
-            return None 
-
-    def get_original_image_path_relative_to_base_directory(self, i):
-        return os.path.join(self.absolute_base_directory,'Subject' + str(self.listOfSubjectId[i]), self.images[i])
-
-    def get_subject_id_of_ith_face(self, i):
-        if i >= 0 and i < len(self.images):
-            return self.listOfSubjectId[i]
-        else:
-            return None
-
-    def get_head_pose(self, i):
-        if i >= 0 and i < len(self.images):
-            return self.poses[i]
-        else:
-            return None
-    def get_index_from_image_filename(self, imgFileName):
-        return self.imageIndex[imgFileName]
-
+        self.read_json_keypoints()
 
 def testWorks():
+    save = 0
+    if (save):
+        obj = NCKUHeadPose()
+        output = open('ncku.pkl', 'wb')
+        data = obj
+        pickle.dump(data, output)
+        output.close()
+    else:
+        pkl_file = open('ncku.pkl', 'rb')
+        obj = pickle.load(pkl_file)
+        pkl_file.close()
 
-    ncku = NCKUHeadPose()
-    print len(ncku)
-    for index in range(76):    
-        print ncku.get_original_image_path(index)
-        print ncku.get_head_pose(index)
-        print ncku.get_subject_id_of_ith_face(index)
-        print ncku.get_index_from_image_filename(ncku.images[index])
-        print ncku.get_pan_tilt_and_roll(index)
-
+    obj.verify_samples()
 
 if __name__ == '__main__':
-    testWorks() 
+    testWorks()

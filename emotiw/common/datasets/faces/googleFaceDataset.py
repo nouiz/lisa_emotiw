@@ -45,6 +45,7 @@ class GoogleFaceDataset(FaceImagesDataset):
         data = cPickle.load(open(self.absolute_base_directory+"Clean/latest.pkl","rb"))
         data = data[1:]
         
+        print data
         self.labels = data[0]
         self.ids = data[2]
         self.queryIds = data[3]

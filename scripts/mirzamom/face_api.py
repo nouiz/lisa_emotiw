@@ -128,6 +128,7 @@ def batch_job():
             if tags is not None:
                 print "Passed: {}".format(item)
                 save_name = save_path + item.split("/")[-2] + '/' + item.split("/")[-1].rstrip(".jpg") + ".json"
+                print save_name
                 with open(save_name, 'w') as outf:
                     json.dump(tags, outf)
             else:

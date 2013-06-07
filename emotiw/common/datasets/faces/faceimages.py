@@ -30,6 +30,11 @@
 import os
 import sys
 import cv
+import Image
+import ImageDraw
+import ImageFont
+import numpy
+import sys
 
 from emotiw.common.utils.pathutils import locate_data_path
 
@@ -95,6 +100,66 @@ class FaceImagesDataset(object):
         """
         relpath = self.get_original_image_path_relative_to_base_directory(i)
         return os.path.join(self.absolute_base_directory, relpath)
+    
+    def verify_samples(self, i=None):
+        '''
+        displays sample image with keypoints and bounding boxes 
+        and all the information that is there is displayes
+        '''
+        entered = False
+        while(True):
+            index1 = 0
+              
+            if(i==None or entered == True):
+                i = index1 + int(numpy.random.random((1)) * self.__len__())
+            print 'Dataset Size:', self.__len__()
+            print 'Index:', i
+            filepath = self.get_original_image_path(i)
+            img = Image.open(filepath)
+            img.show('Original Image')
+            print 'Size:', img.size
+            bbox = self.get_bbox(i)
+            factorX = 1.0
+            factorY = 1.0
+            draw = ImageDraw.Draw(img)
+
+            if bbox == None:
+                print 'No bounding box information'
+                    
+            else:
+                print 'bbox:', bbox
+                w,h = (bbox[2]-bbox[0], bbox[3]-bbox[1])
+                width, height = img.size
+                if w < 200 or h < 200:
+                    factorX = 200.0/w
+                    factorY = 200.0/h
+                    img = img.resize((int(width*factorX), int(height*factorY)))
+                
+                draw = ImageDraw.Draw(img)
+                bbox = [bbox[0]*factorX, bbox[1]*factorY, bbox[2]*factorX, bbox[3]*factorY]
+                draw.rectangle(bbox , outline="#FF00FF")
+
+                    
+            print 'keypoints:'
+            keypoints = self.get_keypoints_location(i)
+            if len(keypoints) == 0:
+                print 'No keypoint information available'
+            else:
+                index = 1
+                print keypoints
+                for key in keypoints:
+                    print index, ':' , key, '=', keypoints[key]
+                    (x, y ) = keypoints[key]
+                    draw.text((x * factorX, y * factorY), str(index))
+                    index += 1
+            img.show()
+            print 'press any q to exit, any other key to continue..'
+            ui = sys.stdin.readline()  
+            ui = ui.rstrip("\n")
+            entered = True
+            if ui=="q":  
+                return
+        
 
     def get_original_image_path_relative_to_base_directory(self, i):
         """
@@ -168,23 +233,62 @@ class FaceImagesDataset(object):
 
         Possible names for the keypoints should be one of FGNet definition :
         *** Left = left of subject therefore at the right of the image in frontal view ***
-        left_eye_pupil
-        right_eye_pupil
-        left_eye_center
-        right_eye_center
-        left_eye_inner_corner
-        left_eye_outer_corner
-        right_eye_inner_corner
-        right_eye_outer_corner
+
         left_eyebrow_inner_end
-        left_eyebrow_outer_end
-        right_eyebrow_inner_end
-        right_eyebrow_outer_end
+        mouth_top_lip_bottom
+        right_ear_canal
+        right_ear_top
+        mouth_top_lip
+        mouth_bottom_lip_top
+        right_eyebrow_center
+        chin_left
         nose_tip
+        left_eyebrow_center_top
+        left_eye_outer_corner
+        right_ear
+        mouth_bottom_lip
+        left_eye_center
+        left_mouth_outer_corner
+        left_eye_center_top
+        left_ear_center
+        nostrils_center
+        right_eye_outer_corner
+        right_eye_center_bottom
+        chin_center
+        left_eye_inner_corner
+        right_mouth_outer_corner
+        left_ear_bottom
+        right_eye_center_top
+        right_eyebrow_inner_end
+        left_eyebrow_outer_end
+        left_ear_top
+        right_ear_center
+        nose_center_top
+        face_center
+        right_eye_inner_corner
+        right_eyebrow_center_top
+        left_eyebrow_center
+        right_eye_pupil
+        right_ear_bottom
         mouth_left_corner
+        left_eye_center_bottom
+        left_eyebrow_center_bottom
         mouth_right_corner
-        mouth_center_top_lip
-        mouth_center_bottom_lip
+        right_nostril
+        right_eye_center
+        chin_right
+        right_eyebrow_outer_end
+        left_eye_pupil
+        mouth_center
+        left_nostril
+        right_eyebrow_center_bottom
+        left_ear_canal
+        left_ear
+        face_right
+        face_left
+        (NOTE: a list of those keypoints formated as a python list is available in 
+            emotiw/keypoints_desc/keypoints_desc)
+
         """
         return None
 
@@ -198,7 +302,7 @@ class FaceImagesDataset(object):
         """
         Retruns a string uniquely identifying the kth subject from this database (or None if unknown)
         """
-        return None
+        return k
 
     def get_face_examples_for_subject(self, k):
         """
@@ -550,7 +654,7 @@ class FaceDatasetExample(object):
     def __getattr__(self, property_name):
         if property_name in FaceDatasetExample.property_names:            
             dataset_method = getattr(self._dataset, "get_"+property_name)
-            return dataset_method(i)
+            return dataset_method(self._i)
         else:
             raise AttributeError()
 

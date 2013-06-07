@@ -11,13 +11,13 @@ import patchpair_encoder
 import train
 
 numclasses = 10 
-patchsize = 6
+patchsize = 12
 border = patchsize/2
-maxdelta = 5
+maxdelta = 10 
 fixation_mask_size = 3
-numhid = 100
+numhid = 50
 #pooling = "quadrants"
-numpatches_per_image = 500
+numpatches_per_image = 500 
 
 rng  = numpy.random.RandomState(1)
 
@@ -158,11 +158,13 @@ model = patchpair_encoder.Patchpairencoder(numvisD=9, numvisY=pca_forward.shape[
                        numpy_rng=numpy_rng, theano_rng=theano_rng)
 
 bigramtrainfeatures = theano.shared(numpy.concatenate(alldata[:numtrain]).astype("float32"))
-trainer = train.GraddescentMinibatch(model, bigramtrainfeatures, batchsize=100, learningrate=0.01, normalizefilters=False) 
+trainer = train.GraddescentMinibatch(model, bigramtrainfeatures, batchsize=100, learningrate=0.05, normalizefilters=False) 
 
 
 print "training model"
-for epoch in xrange(100):
+for epoch in xrange(200):
+    if epoch % 50 == 0 and epoch >1:
+        trainer.set_learningrate(trainer.learningrate*0.5)
     trainer.step()
     if epoch % 10 == 0:
         pylab.figure(1)
