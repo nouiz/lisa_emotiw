@@ -47,7 +47,7 @@ class FaceImagesDataset(object):
         """
         Initilizes a dataset with the given name, and whose
         constituent files are located in the specified
-f        directory. This directory is specified only relative to
+        directory. This directory is specified only relative to
         some standard dataset root location (found with locate_data_path ) 
         """
         self.dataset_name = dataset_name
