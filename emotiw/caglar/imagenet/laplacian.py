@@ -12,8 +12,6 @@ except ImportError:
 
 from pylearn2.datasets.preprocessing import Preprocessor
 from pylearn2.datasets import preprocessing
-from imagenet import Imagenet
-from pylearn2.utils.iteration import SequentialSubsetIterator
 import os
 
 class LaplacianPyramid(Preprocessor):
@@ -52,7 +50,7 @@ class LaplacianPyramid(Preprocessor):
 
     def get_h5file(self, path, x_shape, y_shape):
         """
-            Save to the specified path with the given shapes.
+        Save to the specified path with the given shapes.
         """
         h5file, gcols = Imagenet.init_hdf5(path, (x_shape, y_shape))
         return h5file, gcols
@@ -63,7 +61,7 @@ class LaplacianPyramid(Preprocessor):
         """
         h5files = []
         gcolumns = []
-        
+
         assert self.paths is not None
         i = 0
         for path in self.paths:
@@ -81,7 +79,7 @@ class LaplacianPyramid(Preprocessor):
         """
         h5files = []
         gcolumns = []
-        
+
         assert self.paths is not None
         i = 0
         for path in self.paths:
@@ -93,7 +91,6 @@ class LaplacianPyramid(Preprocessor):
             gcolumns.append(gcols)
             i += 1
         return h5files, gcolumns
-
 
     def get_pyr_shapes(self):
         pyr_shapes = [self.img_shape]
@@ -116,8 +113,7 @@ class LaplacianPyramid(Preprocessor):
             can_fit: bool
                 Whether the datasets can fit the memory or not.
         """
-            
-        
+
         data_X = dataset
         #data_Y = dataset.y
 
@@ -126,11 +122,11 @@ class LaplacianPyramid(Preprocessor):
 
         prev_shape = self.img_shape
         h5files, gcols = self.get_h5files(data_size, pyr_shapes)
-        
+
         if self.preprocess:
             GCN = preprocessing.GlobalContrastNormalizationPyTables()
             h5files_processed, gcols_processed = self.get_h5files_processed(data_size, pyr_shapes)
-        
+
 
         for i in xrange(data_size):
             img = data_X[i]
@@ -154,7 +150,7 @@ class LaplacianPyramid(Preprocessor):
                     h5files_processed[l].flush()
 
                 l_img = numpy.reshape(img-tmp_img, newshape=numpy.prod(pyr_shapes[l]))
-                
+
                 h5files[l].root.Data.X[i] = l_img
                 img = next_img
                 h5files[l].flush()
@@ -215,49 +211,3 @@ class LaplacianPyramid(Preprocessor):
         else:
             return self.gen_pyr(dataset)
 
-
-def test_works():
-    nlevels = 5
-    subsampling_rates=[2, 2, 2, 2, 2]
-    img_shape = (256, 256)
-    paths = ['/Tmp/aggarwal/imagenetl1.h5',
-             '/Tmp/aggarwal/imagenetl2.h5',
-             '/Tmp/aggarwal/imagenetl3.h5',
-             '/Tmp/aggarwal/imagenetl4.h5',
-             '/Tmp/aggarwal/imagenetl5.h5']
-             
-
-    obj = LaplacianPyramid(nlevels=nlevels,
-                           subsampling_rates=subsampling_rates,
-                           img_shape = img_shape,
-                           paths = paths,
-                           preprocess =True)
-
-    path_org = '/Tmp/gulcehrc/imagenet_256x256_filtered.h5'
-    path = '/Tmp/aggarwal/imagenetTemp.h5'
-    train = Imagenet(which_set = 'train',
-            path = path,
-            path_org = path_org,
-            center=True,
-            scale=True,
-            start=0,
-            stop=1000,
-            imageShape =(256,256),
-            mode='a',
-            axes=('b', 0, 1, 'c'),         
-            preprocessor=None)
-
-    #testing 
-    batch_size = 10
-    num_batches = 1
-    mode = SequentialSubsetIterator
-    targets1 = []
-    targets2 = []
-
-    for data in train.iterator(batch_size=batch_size, num_batches=num_batches, mode=mode,targets=False):
-	obj.apply(data, canfit=True)
-
-    
-if __name__ == '__main__':
-    test_works()
-    

@@ -1,12 +1,15 @@
-from imagenet import *
+from emotiw.caglar.imagenet import Imagenet
+from pylearn2.datasets import preprocessing
+from pylearn2.utils.iteration import SequentialSubsetIterator
 
 def test1():
 
     path_org = '/Tmp/gulcehrc/imagenet_256x256_filtered.h5'
-    path = '/Tmp/aggarwal/imagenetTemp.h5'
+    path = '/Tmp/gulcehrc/imagenetTemp.h5'
     train = Imagenet(which_set = 'train',
 	    path = path,
 	    path_org = path_org,
+            size_of_receptive_field=(8, 8),
             center=True,
 	    scale=True,
             start=0,
@@ -32,11 +35,10 @@ def test1():
     targets1 = []
     targets2 = []
 
-    for data in train.iterator(batch_size=batch_size, num_batches=num_batches, mode=mode,targets=False):
-	imgplot = plt.imshow(data.reshape((256,256)))
-	plt.gray()
-        plt.show()
-	#print data.shape
+    #for data in train.iterator(batch_size=batch_size, num_batches=num_batches, mode=mode,targets=False):
+    #	imgplot = plt.imshow(data.reshape((256,256)))
+    #	plt.gray()
+    #    plt.show()
 
 
 test1()
