@@ -66,13 +66,22 @@ class LazyDesignMatrix(object):
                 else:
                     prev_size += size
 
-        if len(res) == 1:
+        res = map(self.to_gaussian, res)
+        while(len(res) == 1):
             res = res[0]
 
         arr = numpy.asarray(res)
         if len(arr.shape) < 2:
             arr = arr.reshape(1, arr.shape[0])
-        return self.transform(arr)
+        transformed = self.transform(arr)
+
+        if len(transformed) == 1:
+            transformed = transformed[0]
+        return transformed
+
+    def to_gaussian(self, arr):
+        #NOTE: '\0' in an ndarray is converted to '' instead of being kept as the '\0' character.
+        return [(len(x) != 0 and (ord(x)*(2.6/255))-1.3) or -1.3 for x in arr]
 
 class LazyTargets(object):
     def __init__(self, wrapper):
@@ -91,12 +100,20 @@ class LazyTargets(object):
 
         if isinstance(key, slice):
             rept_slice = key
-
-        if isinstance(key, tuple): #A tuple that slices elems first, and data second.
+        elif isinstance(key, int):
+            rept_slice = slice(key, key+1, 1)
+        elif isinstance(key, tuple): #A tuple that slices elems first, and data second.
             rept_slice = key[0]
             the_slice = key[1]
 
-        for i in range(size)[rept_slice]: 
+        total_examples = 0
+
+        numbers = range(size)[rept_slice]
+        if isinstance(numbers, int):
+            numbers = [numbers]
+
+        for i in numbers: 
+            total_examples += 1
             prev_size = 0
             for idx, size in enumerate(self.wrapper.elems_in_files):
                 if size + prev_size > i:
@@ -171,7 +188,7 @@ class HDF5KeypointsWrapper(DenseDesignMatrix):
                 raise ValueError("Requested "+str(batch_size)+" examples"
                     "from a dataset containing only "+str(size))
             raise
-        rx = self.adjust_for_viewer(the_X[idx:idx + batch_size, :])
+        rx = the_X[idx:idx + batch_size, :]
         if include_labels:
             if the_y is None:
                 return rx, None
@@ -184,11 +201,10 @@ class HDF5KeypointsWrapper(DenseDesignMatrix):
         return 0
 
     def adjust_for_viewer(self, X):
-        #NOTE: numpy converts '\0' characters in lists of characters as the empty string.
         if len(X.shape) == 1:
-            return map(lambda x: len(x) == 1 and (ord(x) - 127.5)/127.5 or 0, X)
+            return map(lambda x: x/1.3, X)
         else:
-            return [map(lambda x: len(x) == 1 and (ord(x) - 127.5)/127.5 or 0, y) for y in X]
+            return [map(lambda x: x/1.3, y) for y in X]
  
     def make_targets(self, y):
         y = numpy.asarray(y)
@@ -298,26 +314,33 @@ def test_works():
 
         idx = rng.randint(min(len(train_dmat), len(test_dmat)))
 
+        #NOTE: The following tests are rather slow. Thy may take a few minutes to complete.
+        assert(len(train_wview[idx]) == 96)
         for y_i, y in enumerate(train_wview[idx]):
             assert(len(y) == 96)
-            for x_i, x in enumerate(y):
-                assert(len(x) == 96)
-                for z_i, z in enumerate(x):
-                    assert(len(z) == 3)
-                    for w_i, w in enumerate(z):
-                        assert(train_topo_view[idx][y_i, x_i][z_i, w_i] == w)
+            for z_i, z in enumerate(y):
+                assert(len(z) == 3)
+                for w_i, w in enumerate(z):
+                    assert(train_topo_view[idx][y_i][z_i, w_i] == w)
 
+        assert(len(test_wview[idx]) == 96)
         for y_i, y in enumerate(test_wview[idx]):
             assert(len(y) == 96)
-            for x_i, x in enumerate(y):
-                assert(len(x) == 96)
-                for z_i, z in enumerate(x):
-                    assert(len(z) == 3)
-                    for w_i, w in enumerate(z):
-                        assert(test_topo_view[idx][y_i, x_i][z_i, w_i] == w)
+            for z_i, z in enumerate(y):
+                assert(len(z) == 3)
+                for w_i, w in enumerate(z):
+                    assert(test_topo_view[idx][y_i][z_i, w_i] == w)
 
-        #those tests are way too slow, taking easily 8 minutes to complete a single iteration of
+        for x in train_dmat[idx]:
+            assert(isinstance(x, float))
+            assert(-1.3 <= x <= 1.3)
+
+        for x in test_dmat[idx]:
+            assert(isinstance(x, float) and -1.3 <= x <= 1.3)
+
+        #those tests are way too slow, taking easily 8 minutes to complete a single iteration
         #for the train_wrapper alone.
+
         #for x in train_wrapper.adjust_for_viewer(train_dmat[idx]):
          #   for y in x:
           #      assert(-1 <= y <= 1)
