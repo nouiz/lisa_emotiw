@@ -22,20 +22,41 @@ class faceAlign(object):
    
       self.xMax = 1024.0
       self.yMax = 576.0
-      self.numKeyPoints = 68
+      pose = 'profile'
+      dataset = 'Val'
+
+      if pose == 'front':
+         self.numKeyPoints = 68
+      else:
+         self.numKeyPoints = 39
+      
+      if dataset == 'Train':
+         self.sPath = '/data/lisa/data/faces/EmotiW/Aligned_Images/alignedAvgd/Train/'
+         self.rPath = '/data/lisa/data/faces/EmotiW/images/Train/'
+         self.folder = 'Train_'
+         self.pathMat = '/data/lisa/data/faces/EmotiW/ramananExtract/matExtractTrain/'
+      else:
+         self.sPath = '/data/lisa/data/faces/EmotiW/Aligned_Images/alignedAvgd/Val/'
+         self.rPath = '/data/lisa/data/faces/EmotiW/images/Val/'
+         self.folder = 'Val_'
+         self.pathMat = '/data/lisa/data/faces/EmotiW/ramananExtract/matExtractVal/'
+         
+      
       self.loadPicasaTubePickle()
    
-      loadPrev = 0
+      loadPrev = 1
 
       if loadPrev == 1:
-         pkl_file = open('faceAlignVal.pkl', 'rb')
-         self.pose, self.landmarks, self.poseDict, self.images, self.poseCat = pickle.load(pkl_file)
+         pkl_file = open('val_68_39.pkl', 'rb')
+         self.face_tubes, t1, t2, t3 = pickle.load(pkl_file)
+         #self.face_tubes = pickle.load(pkl_file)
          pkl_file.close()
+         self.doAverage(window = 2)
+         return
       else:
          self.loadData()
-         output = open('faceAlignVal.pkl', 'wb')
-         print self.pose
-         data = (self.pose, self.landmarks, self.poseDict, self.images, self.poseCat)
+         output = open('val.pkl', 'wb')
+         data = self.face_tubes
          pickle.dump(data, output)
          output.close()
          return 
@@ -122,14 +143,55 @@ class faceAlign(object):
                                         outputs = [q,pi_t_out, r_t1],
                                         allow_input_downcast=True)
      
-      self.train('12')
+      self.train(pose)               
+      
+   def doAverage(self, window = 2):
+      index = 1
+      for folder in self.face_tubes:
+         for clip in self.face_tubes[folder]:
+            if len(self.face_tubes[folder][clip]) > 0:
+               for frame in self.face_tubes[folder][clip][0]:
+                  if 'image' in self.face_tubes[folder][clip][0][frame]:
+                     num = 0
+                     transMat = 0
+                     mats = []
+                     mean = 0
+                     meanNum = 0
+                     for i in self.face_tubes[folder][clip][0]:
+                        if 'image' in self.face_tubes[folder][clip][0][i]:
+                           mean +=  self.face_tubes[folder][clip][0][i]['transMat']
+                           meanNum +=1
+                           if i in range(frame - window, frame+window+1):
+                              transMat += self.face_tubes[folder][clip][0][i]['transMat']
+                              mats.append(self.face_tubes[folder][clip][0][i]['transMat'])
+                              num += 1
 
+                     mean = mean/meanNum
+                     transMat = transMat/num
+                     partition = numpy.sqrt(numpy.sum(numpy.square(transMat - mean))/9.0)
+                     matrx = 0
+                     sumWeights = 0
+                     for i in range(len(mats)) :
+                        weight = partition/numpy.sqrt(numpy.sum(numpy.square(transMat - mats[i]))/9.0)
+                        print weight
+                        sumWeights += weight
+                        matrx += weight * mats[i]
+
+                     matrx =  matrx/sumWeights
+                     image = self.face_tubes[folder][clip][0][frame]['image']
+                     print 'example:', index, ':', image
+                     index +=1
+                     if (index > 0):
+                        self.load_image( image, matrx,  transform=True)
+                  
+               
+   
 
    def loadPicasaTubePickle(self):
       path = '/data/lisa/data/faces/EmotiW/picasa_tubes_pickles/'
       numToEmotion = {1:'Angry', 2:'Disgust', 3:'Fear', 4:'Happy', 5:'Neutral', 6:'Sad', 7:'Surprise'}
-      #folder = 'Train_'
-      folder = 'Val_'
+      folder = self.folder
+      #folder = 'Val_'
       self.face_tubes = {}
       for i in range(7):
          fileName = folder+numToEmotion[i+1]+'.pkl'
@@ -138,13 +200,7 @@ class faceAlign(object):
          pkl_file.close()
 
    def loadData(self):
-      path = '/data/lisa/data/faces/EmotiW/ramananExtract/matExtract/'
-      
-      self.pose = []
-      self.poseDict = {}
-      self.landmarks = []
-      self.images = []
-      self.poseCat = []
+      path = self.pathMat
       numToEmotion = {1:'Angry', 2:'Disgust', 3:'Fear', 4:'Happy', 5:'Neutral', 6:'Sad', 7:'Surprise'}
       i = 0
       for root, subdirs, files in os.walk(path):
@@ -156,13 +212,13 @@ class faceAlign(object):
                frame = int(file.split('_')[1].split('-')[1].split('.')[0])
                print folder, clip, frame
                if clip in self.face_tubes[folder]:
-                  if i in range(len(self.face_tubes[folder][clip])):
-                     if frame in self.face_tubes[folder][clip][i]:
+                  if len(self.face_tubes[folder][clip]) > 0:
+                     if frame in self.face_tubes[folder][clip][0]:
+                        print self.face_tubes[folder][clip][0][frame]
                         xs = matfile['xs']
                         ys = matfile['ys']
                         a,b = xs.shape     
-                        bbox = self.face_tubes[folder][clip][i][frame]
-                        print bbox
+                        bbox = self.face_tubes[folder][clip][0][frame]
                         (x1, y1, x2, y2) = bbox
                         #import pdb; pdb.set_trace();
                         validXs = numpy.logical_and(xs[0] >= x1, xs[0] <= x2,)
@@ -173,27 +229,25 @@ class faceAlign(object):
                         if(numValids > 0.75 * b): 
                            xs = xs.reshape(b,a)/1024.0
                            ys = ys.reshape(b,a)/576.0
+                           cat = 'front'
                            if( b == 68):
-                              self.poseCat.append('front')
+                              cat = 'front'
                            else:
-                              self.poseCat.append('profile')
+                              cat = 'profile'
                            xsNys = numpy.hstack((xs,ys)).reshape(2*b,1)
                            bs = matfile['bs']
-                           self.landmarks.append(xsNys)
-                           self.pose.append(bs[0,0]['c'][0])
-                           self.images.append(file)
+                           self.face_tubes[folder][clip][0][frame] = {}
+                           self.face_tubes[folder][clip][0][frame]['image'] = file
+                           self.face_tubes[folder][clip][0][frame]['pose'] = bs[0,0]['c'][0]
+                           self.face_tubes[folder][clip][0][frame]['landmarks'] = xsNys
+                           self.face_tubes[folder][clip][0][frame]['bbox'] = bbox
+                           self.face_tubes[folder][clip][0][frame]['poseCat'] = cat
                      else:
                         continue
                   else:
                      continue
                else:
                   continue
-               
-      for i in range(19):
-         self.poseDict[str(i)] = []
-      for i in range(len(self.pose)):
-         self.poseDict[str(self.pose[i][0])].append(i)
-   
 
 
    def get_A_t(self, pi_t, z_t, numIter, method = 'gd'):
@@ -210,23 +264,23 @@ class faceAlign(object):
          return  A_t.reshape((3,3)), cost
 
    
-   def load_image(self, index, transform=False):
-      image = self.images[index]
+   def load_image(self, image, A_t, transform=False):
       
       numToEmotion = {1:'Angry', 2:'Disgust', 3:'Fear', 4:'Happy', 5:'Neutral', 6:'Sad', 7:'Surprise'}
       folder = numToEmotion[int(image.split('_')[0])]
-      path = '/data/lisa/data/faces/EmotiW/images/Val/'
-      #path = '/data/lisa/data/faces/EmotiW/images/Train/'
+      #path = '/data/lisa/data/faces/EmotiW/images/Val/'
+      path = self.rPath
       
       image = os.path.splitext(image.split('_')[1])[-2]+'.png'
       im = Image.open(os.path.join(path,folder,image))
-      imT = self.get_transformed_image(im, self.A_t.get_value())
-      savePath = os.path.join( '/data/lisa/data/faces/EmotiW/Aligned_Images/Val/', folder, image)
-     # savePath = os.path.join( '/data/lisa/data/faces/EmotiW/Aligned_Images/Train/', folder, image)
+      imT = self.get_transformed_image(im, A_t)
+      #savePath = os.path.join( '/data/lisa/data/faces/EmotiW/Aligned_Images/Val/', folder, image)
+      savePath = os.path.join( self.sPath, folder, image)
       #region = (512 - 100, 288 -100, 512 +100, 288+100)
       #face = imT.crop(region)      
 #      print 'faceSize:', imT.size
-      #imT.show()
+ #     imT.show()
+ #     raw_input('press any key to continue')
       imT.resize((96,96)).save(savePath)
   #   face.show()
 
@@ -255,7 +309,10 @@ class faceAlign(object):
          (x,y) = (inp[i,0], inp[i,1])
          (x_, y_) = (indices[i,0], indices[i,1])
          #print (x,y), (x_,y_)
-         pixmapT[x_, y_] = pixmap[x%self.xMax,y%self.yMax]
+         if numpy.isnan(x) or numpy.isnan(y):
+            print 'isnan'
+         else: 
+            pixmapT[x_%200, y_%200] = pixmap[x%self.xMax,y%self.yMax]
       
       '''
       for i in range(512-100, 512+100):    # for every pixel:
@@ -292,28 +349,23 @@ class faceAlign(object):
 #       method = 'gd'
        method = 'lbfgsb'
        numKeyPoints = self.numKeyPoints
-       self.transMat = {}
        numEpochs = 1
-       poses = []
-       exampleIndices = []
-       print 'length:', len(self.landmarks)
-       
-       for i in range(len(self.images)):
-          if(self.poseCat[i] == 'front' ):
-            # if(self.pose[i] in poses):
-                exampleIndices.append(i)
-
-       totExamples = len(exampleIndices)
+       locations = []
+       sumZ_t = 0
+       for folder in self.face_tubes:
+          for clip in self.face_tubes[folder]:
+             if len(self.face_tubes[folder][clip]) > 0 :
+                for frame in self.face_tubes[folder][clip][0]:
+                   if'poseCat' in self.face_tubes[folder][clip][0][frame]:
+                      if self.face_tubes[folder][clip][0][frame]['poseCat'] == pose :
+                         locations.append((folder, clip, frame))
+                         sumZ_t += self.face_tubes[folder][clip][0][frame]['landmarks']
+                
+            
+       totExamples = len(locations)
        print 'Number of examples per epoch, Number of Epochs'
        numExamples = totExamples/numEpochs
        print (numExamples, numEpochs)
-       
-       #setting self.mu as the average of keyPoints for particular pose
-       sumZ_t = 0
-       data = numpy.zeros((totExamples, 2 * self.numKeyPoints))
-       for i in range(totExamples):
-          sumZ_t += self.landmarks[exampleIndices[i]]
-          data[i,:] = self.landmarks[exampleIndices[i]].ravel()
 
       # print data.shape
        #c = numpy.cov(data.transpose()) + 0.01 * numpy.eye((2*self.numKeyPoints))
@@ -330,10 +382,10 @@ class faceAlign(object):
            sumPiPi = numpy.zeros((2*numKeyPoints, 2*numKeyPoints))
            costEpoch = 0
            for t in range(numExamples):
-               index = exampleIndices[epoch * numExamples + t]
+               (folder, clip, frame) = locations[numExamples * epoch + t]
                print 'example number:', t
                #get the keyPoint for example 't'
-               z_t = self.landmarks[index]
+               z_t = self.face_tubes[folder][clip][0][frame]['landmarks']
                #block 2
                pi_t = numpy.ones((2 * numKeyPoints,1))               
                numOutLoop = 1
@@ -345,10 +397,9 @@ class faceAlign(object):
                   #pi_t_prev = pi_t
                   pi_t_temp, r_t = self.get_q_pi(pi_t, z_t)
                   #pi_t = pi_t_prev
-                  
                   #pi_t = 0.9 * pi_t_prev + 0.1 * pi_t
-               self.load_image(index, True) 
-               self.transMat[self.images[index]] = self.A_t.get_value()
+               #self.load_image(index, True) 
+               self.face_tubes[folder][clip][0][frame]['transMat'] = A_t
                #block 3, trying to eliminate loop by vectorization
                sumPi +=  pi_t
                sumPiPi += numpy.dot(pi_t, pi_t.transpose())
@@ -359,21 +410,14 @@ class faceAlign(object):
            print 'Average cost:'
            print costEpoch
            self.alpha.set_value(1 - sumPi/numExamples)
-           #print self.alpha.get_value()
            self.mu.set_value(sumMu/sumPi)
-           print self.mu.get_value().transpose()
-           print self.alpha.get_value().transpose()
-           #print self.mu.get_value()
-
            
            C = sumC/sumPiPi + 0.1 * numpy.eye(2*self.numKeyPoints)
-           #C = sumC/sumPiPi
-           #print numpy.linalg.eigvalsh(C) 
            self.S.set_value(numpy.linalg.inv(C))
            print self.S.get_value()
 
-       output = open('transMat_pose_front_val.pkl', 'wb')
-       data = (self.transMat, self.mu, self.S, self.alpha)
+       output = open('val_68_39.pkl', 'wb')
+       data = (self.face_tubes, self.mu, self.S, self.alpha)
        pickle.dump(data, output)
        output.close()
            
