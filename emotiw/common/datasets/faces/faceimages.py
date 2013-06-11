@@ -292,6 +292,9 @@ class FaceImagesDataset(object):
         """
         return None
 
+    def get_ramanan_keypoints_location(self, i):
+        return None
+
     def get_n_subjects(self):
         """
         Returns how many different subjects are in the database (or None if unknown)
