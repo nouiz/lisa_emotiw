@@ -29,19 +29,10 @@
 import glob
 import os
 import os.path
-import csv
-
-import pdb
 
 from emotiw.common.utils.pathutils import locate_data_path
 from imageseq import ImageSequenceDataset
 from faceimages import FaceImagesDataset, basic_7emotion_names
-from scipy import io as sio
-
-def search_replace(str, search_replace_dict):
-    for search_str, replace_str in search_replace_dict.items():
-        str = str.replace(search_str, replace_str)
-    return str
 
 # Subclasses of FaceImagesDataset
 
@@ -82,75 +73,9 @@ class AFEWImageSequence(FaceImagesDataset):
     def get_7emotion_index(self, i):
         return self.emotionIndex
 
-    def get_bbox(self, i):
-        return self.get_picasa_bbox(i)
-
-    def set_picasa_bbox_dir_substitution(self, search_replace, picasa_ext, csv_delimiter=' '):
-        """Defines how to transform an image filepath into the corresponding filepath for the picasa bounding box"""
-        self.picasa_search_replace = search_replace
-        self.picasa_ext = picasa_ext
-        self.picasa_csv_delimiter = csv_delimiter
-        
-    def get_picasa_bbox_path_from_original_image_path(self, imagepath):
-        picasa_ext =  getattr(self, 'picasa_ext', '.picasa_bbox')
-        basename, ext = os.path.splitext(imagepath)
-        bboxpath = basename+picasa_ext
-        if hasattr(self, 'picasa_search_replace'):
-            for search_str, replace_str in self.picasa_search_replace.items():
-                bboxpath = bboxpath.replace(search_str, replace_str, 1)
-        return bboxpath
-
-    def get_picasa_bbox(self, i):        
-        imagepath = self.get_original_image_path(i)
-        # pdb.set_trace()
-        bboxpath = self.get_picasa_bbox_path_from_original_image_path(imagepath)
-
-        bboxes = None
-        if os.path.exists(bboxpath):
-            bboxes = []
-            with open(bboxpath) as f:
-                reader = csv.reader(f, delimiter=self.picasa_csv_delimiter)
-                for row in reader:
-                    bboxes.append([float(x) for x in row[:4]])
-
-        return bboxes
-
-    def get_ramanan_keypoints_location(self, i):
-        imagepath = self.get_original_image_path(i)
-        # pdb.set_trace()
-        try:
-            ramananpath = search_replace(imagepath, self.ramanan_search_replace)
-            matfile = sio.loadmat(ramananpath)
-            xs = matfile['xs'][0]
-            ys = matfile['ys'][0]
-            # pdb.set_trace()
-            keypoint_dict = {}
-            for i in xrange(len(xs)):
-                keypoint_dict[i] = (xs[i], ys[i])
-            return keypoint_dict
-        except (AttributeError, IOError) as e:
-            pass
-
-        return None
-                    
-    # def get_picasa_bbox(self, i):
-    #     imgpath = self.get_original_image_path_relative_to_base_directory(i)
-    #     pdb.set_trace()
-
-    #     # bbxName = os.path.basename(imgpath).replace(".jpg", ".txt")
-    #     basename, ext = os.path.splitext(imgpath)
-    #     bboxpath = os.path.join(relative_bbox_directory, basename+".txt")
-    #     bboxes = []
-    #     if os.path.exists(bboxpath):
-    #         with open(bboxpath) as f:
-    #             reader = csv.reader(f, delimiter=csv_delimiter)
-    #             for row in reader:
-    #                 bboxes.append([float(x) for x in row[:4]])
-    #     else:
-    #         bboxes = None
-
-    #     return bboxes
-
+    def get_keypoints_location(self, i):
+        return self.get_ramanan_keypoints_location(i)
+    
 
 class AFEWImageSequenceDataset(ImageSequenceDataset):
     emotionNames = {"Angry": "anger", "Disgust": "disgust", "Fear": "fear", "Happy": "happy",
@@ -197,9 +122,12 @@ class AFEWImageSequenceDataset(ImageSequenceDataset):
                 seq = AFEWImageSequence("AFEW", rel_emotionDir,
                                         "{0}-*.png".format(sequence),
                                         self.emotionNames[emotionName])
-                seq.set_picasa_bbox_dir_substitution(
+                seq.set_picasa_path_substitutions(
                     {self.base_dir:self.picasa_boxes_base_dir,
-                     '-':'_'}, ".txt", csv_delimiter=' ')
+                     '-':'_',
+                     '.png':'.txt',
+                     '.jpg':'.txt',
+                     }, csv_delimiter=' ')
                 self.imagesequences.append(seq)
                 # Save label
                 self.labels.append(self.emotionNames[emotionName])
