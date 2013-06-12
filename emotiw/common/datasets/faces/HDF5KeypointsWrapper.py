@@ -138,14 +138,19 @@ class HDF5KeypointsWrapper(DenseDesignMatrix):
         self.stop = stop
 
         files = ['multipie.h5', 'afw.h5', 'arface.h5', 'aflw.h5', 'ncku.h5', 'hiit6.h5', 'ihdp.h5', 'bioid.h5', 'lfpw.h5', 'caltech.h5', 'inrialpes.h5']
-        self.files = [pylearn2.utils.string_utils.preprocess(os.path.join('${KEYPOINTS_DATA_PATH}', 'hdf5_datasets', f)) for f in files]
+        self.files = [pylearn2.utils.string_utils.preprocess(os.path.join('${KEYPOINTS_DATA_PATH}', 'faces', 'hdf5', f)) for f in files]
         self.file_list = [tables.openFile(f) for f in self.files] 
         #TODO: Never actually closed.
     
         self.elems_in_files = [0]*len(files)
-        for idx, f in enumerate(self.file_list):
-            if len(f.root.test.data._f_listNodes()) != 0:
-                self.elems_in_files[idx] = len(f.root.test.data.img) 
+        if which_set == 'test':
+            for idx, f in enumerate(self.file_list):
+                if len(f.root.test.data._f_listNodes()) != 0:
+                    self.elems_in_files[idx] = len(f.root.test.data.img) 
+        else:
+            for idx, f in enumerate(self.file_list):
+                if len(f.root.train.data._f_listNodes()) != 0:
+                    self.elems_in_files[idx] = len(f.root.train.data.img)
             
         super(HDF5KeypointsWrapper, self).__init__(X=[0]*sum(self.elems_in_files), y=[0]*sum(self.elems_in_files), #Although it's OK to have X and Y not actually be features and targets respectively, 
                                                                                                                         #they still have to have the right shape[0].
