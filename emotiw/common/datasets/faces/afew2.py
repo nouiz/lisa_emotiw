@@ -107,10 +107,12 @@ class AFEW2ImageSequenceDataset(afew.AFEWImageSequenceDataset):
                                                     rel_img_dir,
                                                     "{0}-*.png".format(seq),
                                                     self.emotionNames[emo_name])
-                    im_seq.set_picasa_bbox_dir_substitution(
-                        {self.base_dir:self.picasa_boxes_base_dir},
-                        ".txt", csv_delimiter=',')
-                    im_seq.ramanan_search_replace = {
+                    im_seq.set_picasa_path_substitutions(
+                        {self.base_dir:self.picasa_boxes_base_dir,
+                         '.png':'.txt',
+                         '.jpg':'.txt',
+                         }, csv_delimiter=',')
+                    im_seq.set_ramanan_path_substitutions( {
                         'EmotiW/images/Train/':'EmotiW/ramananExtract/matExtractTrain/',
                         'EmotiW/images/Val/':'EmotiW/ramananExtract/matExtractVal/',                        
                         'Angry/':'1_',
@@ -122,7 +124,7 @@ class AFEW2ImageSequenceDataset(afew.AFEWImageSequenceDataset):
                         'Surprise/':'7_',
                         '.jpg':'.mat',
                         '.png':'.mat'
-                        }
+                        } )
 
                     self.imagesequences.append(im_seq)
 
