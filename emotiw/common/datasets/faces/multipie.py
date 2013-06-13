@@ -46,10 +46,17 @@ class MultiPie(FaceImagesDataset):
         #read male and female
         metaPath = self.absolute_base_directory+'meta/subject_list.txt'
         f = open(metaPath)
+        f_lines = f.readlines()
+        self.num_subjects = len(f_lines)
 
-        for line in f:
+        i = 0
+        self.subject_id_to_idx = {}
+
+        for line in f_lines:
             if line!='':
                 self.lstgender.append(line.split(' ')[2])
+                self.subject_id_to_idx[line.split(' ')[0]] = i
+                i += 1
         
         cam = os.listdir(label)
         for c in cam:
@@ -61,7 +68,8 @@ class MultiPie(FaceImagesDataset):
                 parts = f.split('.')[0].split('_')
                 subject = int(parts[0])
                 session= parts[1]
-                imrelpath += 'session'+session+'/multiview/'+parts[0]+'/'+parts[2]+'/'+parts[3][0]+parts[3][1]+"_"+parts[3][2]+'/'
+                rec_num = parts[2]
+                imrelpath += 'session'+session+'/multiview/'+parts[0]+'/'+rec_num+'/'+parts[3][0]+parts[3][1]+"_"+parts[3][2]+'/'
                 imrelpath += "_".join(parts[0:5])+'.png'
                 filename = label+c+'/'+f
                 #print "loading ", filename #printing is slow and lots of files are being loaded.
@@ -94,20 +102,53 @@ class MultiPie(FaceImagesDataset):
                     
                     this_dict[name] = (p[0], p[1])
 
+                emotion = None
+                sess_int = int(session)
+                rec_int = int(rec_num) 
+
+                if sess_int == 1:
+                    if rec_int == 1:
+                        emotion = 'neutral'
+                    else:
+                        emotion = 'happy'
+                elif sess_int == 2:
+                    if rec_int == 1:
+                        emotion = 'neutral'
+                    elif rec_int == 2:
+                        emotion = 'surprise'
+                    else:
+                        emotion = 'neutral' #squinting
+
+                elif sess_int == 3:
+                    if rec_int == 1:
+                        emotion = 'neutral'
+                    elif rec_int == 2:
+                        emotion = 'happy'
+                    else:
+                        emotion = 'disgust'
+
+                else:
+                    if rec_int == 1 or rec_int == 3:
+                        emotion = 'neutral'
+                    else:
+                        emotion = 'fear' #actually "scream"
+
                 #There are some subjects without male or female information                
                 if subject<len(self.lstgender):
-                    self.lstImages.append([imrelpath,subject,this_dict,self.lstgender[subject]])
+                    self.lstImages.append([imrelpath,subject,this_dict,self.lstgender[subject],emotion])
                 else:
-                    self.lstImages.append([imrelpath,subject,this_dict,""])
-                
-    
+                    self.lstImages.append([imrelpath,subject,this_dict,"",emotion])
+
+    def get_7emotion_index(self, i):
+        #from TFD
+        emotionsDic = { "anger":0, "disgust":1, "fear":2 , "happy":3, "sadness":4, "surprise":5, "neutral":6, "contempt":7}
+        return emotionsDic(self.lstImages[4])
     
     def __len__(self):
         return len(self.lstImages)        
         
     def get_original_image_path_relative_to_base_directory(self, i):       
         return self.lstImages[i][0]    
-        
     
     def get_eyes_location(self, i):
         """
@@ -162,13 +203,19 @@ class MultiPie(FaceImagesDataset):
         return self.lstImages[i][2]    
         
     def get_subject_id_of_ith_face(self, i):
-        return str(self.lstImages[i][1])
+        return self.subject_id_to_idx[self.lstImages[i][1]]
         
     def get_id_of_kth_subject(self, k):    
-        return str(self.lstImages[k][1])
+        for x in self.subject_id_to_idx:
+            if self.subject_id_to_idx[x] == k:
+                return x
+        return -1
         
     def get_gender(self,i):        
         return str(self.lstImages[i][3])
+
+    def get_n_subjects(self):
+        return self.num_subjects
             
 def testWorks():
     save = 0
