@@ -22,8 +22,7 @@ class AFEWStatsDataset(DenseDesignMatrix):
         X = X[ind]
         y = y[ind]
 
-        super(AFEWStatsDataset, self).__init__(X=X, y=y, view_converter=view_converter)
-
+        super(AFEWStatsDataset, self).__init__(X=X, y=y)
 
 
 class AFEWDataset(DenseDesignMatrix):
@@ -33,18 +32,7 @@ class AFEWDataset(DenseDesignMatrix):
             stop = None,
             preprocessor = None,
             fit_preprocessor = False,
-            axes = ('b', 0, 1, 'c'),
-            fit_test_preprocessor = False):
-
-        print base_path,"?"
-
-        self.test_args = locals()
-        self.test_args['which_set'] = 'public_test'
-        self.test_args['fit_preprocessor'] = fit_test_preprocessor
-        del self.test_args['start']
-        del self.test_args['stop']
-        del self.test_args['self']
-
+            axes = ('b', 0, 1, 'c')):
 
         if which_set == "train":
             X = np.load(base_path+"/Train_X.npy")
@@ -55,7 +43,6 @@ class AFEWDataset(DenseDesignMatrix):
         else:
             raise ValueError("Unrecognized dataset name: " + which_set)
 
-
         if start is not None:
             assert isinstance(start, int)
             assert isinstance(stop, int)
@@ -65,14 +52,13 @@ class AFEWDataset(DenseDesignMatrix):
             X = X[start:stop]
             y = y[start:stop]
 
+#        X = X.transpose(0,3,1,2).reshape((X.shape[0],96*96*3))
         X = X.reshape((X.shape[0],96*96*3))
 
         view_converter = DefaultViewConverter(shape=[96,96,3], axes=axes)
 
-        super(AFEWDataset, self).__init__(X=X, y=y, view_converter=view_converter)
-
-        if preprocessor:
-            preprocessor.apply(self, can_fit=fit_preprocessor)
+        super(AFEWDataset, self).__init__(X=X, y=y, view_converter=view_converter,
+                                          preprocessor=preprocessor,fit_preprocessor=fit_preprocessor)
 
 def build_face_datasets():
     d = afew2.AFEW2ImageSequenceDataset()#preload_facetubes=True)
