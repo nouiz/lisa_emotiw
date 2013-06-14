@@ -43,3 +43,6 @@ nosetests.xml
 
 #NFS
 .nfs*
+
+#pkl
+*.pkl

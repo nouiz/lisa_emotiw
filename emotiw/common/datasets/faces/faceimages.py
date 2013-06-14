@@ -26,6 +26,7 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 # SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+import pdb
 
 import os
 import sys
@@ -35,8 +36,10 @@ import ImageDraw
 import ImageFont
 import numpy
 import sys
+import csv
+from scipy import io as sio
 
-from emotiw.common.utils.pathutils import locate_data_path
+from emotiw.common.utils.pathutils import locate_data_path, search_replace
 
 #sys.path.append(os.getcwd()+"/../../../vincentp")
 #from preprocess_face import * # getEyesPositions,getFaceBoundingBox
@@ -206,14 +209,44 @@ class FaceImagesDataset(object):
             if bbox is None:
                 bbox = self.get_opencv_bbox(i)
         return bbox
-
-    def get_picasa_bbox(self, i):
-        return None
     
     def get_opencv_bbox(self, i):
         return None
 
     def get_original_bbox(self, i):
+        return None
+
+    ## Access to Picasa precomputed bounding boxes
+
+    def set_picasa_path_substitutions(self, search_replace, csv_delimiter=' '):
+        """Defines how to transform an image filepath into the corresponding filepath for the picasa bounding box"""
+        self.picasa_search_replace = search_replace
+        self.picasa_csv_delimiter = csv_delimiter
+        
+    def get_picasa_path_from_image_path(self, imagepath):
+        """Transforms an (absolute) imagepath into the path to the file containing bounding box info precomputed by picasa
+        Default version simply performs all substitutions in property picasa_search_replace, if it exists. Reuturns None otherwise.
+        """
+        if hasattr(self, 'picasa_search_replace'):
+            return search_replace(imagepath, self.picasa_search_replace)
+        return None
+
+    def get_picasa_bbox(self, i):
+        """Returns a list of bouhnding boxes precomputed by picasa.
+
+        Default version calls get_picasa_path_from_image_path
+        to locate the file containing the precomputed bounding box info"""
+        imagepath = self.get_original_image_path(i)
+        # pdb.set_trace()
+        bboxpath = self.get_picasa_path_from_image_path(imagepath)
+        if bboxpath is not None and os.path.exists(bboxpath):
+            bboxes = []
+            with open(bboxpath) as f:
+                reader = csv.reader(f, delimiter=self.picasa_csv_delimiter)
+                for row in reader:
+                    bboxes.append([float(x) for x in row[:4]])
+            return bboxes
+
         return None
     
     def get_eyes_location(self, i):
@@ -291,6 +324,60 @@ class FaceImagesDataset(object):
 
         """
         return None
+
+
+    ## Access to Ramanan precomputed keypoints
+
+    def set_ramanan_path_substitutions(self, search_replace):
+        """Defines how to transform an image filepath into the corresponding filepath containing ramanan precomputed keypoints"""
+        self.ramanan_search_replace = search_replace
+
+    def get_ramanan_path_from_image_path(self, imagepath):
+        """Transforms an (absolute) imagepath into the path to the file containing keypoints precomputed by Ramanan's algorithm
+        Default version simply performs all substitutions in property ramanan_search_replace, if it exists. Reuturns None otherwise.
+        """
+        if hasattr(self, 'ramanan_search_replace'):
+            return search_replace(imagepath, self.ramanan_search_replace)
+        return None
+
+    def get_ramanan_keypoints_location(self, i):
+        """Returns a dictionary of keypoints precomputed by Ramanan's algorithm
+        Default version calls get_ramanan_path_from_image_path to locate the file containing this info.
+        """        
+        imagepath = self.get_original_image_path(i)
+        # pdb.set_trace()
+        ramananpath = self.get_ramanan_path_from_image_path(imagepath)
+        if ramananpath is not None and os.path.exists(ramananpath):
+            matfile = sio.loadmat(ramananpath)
+            xs = matfile['xs'][0]
+            ys = matfile['ys'][0]
+            # pdb.set_trace()
+
+            return dict([ ("ramanan_%d"%pos, coord) for pos,coord in enumerate(zip(xs,ys)) ])
+
+            # The following correspondances were taken from the code in MultiPie, but apparently they do not correctly match those returned by Ramanan's procedure
+            # pts_idx_dict_68 = {0: 'right_ear_top', 1: 'right_ear_center', 2: 'right_ear_bottom', 7: 'chin_right', 8: 'chin_center', 9: 'chin_left', 14: 'left_ear_bottom', 
+            #                     15: 'left_ear_center', 16: 'left_ear_top', 17: 'right_eyebrow_outer_end', 19: 'right_eyebrow_center', 21: 'right_eyebrow_inner_end', 
+            #                     22: 'left_eyebrow_inner_end', 24: 'left_eyebrow_center', 26: 'left_eyebrow_outer_end', 27: 'nose_center_top', 30: 'nose_tip', 31: 'right_nostril', 
+            #                     34: 'nostrils_center', 35: 'left_nostril', 36: 'right_eye_outer_corner', 39: 'right_eye_inner_corner', 42: 'left_eye_inner_corner', 45: 'left_eye_outer_corner', 
+            #                     48: 'mouth_right_corner', 51: 'mouth_top_lip', 54: 'mouth_left_corner', 57: 'mouth_bottom_lip', 62: 'mouth_center'}             
+
+            # pts_idx_dict_39 = {0: 'nose_center_top', 3: 'nose_tip', 4: 'nostrils_center', 5: 'left_nostril', 6: 'left_eyebrow_outer_end', 9: 'left_eyebrow_inner_end', 10: 'left_eye_outer_corner', 
+            #                     15: 'mouth_top_lip', 18: 'mouth_left_corner', 21: 'mouth_bottom_lip', 22: 'mouth_center', 29: 'chin_center', 36: 'left_ear_bottom', 37: 'left_ear_center', 38: 'left_ear_top'}
+
+            # translation_dict = pts_idx_dict_68
+            
+            # if len(xs) < 68:
+            #     translation_dict = pts_idx_dict_39
+
+            # keypoint_dict = {}
+            # for i in xrange(len(xs)):
+            #     name = translation_dict.get(i, 'point_'+str(i))
+            #     keypoint_dict[name] = (xs[i], ys[i])
+
+            # return keypoint_dict
+
+        return None                    
 
     def get_n_subjects(self):
         """

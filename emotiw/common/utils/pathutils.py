@@ -46,3 +46,10 @@ def locate_data_path(filename, path_starts=None):
         if os.path.exists(path):
             return path
     raise IOError("Could not locate file or directory "+filename+" in "+str(path_starts))
+
+
+def search_replace(str, search_replace_dict):
+    """Performs, on str, all search-replace substitutions listed as key->value pairs in the given dictionary""" 
+    for search_str, replace_str in search_replace_dict.items():
+        str = str.replace(search_str, replace_str)
+    return str

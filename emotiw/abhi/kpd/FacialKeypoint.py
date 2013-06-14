@@ -17,6 +17,7 @@ from pylearn2.training_algorithms.sgd import MomentumAdjustor
 from pylearn2.termination_criteria import MonitorBased
 from ExponentialDecayOverEpoch import ExponentialDecayOverEpoch
 from pylearn2.train_extensions.best_params import MonitorBasedSaveBest
+from HDF5KeypointsWrapper import HDF5KeypointsWrapper
 
 # The number of features in the Y vector
 numberOfKeyPoints = 30
@@ -144,6 +145,8 @@ def test_works():
     if load == False:
         ddmTrain = FacialKeypoint(which_set = 'train', start=0, stop =6000)
         ddmValid = FacialKeypoint(which_set = 'train', start=6000, stop = 7049)
+        #ddmTrain = HDF5KeypointsWrapper(which_set='train', start=0, stop=6000)
+        #ddmValid = HDF5KeypointsWrapper(which_set='train', start=6000, stop=7000)
         # valid can_fit = false
         pipeline = preprocessing.Pipeline()
         stndrdz = preprocessing.Standardize()
@@ -155,13 +158,13 @@ def test_works():
         GCN.apply(ddmValid, can_fit =False)
     
         pcklFile = open('kpd.pkl', 'wb')
-        obj = (ddmTrain, ddmValid)
+        obj = (ddmTrain, ddmValid, GCN, stndrdz)
         pickle.dump(obj, pcklFile)
         pcklFile.close()
         return
     else:
         pcklFile = open('kpd.pkl', 'rb')
-        (ddmTrain, ddmValid) = pickle.load(pcklFile)
+        (ddmTrain, ddmValid, GCN, stndrdz) = pickle.load(pcklFile)
         pcklFile.close()
 
     #creating layers
@@ -209,17 +212,14 @@ def test_works():
     # learning rate, momentum, batch size, monitoring dataset, cost, termination criteria
 
     term_crit  = MonitorBased(prop_decrease = 0.00001, N = 30, channel_name = 'validation_objective')
-    kpSGD = KeypointSGD(learning_rate = 0.001, init_momentum = 0.5, monitoring_dataset = {'validation':ddmValid, 'training': ddmTrain}, batch_size = 8, batches_per_iter = 750,
+    kpSGD = KeypointSGD(learning_rate = 0.001, init_momentum = 0.5, monitoring_dataset = {'validation':ddmValid, 'training': ddmTrain}, batch_size = 8,                         
                         termination_criterion = term_crit,
-                        train_iteration_mode = 'random_uniform', 
                         cost = mlp_cost)
 
     #train extension
     train_ext = ExponentialDecayOverEpoch(decay_factor = 0.998, min_lr_scale = 0.01)
     #train object
     train = Train(dataset = ddmTrain,
-                  save_path='kpd_model2.pkl',
-                  save_freq=1,
                   model = MLPerc,
                   algorithm= kpSGD,
                   extensions = [train_ext, 
