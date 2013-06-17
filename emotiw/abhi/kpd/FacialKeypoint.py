@@ -141,31 +141,30 @@ class FacialKeypoint(DenseDesignMatrix):
   
 
 def test_works():
-    load = True
+    load = False
     if load == False:
-        ddmTrain = FacialKeypoint(which_set = 'train', start=0, stop =6000)
-        ddmValid = FacialKeypoint(which_set = 'train', start=6000, stop = 7049)
-        #ddmTrain = HDF5KeypointsWrapper(which_set='train', start=0, stop=6000)
-        #ddmValid = HDF5KeypointsWrapper(which_set='train', start=6000, stop=7000)
+        #ddmTrain = FacialKeypoint(which_set = 'train', start=0, stop =6000)
+        #ddmValid = FacialKeypoint(which_set = 'train', start=6000, stop = 7049)
+        ddmTrain = HDF5KeypointsWrapper(which_set='train', start=0, stop=6000)
+        ddmValid = HDF5KeypointsWrapper(which_set='train', start=6000, stop=7000)
         # valid can_fit = false
         pipeline = preprocessing.Pipeline()
         stndrdz = preprocessing.Standardize()
-        stndrdz.apply(ddmTrain, can_fit=True)
+        #stndrdz.apply(ddmTrain, can_fit=True)
         #doubt, how about can_fit = False?
-        stndrdz.apply(ddmValid, can_fit=False)
+        #stndrdz.apply(ddmValid, can_fit=False)
         GCN = preprocessing.GlobalContrastNormalization()
-        GCN.apply(ddmTrain, can_fit =True)
-        GCN.apply(ddmValid, can_fit =False)
-    
-        pcklFile = open('kpd.pkl', 'wb')
-        obj = (ddmTrain, ddmValid, GCN, stndrdz)
-        pickle.dump(obj, pcklFile)
-        pcklFile.close()
-        return
-    else:
-        pcklFile = open('kpd.pkl', 'rb')
-        (ddmTrain, ddmValid, GCN, stndrdz) = pickle.load(pcklFile)
-        pcklFile.close()
+        #GCN.apply(ddmTrain, can_fit =True)
+        #GCN.apply(ddmValid, can_fit =False)
+      #  pcklFile = open('kpd.pkl', 'wb')
+       # obj = (ddmTrain, ddmValid, GCN, stndrdz)
+      #  pickle.dump(obj, pcklFile)
+       # pcklFile.close()
+      #  return
+   # else:
+    #    pcklFile = open('kpd.pkl', 'rb')
+     #   (ddmTrain, ddmValid, GCN, stndrdz) = pickle.load(pcklFile)
+      #  pcklFile.close()
 
     #creating layers
         #2 convolutional rectified layers, border mode valid
@@ -210,9 +209,9 @@ def test_works():
     #algorithm
     
     # learning rate, momentum, batch size, monitoring dataset, cost, termination criteria
-
+#monitoring_dataset = {'validation':ddmValid, 'training': ddmTrain}
     term_crit  = MonitorBased(prop_decrease = 0.00001, N = 30, channel_name = 'validation_objective')
-    kpSGD = KeypointSGD(learning_rate = 0.001, init_momentum = 0.5, monitoring_dataset = {'validation':ddmValid, 'training': ddmTrain}, batch_size = 8,                         
+    kpSGD = KeypointSGD(learning_rate = 0.001, init_momentum = 0.5, batch_size = 8,                         
                         termination_criterion = term_crit,
                         cost = mlp_cost)
 
@@ -223,8 +222,8 @@ def test_works():
                   model = MLPerc,
                   algorithm= kpSGD,
                   extensions = [train_ext, 
-                                MonitorBasedSaveBest(channel_name='validation_objective',
-                                                     save_path= 'kpd_best.pkl'),
+                                #MonitorBasedSaveBest(channel_name='validation_objective',
+                                 #                    save_path= 'kpd_best.pkl'),
                                 MomentumAdjustor(start = 1,
                                                  saturate = 20,
                                                  final_momentum = .9)] )

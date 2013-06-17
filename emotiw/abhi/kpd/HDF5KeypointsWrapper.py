@@ -21,17 +21,18 @@ def overlay_me(data, label):
 class LazyDesignMatrix(object):
     def __init__(self, wrapper):
         self.wrapper = wrapper
-        self.shape = (sum(self.wrapper.elems_in_files), 96*96*3) #(num_batches, num_pixels_times_ppc)
+        self.shape = (len(wrapper), 96*96*3) #(num_batches, num_pixels_times_ppc)
         self.transform = lambda x: x
+        self.dtype = theano.config.floatX
 
     def get_lazy_topo(self, view_converter):
         lazy_mat = LazyDesignMatrix(self.wrapper)
-        lazy_mat.shape = (sum(self.wrapper.elems_in_files), 96, 96, 3)
+        lazy_mat.shape = (len(self.wrapper), 96, 96, 3)
         lazy_mat.transform = view_converter.design_mat_to_topo_view
         return lazy_mat        
 
     def __len__(self):
-        return sum(self.wrapper.elems_in_files)
+        return len(self.wrapper)
 
     def __getitem__(self, key):
         rept_slice = slice(0, 1, 1)
@@ -55,12 +56,14 @@ class LazyDesignMatrix(object):
             numbers = [numbers]
 
         for i in numbers: 
+            if i > self.wrapper.stop and self.wrapper.stop is not None:
+                raise ValueError('Out of bounds: ' + str(key))
             total_examples += 1
             prev_size = 0
             for idx, size in enumerate(self.wrapper.elems_in_files):
                 if size + prev_size > i:
                     the_elem = []
-                    map(the_elem.extend, self.wrapper.load_from_hdf5(self.wrapper.file_list[idx], self.wrapper.which_set, i-prev_size, self.wrapper.start, self.wrapper.stop)[the_slice])
+                    map(the_elem.extend, self.wrapper.load_from_hdf5(idx, self.wrapper.which_set, i-prev_size, self.wrapper.start, self.wrapper.stop)[the_slice])
                     res.append(the_elem)
                     break
                 else:
@@ -70,9 +73,10 @@ class LazyDesignMatrix(object):
         while(len(res) == 1):
             res = res[0]
 
-        arr = numpy.asarray(res)
+        arr = numpy.asarray(res, dtype = self.dtype)
         if len(arr.shape) < 2:
             arr = arr.reshape(1, arr.shape[0])
+
         transformed = self.transform(arr)
 
         if len(transformed) == 1:
@@ -86,15 +90,16 @@ class LazyDesignMatrix(object):
 class LazyTargets(object):
     def __init__(self, wrapper):
         self.wrapper = wrapper
-        self.shape = (sum(self.wrapper.elems_in_files), 52) #(num_batches, num_keypoints)
+        self.shape = (len(self.wrapper), 52) #(num_batches, num_keypoints)
+        self.dtype = theano.config.floatX
 
     def __len__(self):
-        return sum(self.wrapper.elems_in_files)
-
+       return len(self.wrapper)
+ 
     def __getitem__(self, key):
         rept_slice = slice(0, 1, 1)
         the_slice = slice(None, None, None)
-        size = sum(self.wrapper.elems_in_files)
+        size = len(self.wrapper)
 
         res = []
 
@@ -113,16 +118,18 @@ class LazyTargets(object):
             numbers = [numbers]
 
         for i in numbers: 
+            if i > self.wrapper.stop:
+                break
             total_examples += 1
             prev_size = 0
             for idx, size in enumerate(self.wrapper.elems_in_files):
                 if size + prev_size > i:
-                    res.append(self.wrapper.load_from_hdf5(self.wrapper.file_list[idx], self.wrapper.which_set, i-prev_size, self.wrapper.start, self.wrapper.stop, False)[the_slice])
+                    res.append(self.wrapper.load_from_hdf5(idx, self.wrapper.which_set, i-prev_size, self.wrapper.start, self.wrapper.stop, False)[the_slice])
                     break
                 else:
                     prev_size += size
 
-        return numpy.asarray(res)
+        return numpy.asarray(res, dtype = theano.config.floatX)
 
 class HDF5KeypointsWrapper(DenseDesignMatrix):
     def __init__(self, which_set, start=None, stop=None, axes=('b', 0, 1, 'c'), stdev=0.8):
@@ -145,16 +152,24 @@ class HDF5KeypointsWrapper(DenseDesignMatrix):
         self.elems_in_files = [0]*len(files)
         if which_set == 'test':
             for idx, f in enumerate(self.file_list):
-                if len(f.root.test.data._f_listNodes()) != 0:
+                
                     self.elems_in_files[idx] = len(f.root.test.data.img) 
         else:
             for idx, f in enumerate(self.file_list):
                 if len(f.root.train.data._f_listNodes()) != 0:
                     self.elems_in_files[idx] = len(f.root.train.data.img)
             
-        super(HDF5KeypointsWrapper, self).__init__(X=[0]*sum(self.elems_in_files), y=[0]*sum(self.elems_in_files), #Although it's OK to have X and Y not actually be features and targets respectively, 
-                                                                                                                        #they still have to have the right shape[0].
-                                                        view_converter=DefaultViewConverter(shape=[96, 96, 3], axes=axes)) 
+        super(HDF5KeypointsWrapper, self).__init__(X=self.get_design_matrix, y=self.get_targets, view_converter=DefaultViewConverter(shape=(96,96,3), axes=axes)) 
+
+    def __len__(self):
+        if self.stop is None and self.start is None:
+            return sum(self.elems_in_files)
+        elif self.stop is None:
+            return sum(self.elems_in_files) - self.start
+        elif self.start is None and self.stop is not None:
+            return sum(self.elems_in_files) - self.stop
+        else:
+            return max(min(self.stop - self.start, sum(self.elems_in_files)), 0)
 
     def has_targets(self):
         return True
@@ -172,10 +187,14 @@ class HDF5KeypointsWrapper(DenseDesignMatrix):
 
     def get_topological_view(self, mat=None):
         if mat is None:
-            return self.get_design_matrix().get_lazy_topo(self.view_converter)
+            return numpy.ndarray(buffer=self.get_design_matrix().get_lazy_topo(self.view_converter))
         #NOTE: might need to create a custom converter
         #so it's aware of the lazy structures.
-        return self.view_converter.design_mat_to_topo_view(mat)
+        else:
+            assert(isinstance(mat, LazyDesignMatrix))
+            return numpy.ndarray(buffer=mat.get_lazy_topo(mat.view_converter))
+        #        dmat = LazyDesignMatrix(RawWrapper(mat))
+ #       return dmat.get_lazy_topo(self.view_converter)
 
     def get_weights_view(self, mat=None):
         return self.get_topological_view(mat)
@@ -201,7 +220,7 @@ class HDF5KeypointsWrapper(DenseDesignMatrix):
             return rx, ry
         rx = numpy.cast[theano.config.floatX](rx)
         return rx
-        
+
     def get_topo_batch_axis(self):
         return 0
 
@@ -230,16 +249,24 @@ class HDF5KeypointsWrapper(DenseDesignMatrix):
         print Y.shape
         return Y
 
+    def set_topological_view(self, mat=None, axes=('b', 0, 1, 'c')):
+        raise ValueError('Invalid on lazy structure')
+
     def get_design_matrix(self, topo=None):
         if topo is not None:
             return self.view_converter.topo_view_to_design_mat(topo)
-        return LazyDesignMatrix(self)
+        lmat = LazyDesignMatrix(self)
+        print type(lmat)
+        print lmat
+        print len(lmat)
+        return lmat
 
     def get_targets(self):
         return LazyTargets(self)
 
-    def load_from_hdf5(self, f, which_set, idx, start, stop, data=True):
+    def load_from_hdf5(self, f_idx, which_set, idx, start, stop, data=True):
         #data: whether to load data or targets
+        f = self.file_list[f_idx]
 
         if start is not None:
             assert(idx >= start)
