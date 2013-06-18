@@ -104,6 +104,7 @@ class KeypointSGD(SGD):
             if self.momentum:
                 self.monitor.add_channel(name='momentum', ipt=ipt,
                         val=self.momentum, dataset=monitoring_dataset)
+            
 
         params = list(model.get_params())
         assert len(params) > 0
