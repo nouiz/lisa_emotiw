@@ -87,7 +87,7 @@ class MultiPie(FaceImagesDataset):
                 this_dict = {}
                 translation_dict = pts_idx_dict_68
     
-                if len(points) < 68:
+                if len(points) == 39:
                     translation_dict = pts_idx_dict_39
 
                 for idx, p in enumerate(points):
