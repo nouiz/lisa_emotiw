@@ -40,3 +40,9 @@ nosetests.xml
 #vim swap files
 *.swp
 *.swo
+
+#NFS
+.nfs*
+
+#pkl
+*.pkl

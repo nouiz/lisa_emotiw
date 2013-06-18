@@ -38,6 +38,7 @@ import numpy as np
 from emotiw.common.utils.pathutils import locate_data_path
 import afew
 
+import pdb
 
 class AFEW2ImageSequenceDataset(afew.AFEWImageSequenceDataset):
     # These directories are relative to the data path.
@@ -53,7 +54,7 @@ class AFEW2ImageSequenceDataset(afew.AFEWImageSequenceDataset):
         super(AFEW2ImageSequenceDataset,self).__init__("AFEW2")
 
         self.absolute_base_directory = locate_data_path(self.base_dir)
-        self.picasa_boxes_base_directory = locate_data_path(
+        self.absolute_picasa_boxes_base_directory = locate_data_path(
                 self.picasa_boxes_base_dir)
         self.face_tubes_base_directory = locate_data_path(
                 self.face_tubes_base_dir)
@@ -75,20 +76,22 @@ class AFEW2ImageSequenceDataset(afew.AFEWImageSequenceDataset):
                 #print '  %s' % emo_name
                 # Directory containing the images for all clips of that
                 # emotion in that split
-                img_dir = os.path.join(self.absolute_base_directory,
-                        split_name, emo_name)
-                #print 'img_dir:', img_dir
-                if not os.path.isdir(img_dir):
+                abs_img_dir = os.path.join(self.absolute_base_directory,
+                                       split_name, emo_name)
+                rel_img_dir = os.path.join(self.base_dir,
+                                       split_name, emo_name)
+                #print 'abs_img_dir:', abs_img_dir
+                if not os.path.isdir(abs_img_dir):
                     continue
 
                 # Directory containing the picasa bounding boxes for clips
                 # of that emotion in that split
                 picasa_bbox_dir = os.path.join(
-                        self.picasa_boxes_base_directory,
+                        self.absolute_picasa_boxes_base_directory,
                         split_name, emo_name)
 
                 # Find all image names
-                img_names = glob.glob(os.path.join(img_dir, '*.png'))
+                img_names = glob.glob(os.path.join(abs_img_dir, '*.png'))
                 #print '%s img_names' % len(img_names)
 
                 # Find all clips (sequences)
@@ -99,10 +102,30 @@ class AFEW2ImageSequenceDataset(afew.AFEWImageSequenceDataset):
                 # For each clip
                 for seq in unique_seq:
                     # Load the Image Sequence object
-                    im_seq = afew.ImageSequence("AFEW2",
-                            img_dir, "{0}-*.png".format(seq),
-                            picasa_bbox_dir, self.emotionNames[emo_name],
-                            csv_delimiter=',')
+                    # pdb.set_trace()
+                    im_seq = afew.AFEWImageSequence("AFEW2",
+                                                    rel_img_dir,
+                                                    "{0}-*.png".format(seq),
+                                                    self.emotionNames[emo_name])
+                    im_seq.set_picasa_path_substitutions(
+                        {self.base_dir:self.picasa_boxes_base_dir,
+                         '.png':'.txt',
+                         '.jpg':'.txt',
+                         }, csv_delimiter=',')
+                    im_seq.set_ramanan_path_substitutions( {
+                        'EmotiW/images/Train/':'EmotiW/ramananExtract/matExtractTrain/',
+                        'EmotiW/images/Val/':'EmotiW/ramananExtract/matExtractVal/',                        
+                        'Angry/':'1_',
+                        'Disgust/':'2_',
+                        'Fear/':'3_',
+                        'Happy/':'4_',
+                        'Neutral/':'5_',
+                        'Sad/':'6_',
+                        'Surprise/':'7_',
+                        '.jpg':'.mat',
+                        '.png':'.mat'
+                        } )
+
                     self.imagesequences.append(im_seq)
 
                     # Save (split, emotion, sequence ID) of sequence
@@ -135,7 +158,7 @@ class AFEW2ImageSequenceDataset(afew.AFEWImageSequenceDataset):
         has been resized to a 96x96 RGB image.
 
         The order of the tubes in that tuple is the same as the order
-        of bounding boxes returned by ImageSequence.get_picasa_bbox.
+        of bounding boxes returned by AFEWImageSequence.get_picasa_bbox.
         """
         if self.preload_facetubes:
             return self.facetubes[i]

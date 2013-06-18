@@ -1,14 +1,12 @@
 import tables
 import PIL.Image
 from crop_face import crop_face
-from faceimages import FaceDatasetExample
+from faceimages import FaceDatasetExample, keypoints_names
 
 class ImgStruct(tables.IsDescription):
-    idx = tables.Int64Col()
     data = tables.StringCol(96*96*3)
 
 class LabelStruct(tables.IsDescription):
-    idx = tables.Int64Col()
     name = tables.Int8Col()
     col = tables.Float64Col()
     row = tables.Float64Col()
@@ -28,56 +26,53 @@ def to_hdf5(wrapper, save_as=None):
 
         train_group = f.createGroup('/', 'train', 'train set')
         test_group = f.createGroup('/', 'test', 'test set')
-        train_img_group = f.createGroup('/train', 'data', 'data group')
-        train_label_group = f.createGroup('/train', 'label', 'label group')
-        test_img_group = f.createGroup('/test', 'data', 'data group')
-        test_label_group = f.createGroup('/test', 'label', 'label group')
 
-        img_groups = (train_img_group, None)
-        label_groups = (train_label_group, None)
+        img_groups = (train_group, None)
 
         test_idx = None
         dsets = [range(len(wrapper)), None]
 
         if wrapper.get_standard_train_test_splits() is not None:
             dsets[0], dsets[1] = wrapper.get_standard_train_test_splits()
-            img_groups = (img_groups[0], test_img_group)
-            label_groups = (label_groups[0], test_label_group) 
+            img_groups = (img_groups[0], test_group)
 
         for some_idx, testing in enumerate(dsets):
             if testing is None: 
                 break
             img_group = img_groups[some_idx]
-            label_group = label_groups[some_idx] 
             dset = dsets[some_idx]
 
-            img_table = f.createTable(img_group, 'img', ImgStruct, 'image data')
-            label_table = f.createTable(label_group, 'label', LabelStruct, 'target data')
-            img_row = img_table.row
-            label_row = label_table.row
+            img_table = f.createCArray(img_group, 'img', tables.StringAtom(itemsize=1), shape=(len(dset), 96*96*3))
+            label_table = f.createCArray(img_group, 'label', tables.Float64Atom(), shape=(len(dset), len(keypoints_names), 2))
 
-            for i in dset:
+            for i, _ in enumerate(dset):
+                #img_table = f.createTable(this_group, 'img', ImgStruct, 'image data')
+                #label_table = f.createTable(this_group, 'label', LabelStruct, 'target data')
+
+                                #img_row = img_table.row
+                #label_row = label_table.row
+
                 img, label = crop_face(PIL.Image.open(wrapper.get_original_image_path(i)),
                                             wrapper.get_bbox(i),
                                             wrapper.get_eyes_location(i),
                                             wrapper.get_keypoints_location(i))
                  
-                img_row['idx'] = i
-                img_row['data'] = img.tostring()
-                img_row.append()
-
+                #img_row['data'] = img.tostring()
+                #img_row.append()
+                img_table[i, :] = img.tostring()
                 for name, point in label.iteritems():
-                    the_id = 0 
-                    if name in keypoints_to_id:
-                        the_id = keypoints_to_id[name]
+                    label_table[i, keypoints_names.index(name), :] = [point[0], point[1]]
 
-                    label_row['idx'] = i
-                    label_row['name'] = the_id
-                    label_row['col'] = point[0]
-                    label_row['row'] = point[1]
-                    label_row.append()
-            img_table.flush()
-            label_table.flush()
+                    #the_id = keypoints_names.index(name)
+                    #The name of the keypoint MUST be in keypoints_names by
+                    #definition.
+
+                    #label_row['name'] = the_id
+                    #label_row['col'] = point[0]
+                    #label_row['row'] = point[1]
+                    #label_row.append()
+                #img_table.flush()
+                #label_table.flush()
 
     finally:
         if f is not None:

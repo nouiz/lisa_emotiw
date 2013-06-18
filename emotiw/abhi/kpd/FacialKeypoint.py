@@ -324,11 +324,11 @@ def test_works():
     #algorithm
     
     # learning rate, momentum, batch size, monitoring dataset, cost, termination criteria
-
+#monitoring_dataset = {'validation':ddmValid, 'training': ddmTrain}
     term_crit  = MonitorBased(prop_decrease = 0.00001, N = 30, channel_name = 'validation_objective')
-    kpSGD = KeypointSGD(learning_rate = 0.001, init_momentum = 0.5, monitoring_dataset = {'validation':ddmValid, 'training': ddmTrain}, batch_size = batch_size, batches_per_iter = 750,
+    kpSGD = KeypointSGD(learning_rate = 0.001, init_momentum = 0.5, 
+                        monitoring_dataset = {'validation':ddmValid, 'training': ddmTrain}, batch_size = batch_size, batches_per_iter = 750,
                         termination_criterion = term_crit,
-                        train_iteration_mode = 'random_uniform', 
                         cost = mlp_cost)
 
     #train extension
@@ -342,6 +342,7 @@ def test_works():
                   extensions = [train_ext, 
                                 MonitorBasedSaveBest(channel_name='validation_objective',
                                                      save_path= 'kpd_maxout2pcs_best.pkl'),
+
                                 MomentumAdjustor(start = 1,
                                                  saturate = 20,
                                                  final_momentum = .9)] )

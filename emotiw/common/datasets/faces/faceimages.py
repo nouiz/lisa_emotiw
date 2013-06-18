@@ -26,6 +26,7 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 # SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+import pdb
 
 import os
 import sys
@@ -35,13 +36,16 @@ import ImageDraw
 import ImageFont
 import numpy
 import sys
+import csv
+from scipy import io as sio
 
-from emotiw.common.utils.pathutils import locate_data_path
+from emotiw.common.utils.pathutils import locate_data_path, search_replace
 
 #sys.path.append(os.getcwd()+"/../../../vincentp")
 #from preprocess_face import * # getEyesPositions,getFaceBoundingBox
 
 basic_7emotion_names = ["anger", "disgust", "fear", "happy", "sad", "surprise", "neutral"]
+keypoints_names = ['left_eyebrow_inner_end', 'mouth_top_lip_bottom', 'bottom_lip_top_left_midpoint', 'bottom_lip_bottom_center', 'right_ear_top', 'mouth_top_lip', 'mouth_bottom_lip_top', 'right_eyebrow_center', 'chin_left', 'left_eye_top_outer_midpoint', 'face_left', 'left_jaw_2', 'left_eyebrow_outer_midpoint', 'left_jaw_1', 'left_jaw_0', 'bottom_lip_bottom_left_center', 'left_eye_top_inner_midpoint', 'bottom_lip_top_left_center', 'left_eyebrow_center_top', 'right_eye_top_outer_midpoint', 'left_eye_outer_corner', 'left_eye_bottom_inner_midpoint', 'top_lip_top_left_center', 'right_ear_canal', 'right_ear', 'bottom_lip_bottom_right_center', 'bottom_lip_top_center', 'mouth_bottom_lip', 'left_eye_center', 'left_mouth_outer_corner', 'left_eye_center_top', 'left_ear_center', 'nostrils_center', 'top_lip_top_right_midpoint', 'top_lip_bottom_left_center', 'right_eyebrow_inner_end', 'right_eye_center_bottom', 'right_eye_bottom_outer_midpoint', 'chin_center', 'left_eye_inner_corner', 'right_eyebrow_outer_midpoint', 'right_mouth_outer_corner', 'left_ear_bottom', 'nose_center_top', 'left_eyebrow_inner_midpoint', 'right_eye_outer_corner', 'left_eyebrow_outer_end', 'top_lip_bottom_left_midpoint', 'bottom_lip_bottom_right_midpoint', 'left_ear_top', 'right_ear_center', 'right_eye_center_top', 'right_nostril_inner_end', 'top_lip_bottom_center', 'face_center', 'right_eye_inner_corner', 'right_eyebrow_center_top', 'left_eyebrow_center', 'right_eye_pupil', 'bottom_lip_top_right_center', 'mouth_left_corner', 'left_eye_center_bottom', 'left_eyebrow_center_bottom', 'right_eye_top_inner_midpoint', 'right_eyebrow_inner_midpoint', 'left_cheek_2', 'face_right', 'mouth_right_corner', 'right_nostril', 'nose_ridge_bottom', 'right_eye_center', 'left_eye_bottom_outer_midpoint', 'top_lip_top_left_midpoint', 'chin_right', 'right_cheek_0', 'left_cheek_1', 'left_cheek_0', 'right_eyebrow_outer_end', 'top_lip_bottom_right_midpoint', 'nose_ridge_top', 'left_eye_pupil', 'right_ear_bottom', 'nose_tip', 'right_jaw_1', 'right_jaw_0', 'chin_center_top', 'top_lip_bottom_right_center', 'top_lip_top_right_center', 'left_nostril_inner_end', 'mouth_center', 'left_nostril', 'right_cheek_1', 'bottom_lip_bottom_left_midpoint', 'right_eyebrow_center_bottom', 'left_ear_canal', 'left_ear', 'right_eye_bottom_inner_midpoint']
 
 class FaceImagesDataset(object):
     """
@@ -123,9 +127,12 @@ class FaceImagesDataset(object):
             factorY = 1.0
             draw = ImageDraw.Draw(img)
 
+            if bbox != None and isinstance(bbox[0], list) and bbox[0] is not None:
+                bbox = bbox[0]
+
             if bbox == None:
                 print 'No bounding box information'
-                    
+            
             else:
                 print 'bbox:', bbox
                 w,h = (bbox[2]-bbox[0], bbox[3]-bbox[1])
@@ -142,7 +149,7 @@ class FaceImagesDataset(object):
                     
             print 'keypoints:'
             keypoints = self.get_keypoints_location(i)
-            if len(keypoints) == 0:
+            if keypoints is None or len(keypoints) == 0:
                 print 'No keypoint information available'
             else:
                 index = 1
@@ -205,14 +212,44 @@ class FaceImagesDataset(object):
             if bbox is None:
                 bbox = self.get_opencv_bbox(i)
         return bbox
-
-    def get_picasa_bbox(self, i):
-        return None
     
     def get_opencv_bbox(self, i):
         return None
 
     def get_original_bbox(self, i):
+        return None
+
+    ## Access to Picasa precomputed bounding boxes
+
+    def set_picasa_path_substitutions(self, search_replace, csv_delimiter=' '):
+        """Defines how to transform an image filepath into the corresponding filepath for the picasa bounding box"""
+        self.picasa_search_replace = search_replace
+        self.picasa_csv_delimiter = csv_delimiter
+        
+    def get_picasa_path_from_image_path(self, imagepath):
+        """Transforms an (absolute) imagepath into the path to the file containing bounding box info precomputed by picasa
+        Default version simply performs all substitutions in property picasa_search_replace, if it exists. Reuturns None otherwise.
+        """
+        if hasattr(self, 'picasa_search_replace'):
+            return search_replace(imagepath, self.picasa_search_replace)
+        return None
+
+    def get_picasa_bbox(self, i):
+        """Returns a list of bouhnding boxes precomputed by picasa.
+
+        Default version calls get_picasa_path_from_image_path
+        to locate the file containing the precomputed bounding box info"""
+        imagepath = self.get_original_image_path(i)
+        # pdb.set_trace()
+        bboxpath = self.get_picasa_path_from_image_path(imagepath)
+        if bboxpath is not None and os.path.exists(bboxpath):
+            bboxes = []
+            with open(bboxpath) as f:
+                reader = csv.reader(f, delimiter=self.picasa_csv_delimiter)
+                for row in reader:
+                    bboxes.append([float(x) for x in row[:4]])
+            return bboxes
+
         return None
     
     def get_eyes_location(self, i):
@@ -290,6 +327,60 @@ class FaceImagesDataset(object):
 
         """
         return None
+
+
+    ## Access to Ramanan precomputed keypoints
+
+    def set_ramanan_path_substitutions(self, search_replace):
+        """Defines how to transform an image filepath into the corresponding filepath containing ramanan precomputed keypoints"""
+        self.ramanan_search_replace = search_replace
+
+    def get_ramanan_path_from_image_path(self, imagepath):
+        """Transforms an (absolute) imagepath into the path to the file containing keypoints precomputed by Ramanan's algorithm
+        Default version simply performs all substitutions in property ramanan_search_replace, if it exists. Reuturns None otherwise.
+        """
+        if hasattr(self, 'ramanan_search_replace'):
+            return search_replace(imagepath, self.ramanan_search_replace)
+        return None
+
+    def get_ramanan_keypoints_location(self, i):
+        """Returns a dictionary of keypoints precomputed by Ramanan's algorithm
+        Default version calls get_ramanan_path_from_image_path to locate the file containing this info.
+        """        
+        imagepath = self.get_original_image_path(i)
+        # pdb.set_trace()
+        ramananpath = self.get_ramanan_path_from_image_path(imagepath)
+        if ramananpath is not None and os.path.exists(ramananpath):
+            matfile = sio.loadmat(ramananpath)
+            xs = matfile['xs'][0]
+            ys = matfile['ys'][0]
+            # pdb.set_trace()
+
+            return dict([ ("ramanan_%d"%pos, coord) for pos,coord in enumerate(zip(xs,ys)) ])
+
+            # The following correspondances were taken from the code in MultiPie, but apparently they do not correctly match those returned by Ramanan's procedure
+            # pts_idx_dict_68 = {0: 'right_ear_top', 1: 'right_ear_center', 2: 'right_ear_bottom', 7: 'chin_right', 8: 'chin_center', 9: 'chin_left', 14: 'left_ear_bottom', 
+            #                     15: 'left_ear_center', 16: 'left_ear_top', 17: 'right_eyebrow_outer_end', 19: 'right_eyebrow_center', 21: 'right_eyebrow_inner_end', 
+            #                     22: 'left_eyebrow_inner_end', 24: 'left_eyebrow_center', 26: 'left_eyebrow_outer_end', 27: 'nose_center_top', 30: 'nose_tip', 31: 'right_nostril', 
+            #                     34: 'nostrils_center', 35: 'left_nostril', 36: 'right_eye_outer_corner', 39: 'right_eye_inner_corner', 42: 'left_eye_inner_corner', 45: 'left_eye_outer_corner', 
+            #                     48: 'mouth_right_corner', 51: 'mouth_top_lip', 54: 'mouth_left_corner', 57: 'mouth_bottom_lip', 62: 'mouth_center'}             
+
+            # pts_idx_dict_39 = {0: 'nose_center_top', 3: 'nose_tip', 4: 'nostrils_center', 5: 'left_nostril', 6: 'left_eyebrow_outer_end', 9: 'left_eyebrow_inner_end', 10: 'left_eye_outer_corner', 
+            #                     15: 'mouth_top_lip', 18: 'mouth_left_corner', 21: 'mouth_bottom_lip', 22: 'mouth_center', 29: 'chin_center', 36: 'left_ear_bottom', 37: 'left_ear_center', 38: 'left_ear_top'}
+
+            # translation_dict = pts_idx_dict_68
+            
+            # if len(xs) < 68:
+            #     translation_dict = pts_idx_dict_39
+
+            # keypoint_dict = {}
+            # for i in xrange(len(xs)):
+            #     name = translation_dict.get(i, 'point_'+str(i))
+            #     keypoint_dict[name] = (xs[i], ys[i])
+
+            # return keypoint_dict
+
+        return None                    
 
     def get_n_subjects(self):
         """
