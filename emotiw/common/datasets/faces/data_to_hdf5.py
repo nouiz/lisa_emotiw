@@ -49,7 +49,9 @@ def to_hdf5(wrapper, save_as=None):
                                             wrapper.get_eyes_location(i),
                                             wrapper.get_keypoints_location(i))
                  
-                img_table[i, :] = img.tostring()
+                img_table[i, :] = [x for x in img.tostring()]
+                #NOTE: will be stored as cstring, so it is mandatory to store as
+                #strings of size 1 (as \0 would break the string)
                 for name in keypoints_names:
                     if name in label:
                         point = label[name]
