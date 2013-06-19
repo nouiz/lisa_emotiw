@@ -7,16 +7,7 @@ class Lfpw(FaceImagesDataset):
         super(Lfpw, self).__init__("Labeled Face Parts in the Wild",
                                     "faces/labeled_face_parts_in_the_wild/")
 
-        point_names = ['right_eyebrow_outer_end', 'left_eyebrow_outer_end', 'right_eyebrow_inner_end', 
-                        'left_eyebrow_inner_end', 'right_eyebrow_center_top', 'right_eyebrow_center_bottom', 
-                        'left_eyebrow_center_top', 'left_eyebrow_center_bottom', 'right_eye_outer_corner', 
-                        'left_eye_outer_corner', 'right_eye_inner_corner', 'left_eye_inner_corner', 
-                        'right_eye_center_top', 'right_eye_center_bottom', 'left_eye_center_top', 
-                        'left_eye_center_bottom', 'right_eye_pupil', 'left_eye_pupil', 'right_nostril' , 
-                        'left_nostril', 'nose_center_top', 'nose_tip', 'right_mouth_outer_corner', 
-                        'left_mouth_outer_corner', 'mouth_top_lip', 'mouth_top_lip_bottom', 'mouth_bottom_lip_top', 
-                        'mouth_bottom_lip', 'right_ear_top', 'left_ear_top', 'right_ear_bottom', 'left_ear_bottom', 
-                        'right_ear_canal', 'left_ear_canal', 'chin_center']
+        point_names = ['right_eyebrow_outer_end', 'left_eyebrow_outer_end', 'right_eyebrow_inner_end', 'left_eyebrow_inner_end', 'right_eyebrow_center_top', 'right_eyebrow_center_bottom', 'left_eyebrow_center_top', 'left_eyebrow_center_bottom', 'right_eye_outer_corner', 'left_eye_outer_corner', 'right_eye_inner_corner', 'left_eye_inner_corner', 'right_eye_center_top', 'right_eye_center_bottom', 'left_eye_center_top', 'left_eye_center_bottom', 'right_eye_pupil', 'left_eye_pupil', 'right_nostril' , 'left_nostril', 'nose_center_top', 'nostrils_center', 'right_mouth_outer_corner', 'left_mouth_outer_corner', 'mouth_top_lip', 'mouth_top_lip_bottom', 'mouth_bottom_lip_top', 'mouth_bottom_lip', 'right_ear_top', 'left_ear_top', 'right_ear_bottom', 'left_ear_bottom', 'right_ear_canal', 'left_ear_canal', 'chin_center']
 
         self.lstImages = []
         self.keyPointsDict = []
