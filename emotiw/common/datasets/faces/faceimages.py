@@ -153,7 +153,6 @@ class FaceImagesDataset(object):
                 print 'No keypoint information available'
             else:
                 index = 1
-                print keypoints
                 for key in keypoints:
                     print index, ':' , key, '=', keypoints[key]
                     (x, y ) = keypoints[key]
