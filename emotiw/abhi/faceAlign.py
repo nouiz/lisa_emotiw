@@ -34,6 +34,8 @@ class faceAlign(object):
 
       self.meanX = numpy.sum(meanX * num_each_keypoint, axis = 0)/numpy.sum(num_each_keypoint, axis = 0)
       self.meanY = numpy.sum(meanY * num_each_keypoint, axis = 0)/numpy.sum(num_each_keypoint, axis = 0)
+      self.meanX[numpy.sum(num_each_keypoint, axis =0) == 0] = 0
+      self.meanY[numpy.sum(num_each_keypoint, axis =0) == 0] = 0
       
       
       self.mu = theano.shared(numpy.zeros((2*self.numKeypoints, 1)))
@@ -69,14 +71,14 @@ class faceAlign(object):
       self.cost = theano.function(inputs=[A_t_, pi_t, z_t, oneCol],
                                   outputs=[cost_, A_t_grad_])
 
-   def apply_sequence(self, sequence_obj, window = 2, returnImage = True):
-      numFrame = len(sequence_obj)
+   def apply_sequence(self, dataset, window = 2, returnImage = True):
+      numFrame = len(dataset)
       mats = []
       mean = 0
-
+      meanNum = 0
       #calculate the mean A_t for the clip
       for i in range(numFrame):
-         mats.append(self.apply(sequence_obj, i, returnImage=False))
+         mats.append(self.apply(dataset, i, returnImage=False))
          mean += mats[i]
          meanNum += 1
       mean = mean/meanNum
@@ -107,13 +109,14 @@ class faceAlign(object):
 
          transMats_final.append(matrx/sumWeights)
          if(returnImage):
-            face_org = self.get_face_pil_image(dataset, index)  
-            image = self.get_transformed_image(face_org, transMats_final[frame])                    images.append(image)
+            face_org = self.get_face_pil_image(dataset, frame)  
+            image = self.get_transformed_image(face_org, transMats_final[frame])
+            images.append(image)
 
       #returns result
       if(returnImage == True):
          return (transMats_final, images)
-      else
+      else:
          return transMats_final
             
                     
@@ -147,7 +150,9 @@ class faceAlign(object):
        if returnImage == True:
           #getting image
           face_org = self.get_face_pil_image(dataset, index)
+          face_org.show()
           trans_face = self.get_transformed_image(face_org, A_t)
+          trans_face.show()
           return (A_t, trans_face)
        else:
           return A_t
@@ -171,7 +176,6 @@ class faceAlign(object):
        inpValid = numpy.logical_and(inp >= 0.0, inp <= 1.0 )
        #inp[0,:,:] = (inp[0,:,:] * width)
        #inp[1,:,:] = (inp[1,:,:] * height)
-       print inp[0,:,:]
        #inp = inp * inpValid
        inp = numpy.round(inp[0:2, :,:].reshape((2, width*height)).transpose())
        indices = numpy.round(indices[0:2, :,:].reshape((2, width*height)).transpose())
@@ -202,11 +206,17 @@ class faceAlign(object):
        return [x0, y0, x1, y1]
 
    def get_keypoints(self, dataset, index):
-       keypoints = dataset.get_keypoints_location(index).copy()
+       keypoints = dataset.get_keypoints_location(index)
+       if keypoints == None:
+          return None
+       else:
+          keypoints = keypoints.copy()
+
        bbox = dataset.get_bbox(index)
        if bbox == None:
-           bbox = self.get_keypoints_based_bbox(dataset, index)
-       
+          bbox = self.get_keypoints_based_bbox(dataset, index)
+       else:
+          bbox = bbox[0]
        width = bbox[2]-bbox[0]
        height = bbox[3]-bbox[1]
        #new bounding box with margin
@@ -229,6 +239,9 @@ class faceAlign(object):
        num_each_keypoint = numpy.zeros((len(keypointDictionary)))
        for index in indexLocs:
            keypoints = self.get_keypoints(dataset, index)
+           if keypoints == None:
+              continue
+
            for key in keypointDictionary:
                if key in keypoints:
                    (x, y) = keypoints[key]
@@ -238,6 +251,8 @@ class faceAlign(object):
        
        meanX = meanX/num_each_keypoint
        meanY = meanY/num_each_keypoint
+       meanX[num_each_keypoint == 0] = 0
+       meanY[num_each_keypoint == 0] = 0
        return (meanX, meanY, num_each_keypoint)     
            
       
@@ -248,7 +263,9 @@ class faceAlign(object):
        #original bounding box
        bbox = dataset.get_bbox(index)
        if bbox == None:
-           bbox = self.get_keypoints_based_bbox(dataset, index)
+          bbox = self.get_keypoints_based_bbox(dataset, index)
+       else:
+          bbox = bbox[0]
 
        width = bbox[2]-bbox[0]
        height = bbox[3] - bbox[1]
@@ -268,6 +285,7 @@ class faceAlign(object):
 def dummy_test():
     import pickle
     from emotiw.common.datasets.faces.afew2 import AFEW2ImageSequenceDataset
+    from emotiw.common.datasets.faces.faceimages import keypoints_names
     #pickle_file = open('../common/datasets/faces/multipie.pkl', 'rb')
     
     if True:
@@ -281,17 +299,16 @@ def dummy_test():
         pickle.dump(obj, pickle_file)
         pickle_file.close()
         return
-    #pickle_file.close()
-    print obj.get_sequence(0).get_ramamanan_location(1)
-    keys = obj.get_keypoints_location(0).copy()
+
+    keys = {}
     index = 0 
-    for key in keys:
+    for key in keypoints_names:
         keys[key] = index
         index += 1
 
-    #alignObj = faceAlign(datasetObjects = [obj], keypoint_dictionary = keys, face_size = (256, 256), margin = 0.2)
-    #alignObj.apply(obj, 145)
-    #alignObj.apply(obj, 1)
+    alignObj = faceAlign(datasetObjects = [obj.get_sequence(0), obj.get_sequence(1)], keypoint_dictionary = keys, face_size = (256, 256), margin = 0.2)
+    #alignObj.apply(obj.get_sequence(1), 10)
+    alignObj.apply_sequence(obj.get_sequence(0), window = 2, returnImage = True)
 #    alignObj.apply(obj, 2500)
 
 
