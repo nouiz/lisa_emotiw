@@ -50,8 +50,12 @@ def to_hdf5(wrapper, save_as=None):
                                             wrapper.get_keypoints_location(i))
                  
                 img_table[i, :] = img.tostring()
-                for name, point in label.iteritems():
-                    label_table[i, keypoints_names.index(name), :] = [point[0], point[1]]
+                for name in keypoints_names:
+                    if name in label:
+                        point = label[name]
+                        label_table[i, keypoints_names.index(name), :] = [point[0], point[1]]
+                    else:
+                        label_table[i, keypoints_names.index(name), :] = [-1, -1]
 
     finally:
         if f is not None:
