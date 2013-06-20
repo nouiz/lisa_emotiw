@@ -4,6 +4,8 @@ import os
 import warnings
 
 import math
+import numpy
+from theano import config
 
 try:
     import tables
@@ -14,8 +16,6 @@ except ImportError:
 import functools
 from pylearn2.utils.iteration import resolve_iterator_class
 
-import numpy
-from theano import config
 from pylearn2.datasets.dataset import Dataset
 from pylearn2.datasets import dense_design_matrix
 from pylearn2.datasets.dense_design_matrix import DefaultViewConverter
@@ -26,11 +26,11 @@ from pylearn2.utils.string_utils import preprocess
 
 from bbox import BoundingBox
 
+from bbox_utils import convert_bboxes_exhaustive, convert_bboxes_guided, get_image_bboxes
 
 class ConversionType:
     EXA = "Exhaustive"
     GUID = "Guided"
-
 
 class FaceBBoxDDMIterator(iteration.FiniteDatasetIterator):
     """
@@ -38,7 +38,6 @@ class FaceBBoxDDMIterator(iteration.FiniteDatasetIterator):
 
     Parameters
     ----------
-
         dataset: DenseDesignMatrix
         img_shape: list
         receptive_field_shape: list
@@ -51,10 +50,12 @@ class FaceBBoxDDMIterator(iteration.FiniteDatasetIterator):
     def __init__(self, dataset,
             subset_iterator,
             img_shape=None,
-            receptive_field_shape=None, stride=1,
+            receptive_field_shape=None,
+            stride=1,
             use_output_map=True,
             bbox_conversion_type=ConversionType.GUID,
-            topo=False, targets=True,
+            topo=False,
+            targets=True,
             area_ratio=0.9):
 
         self.bbox_conversion_type = bbox_conversion_type
@@ -73,23 +74,26 @@ class FaceBBoxDDMIterator(iteration.FiniteDatasetIterator):
         next_index = self._subset_iterator.next()
         if isinstance(next_index, numpy.ndarray) and len(next_index) == 1:
             next_index = next_index[0]
+
         if self._needs_cast:
             features = numpy.cast[config.floatX](self._raw_data[next_index])
         else:
             features = self._raw_data[next_index,:]
+
         if self._topo:
             if len(features.shape) != 2:
                 features = features.reshape((1, features.shape[0]))
             features = self._dataset.get_topological_view(features)
+
         if self._targets:
             bbx_targets = get_image_bboxes(next_index, self._raw_targets)
             if len(bbx_targets.shape) != 2:
                 bbx_targets = bbx_targets.reshape((1, bbx_targets.shape[0]))
             if self.use_output_map:
                 if self.bbox_conversion_type == ConversionType.GUID:
-                    targets = self.convert_bboxes_guided(bbx_targets, self.img_shape, self.receptive_field_shape, self.stride)
+                    targets = convert_bboxes_guided(bbx_targets, self.img_shape, self.receptive_field_shape, self.stride)
                 else:
-                    targets = self.convert_bboxes_exhaustive(bbx_targets, self.img_shape, self.receptive_field_shape, self.stride)
+                    targets = convert_bboxes_exhaustive(bbx_targets, self.img_shape, self.receptive_field_shape, self.stride)
             else:
                 targets = self.get_bare_outputs(bbx_targets)
 
@@ -100,7 +104,6 @@ class FaceBBoxDDMIterator(iteration.FiniteDatasetIterator):
             return features, targets
         else:
             return features
-
 
     def get_bare_outputs(self, bbx_targets):
         targets = []
@@ -117,315 +120,6 @@ class FaceBBoxDDMIterator(iteration.FiniteDatasetIterator):
         targets = numpy.asarray(target)
         return targets
 
-    def convert_bboxes_exhaustive(self, bbx_targets, img_shape, rf_shape, stride=1):
-        """
-        This function converts the bounding boxes to the spatial outputs for the neural network.
-        In order to do this, we do a naive convolution and check if the bounding box is inside a
-        given receptive field.
-        Parameters
-        ---------
-
-        bbx_targets: pytables table.
-        img_shape: list
-        rf_shape: list
-        stride: integer
-        """
-        assert bbx_targets is not None
-        assert img_shape is not None
-        assert rf_shape is not None
-
-        prev_rec = None
-        output_maps = []
-        batch_size = bbx_targets.shape[1]
-
-        rs = bbx_targets[:]["row"][0]
-        cs = bbx_targets[:]["col"][0]
-        widths = bbx_targets[:]["width"][0]
-        heights = bbx_targets[:]["height"][0]
-        imgnos = bbx_targets[:]["imgno"][0]
-        conv_out_x_size, conv_out_y_size = self.get_conv_out_size(img_shape, rf_shape, stride)
-
-        for i in xrange(batch_size):
-            rf_y_start = 0
-            rf_y_end = rf_shape[0]
-
-            issame = False
-            r = rs[i]
-            c = cs[i]
-            width = widths[i]
-            height = heights[i]
-            imgno = imgnos[i]
-
-            if prev_rec is not None:
-                if prev_rec == imgno:
-                    issame = True
-                    output_map = output_maps[-1]
-                else:
-                    issame = False
-                    #output_map = []
-                    output_map = numpy.zeros((conv_out_y_size*conv_out_x_size))
-            else:
-                output_map = numpy.zeros((conv_out_y_size*conv_out_x_size))
-
-            area_ratio = self.get_area_ratio(rf_shape[1], rf_shape[0], width, height)
-
-            if area_ratio < self.area_ratio:
-                if not issame:
-                    prev_rec = imgno
-                    #output_map = [0] * conv_out_y_size * conv_out_x_size
-                    output_maps.append(output_map)
-                continue
-
-            out_idx = 0
-            #Perform convolution for each bounding box
-            while (rf_y_end <= (img_shape[0] - rf_shape[0])):
-                rf_x_start = 0
-                rf_x_end = rf_shape[1]
-                while (rf_x_end <= (img_shape[1] - rf_shape[1])):
-                    s_w = 0
-                    s_h = 0
-
-                    #Check if any corner of the image falls inside the boundary box:
-                    if perform_hit_test([rf_y_start, rf_x_start], rf_shape[0], rf_shape[1], [r, c]):
-                        x2 = min(rf_x_end, c + width)
-                        y2 = min(rf_y_end, r + height)
-                        s_w = x2 - c
-                        s_h = y2 - r
-                    elif perform_hit_test([rf_y_start, rf_x_start], rf_shape[0], rf_shape[1], [r + height, c]):
-                        x2 = min(rf_x_end, c + width)
-                        y2 = r + height
-                        s_w = x2 - c
-                        s_h = y2 - rf_y_start
-                    elif perform_hit_test([rf_y_start, rf_x_start], rf_shape[0], rf_shape[1], [r,c+width]):
-                        x2 = c + width
-                        y2 = min(rf_y_end, r + height)
-                        s_w = x2 - rf_x_start
-                        s_h = y2 - r
-                    elif perform_hit_test([rf_y_start, rf_x_start], rf_shape[0], rf_shape[1], [r+height,c+width]):
-                        x2 = c + width
-                        y2 = r + height
-                        s_w = x2 - rf_x_start
-                        s_h = y2 - rf_y_start
-
-                    #import ipdb; ipdb.set_trace()
-                    s_area = s_w * s_h
-                    area = width * height
-
-                    #print area, s_area
-                    #If the face area is very small ignore it.
-                    if area <= 18 or s_area <= 18:
-                        ratio = 0.
-                    else:
-                        ratio = float(s_area) / float(area)
-
-                    #Compare with the previous record
-                    if not issame:
-                        if ratio >= self.area_ratio:
-                            output_map[out_idx] = 1
-                        else:
-                            output_map[out_idx] = 0
-                    else:
-                        if ratio >= self.area_ratio:
-                            #We don't have +1 here because index starts from 0.
-                            #But normally it is (N-M)/stride + 1
-                            output_map[out_idx] = 1
-
-                    out_idx += 1
-                    rf_x_start += stride
-                    rf_x_end = rf_x_start + rf_shape[1]
-
-                rf_y_start += stride
-                rf_y_end = rf_y_start + rf_shape[0]
-
-            prev_rec = imgno
-            if not issame:
-                output_maps.extend([output_map])
-
-        #output_maps = numpy.reshape(output_maps, newshape=(batch_size, -1))
-        output_maps = numpy.asarray(output_maps)
-        return output_maps
-
-    def get_area_ratio(self, width1, height1, width2, height2):
-        s1 = width1*height1
-        s2 = width2*height2
-        return s1/s2
-
-    def get_rf_end_loc(self, img_shape, conv_out_shp, stride, r, c):
-        rf_x_no_ = int(math.ceil(c/stride))
-        rf_y_no_ = int(math.ceil(r/stride))
-        rf_x_no = rf_x_no_ if rf_x_no_ < conv_out_shp[1] else conv_out_shp[1]-1
-        rf_y_no = rf_y_no_ if rf_y_no_ < conv_out_shp[0] else conv_out_shp[0]-1
-        return rf_x_no, rf_y_no
-
-    def get_rf_start_loc(self, img_shape, rf_shape, stride, r, c):
-        rf_x_no_ = int(math.floor(c/stride) - math.ceil(rf_shape[1]/stride))
-        rf_y_no_ = int(math.floor(r/stride)- math.ceil(rf_shape[1]/stride))
-        rf_x_no = rf_x_no_ if rf_x_no_ > 0 else 0
-        rf_y_no = rf_y_no_ if rf_y_no_ > 0 else 0
-        return rf_x_no, rf_y_no
-
-    def get_conv_out_size(self, img_shape, rf_shape, stride):
-        conv_out_x_size = int((img_shape[1] - rf_shape[1])/stride) + 1
-        conv_out_y_size = int((img_shape[0] - rf_shape[0])/stride) + 1
-        return conv_out_x_size, conv_out_y_size
-
-    def convert_bboxes_guided(self, bbx_targets, img_shape, rf_shape, stride=1):
-        """
-        This function converts the bounding boxes to the spatial outputs for the neural network.
-        In order to do this, we do a naive convolution and check if the bounding box is inside a
-        given receptive field.
-        Parameters
-        ---------
-
-        bbx_targets: pytables table.
-        img_shape: list
-        rf_shape: list
-        stride: integer
-        """
-        assert bbx_targets is not None
-        assert img_shape is not None
-        assert rf_shape is not None
-
-        prev_rec = None
-        output_maps = []
-        batch_size = bbx_targets.shape[1]
-
-        rs = bbx_targets[:]["row"][0]
-        cs = bbx_targets[:]["col"][0]
-        widths = bbx_targets[:]["width"][0]
-        heights = bbx_targets[:]["height"][0]
-        imgnos = bbx_targets[:]["imgno"][0]
-
-        conv_out_x_size, conv_out_y_size = self.get_conv_out_size(img_shape, rf_shape, stride)
-
-        for i in xrange(batch_size):
-            issame = False
-            r = rs[i]
-            c = cs[i]
-            width = widths[i]
-            height = heights[i]
-            imgno = imgnos[i]
-
-            rf_x_start_no, rf_y_start_no = self.get_rf_start_loc(img_shape, rf_shape, stride, r, c)
-            rf_x_end_no, rf_y_end_no = self.get_rf_end_loc(img_shape, [conv_out_y_size, conv_out_x_size], stride, r + height, c + width)
-
-            rf_y_start = stride * rf_y_start_no
-            rf_y_end = stride * rf_y_end_no
-
-            rf_x_start = stride * rf_x_start_no
-            rf_x_end = rf_x_end_no * stride
-
-            if prev_rec is not None:
-                if prev_rec == imgno:
-                    issame = True
-                    output_map = output_maps[-1]
-                else:
-                    issame = False
-                    output_map = numpy.zeros((conv_out_y_size*conv_out_x_size))
-            else:
-                output_map = numpy.zeros((conv_out_y_size*conv_out_x_size))
-
-            area_ratio = self.get_area_ratio(rf_shape[1], rf_shape[0], width, height)
-
-            if area_ratio < self.area_ratio:
-                if not issame:
-                    prev_rec = imgno
-                    output_maps.append(output_map.flatten())
-                continue
-
-            rf_y_iter = rf_y_start
-            y_idx = 0
-            while(rf_y_iter <= rf_y_end):
-                x_idx = 0
-                rf_x_iter = rf_x_start
-                while(rf_x_iter <= rf_x_end):
-                    s_w = 0
-                    s_h = 0
-                    rf_x_bound = rf_x_iter + rf_shape[1]
-                    rf_y_bound = rf_y_iter + rf_shape[0]
-
-                    #Check if any corner of the image falls inside the boundary box:
-                    if perform_hit_test([rf_y_iter, rf_x_iter], rf_shape[0], rf_shape[1], [r, c]):
-                        x2 = min(rf_x_bound, c + width)
-                        y2 = min(rf_y_bound, r + height)
-                        s_w = x2 - c
-                        s_h = y2 - r
-
-                    elif perform_hit_test([rf_y_iter, rf_x_iter], rf_shape[0], rf_shape[1], [r + height, c]):
-                        x2 = min(rf_x_bound, c + width)
-                        y2 = r + height
-                        s_w = x2 - c
-                        s_h = y2 - rf_y_iter
-
-                    elif perform_hit_test([rf_y_iter, rf_x_iter], rf_shape[0], rf_shape[1], [r,c+width]):
-                        x2 = c + width
-                        y2 = min(rf_y_end, r + height)
-                        s_w = x2 - rf_x_iter
-                        s_h = y2 - r
-
-                    elif perform_hit_test([rf_y_iter, rf_x_iter], rf_shape[0], rf_shape[1], [r+height,c+width]):
-                        x2 = c + width
-                        y2 = r + height
-                        s_w = x2 - rf_x_iter
-                        s_h = y2 - rf_y_iter
-
-                    s_area = s_w * s_h
-                    area = width * height
-                    #if imgno == 38:
-                    #    import ipdb; ipdb.set_trace()
-                    #If the face area is very small ignore it.
-                    if area <= 18 or s_area <= 18:
-                        ratio = 0.
-                    else:
-                        ratio = float(s_area) / float(area)
-
-                    out_idx = (rf_y_start_no + y_idx) * conv_out_x_size + rf_x_start_no + x_idx
-
-                    #Compare with the previous record
-                    if not issame:
-                        if ratio >= self.area_ratio:
-                            output_map[out_idx] = 1
-                            #print "Area %d, S area %d, imgno %d, loc %d" % (area, s_area, imgno,
-                            #        out_idx)
-                        else:
-                            output_map[out_idx] = 0
-                    else:
-                        if ratio >= self.area_ratio:
-                            output_map[out_idx] = 1
-                            #print "Area %d, S area %d, imgno %d, loc %d" % (area, s_area, imgno,
-                            #        out_idx)
-
-                    x_idx += 1
-                    rf_x_iter += stride
-                y_idx += 1
-                rf_y_iter += stride
-
-            prev_rec = imgno
-            if not issame:
-                output_maps.append(output_map)
-
-        output_maps = numpy.asarray(output_maps)
-        return output_maps
-
-def perform_hit_test(bbx_start, h, w, point):
-    """
-        Check if a point is in the bounding box.
-    """
-    if (bbx_start[0] <= point[0] and bbx_start[0] + h >= point[0]
-            and bbx_start[1] + w >= point[1] and bbx_start[1] <= point[1]):
-        return True
-    else:
-        return False
-
-def get_image_bboxes(image_index, bboxes):
-    """
-        Query pytables table for the given range of images.
-    """
-    start = image_index.start
-    stop = image_index.stop
-    query = "(imgno>={}) & (imgno<{})".format(start, stop)
-    return bboxes.readWhere(query)
-
 
 class FaceBBoxDDMPytables(dense_design_matrix.DenseDesignMatrix):
     filters = tables.Filters(complib='blosc', complevel=1)
@@ -437,6 +131,7 @@ class FaceBBoxDDMPytables(dense_design_matrix.DenseDesignMatrix):
                  view_converter=None, axes = ('b', 0, 1, 'c'),
                  image_shape=None, receptive_field_shape=None,
                  bbox_conversion_type=ConversionType.GUID,
+                 area_ratio=None,
                  stride=None, use_output_map=True, rng=None):
         """
         Parameters
@@ -485,6 +180,8 @@ class FaceBBoxDDMPytables(dense_design_matrix.DenseDesignMatrix):
         self.use_output_map = use_output_map
         self.bbox_conversion_type = bbox_conversion_type
         self.h5file = h5file
+        self.area_ratio = area_ratio
+
         FaceBBoxDDMPytables.filters = tables.Filters(complib='blosc', complevel=1)
 
 
@@ -571,7 +268,9 @@ class FaceBBoxDDMPytables(dense_design_matrix.DenseDesignMatrix):
                                     receptive_field_shape=self.receptive_field_shape,
                                     stride=self.stride,
                                     bbox_conversion_type=self.bbox_conversion_type,
-                                    topo=topo, targets=targets,
+                                    topo=topo,
+                                    targets=targets,
+                                    area_ratio=self.area_ratio,
                                     use_output_map=self.use_output_map)
 
     @staticmethod
@@ -692,6 +391,7 @@ class FaceBBox(FaceBBoxDDMPytables):
 
     def __init__(self,
             which_set,
+            area_ratio,
             path=None,
             scale=False,
             center=False,
@@ -713,6 +413,8 @@ class FaceBBox(FaceBBoxDDMPytables):
             EXHAUSTIVE: Perform exhaustive search on the whole image.
         use_output_map: Whether to use the convolutional output maps or
         size_of_receptive: Size of the receptive field for the convolutional output map.
+        area_ratio: In order to create an output map what ratio of the face should be in the
+        receptive to be able to say that the receptive field contains a face.
         """
 
         assert which_set in self.data_mapper.keys()
@@ -741,6 +443,7 @@ class FaceBBox(FaceBBoxDDMPytables):
 
         self.h5file = tables.openFile(h5_file, mode=mode)
         dataset = self.h5file.root
+        self.area_ratio = area_ratio
 
         if start != None or stop != None:
             self.h5file, data = self.resize(self.h5file, start, stop)
@@ -760,6 +463,7 @@ class FaceBBox(FaceBBoxDDMPytables):
                 axes)
 
         super(FaceBBox, self).__init__(X=images,
+                                    area_ratio=area_ratio,
                                     y=bboxes,
                                     h5file=self.h5file,
                                     image_shape=img_shape,

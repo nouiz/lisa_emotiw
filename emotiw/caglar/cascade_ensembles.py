@@ -1,4 +1,5 @@
 import numpy as np
+
 import theano
 import theano.tensor as T
 
@@ -6,8 +7,6 @@ from circular_iterator import circle_around
 from pylearn2.train import Train
 
 #OpenCV imports for the laplacian pyramids
-import numpy as np
-import cv2
 
 class CascadeMemberProps(object):
     """
@@ -231,6 +230,7 @@ class CascadedDetectorEnsembles(Ensemble, Detector):
             new_preds = np.zeros()
             for j in xrange(self.preds_size):
                 preds_view = preds.reshape(self.output_map_shp[:2])
+
                 if sorted_preds[j] < threshold:
                     new_preds[pred_pos[j,0]] = 0
                 else:

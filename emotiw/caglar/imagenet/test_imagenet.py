@@ -3,7 +3,6 @@ from pylearn2.datasets import preprocessing
 from pylearn2.utils.iteration import SequentialSubsetIterator
 
 def test1():
-
     path_org = '/Tmp/gulcehrc/imagenet_256x256_filtered.h5'
     path = '/Tmp/gulcehrc/imagenetTemp.h5'
     train = Imagenet(which_set = 'train',

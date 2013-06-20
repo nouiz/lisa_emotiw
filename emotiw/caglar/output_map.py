@@ -3,17 +3,10 @@ import os
 from pylearn2.datasets.dataset import Dataset
 from pylearn2.utils.iteration import SequentialSubsetIterator
 import numpy
-import warnings
-
-try:
-    import scipy.sparse
-except ImportError:
-    warnings.warn("Couldn't import scipy.sparse")
 
 import theano
-import gzip
-
 floatX = theano.config.floatX
+
 
 class OutputMapFile(object):
     filters = tables.Filters(complib='blosc', complevel=1)
@@ -40,7 +33,7 @@ class OutputMapFile(object):
         h5file.createCArray(gcolumns, 'Ino', atom = atom, shape = (n_examples,),
                                                 title = "Image numbers", filters = filters)
 
-        h5file.createCArray(gcolumns, 'Iloc', atom = atom, shape = (n_examples,),
+        h5file.createCArray(gcolumns, 'Ploc', atom = atom, shape = (n_examples,),
                                                 title = "Image locations", filters = filters)
 
         h5file.createCArray(gcolumns, 'Tgt', atom = atom, shape = (n_examples,),
@@ -55,16 +48,16 @@ class OutputMapFile(object):
         return h5file
 
     @staticmethod
-    def save_output_map(h5file, output_map, imgnos, ilocs, targets, start=None, stop=None):
+    def save_output_map(h5file, patches, imgnos, ilocs, targets, start=None, stop=None):
         if start and stop is not None:
-            h5file.root.Data.Pt[start:stop] = output_map
+            h5file.root.Data.Pt[start:stop] = patches
             h5file.root.Data.Ino[start:stop] = imgnos
-            h5file.root.Data.Iloc[start:stop] = ilocs
+            h5file.root.Data.Ploc[start:stop] = ilocs
             h5file.root.Data.Tgt[start:stop] = targets
         else:
-            h5file.root.Data.Pt[:] = output_map
+            h5file.root.Data.Pt[:] = patches
             h5file.root.Data.Ino[:] = imgnos
-            h5file.root.Data.Iloc[:] = ilocs
+            h5file.root.Data.Ploc[:] = ilocs
             h5file.root.Data.Tgt[:] = targets
         h5file.flush()
 
@@ -90,6 +83,9 @@ class OutputMap(object):
             out_maps,
             start,
             conv_targets):
+        """
+        Get the patches that were able to survive in the convolutional training.
+        """
         assert images.shape[0] == out_maps.shape[0]
 
         n_images = len(images)
@@ -98,7 +94,7 @@ class OutputMap(object):
         cropped_patches = []
         targets = []
         img_nos = []
-        img_locs = []
+        patch_locs = []
 
         for out_map in out_maps:
             non_empty_rfs = numpy.where(out_map!=0)
@@ -110,15 +106,16 @@ class OutputMap(object):
                 patch = image[x: x + self.out_shape[0], y: y + self.out_shape[1]]
                 cropped_patch = patch.flatten()
                 cropped_patches.append(cropped_patch)
-                img_locs.append(non_empty_rf)
+                patch_locs.append(non_empty_rf)
                 targets.append(target)
                 img_nos.append(img_idx)
             img_idx += 1
+            assert n_images > img_idx
 
         cropped_patches = numpy.asarray(cropped_patches)
         targets = numpy.asarray(targets)
-        img_locs = numpy.asarray(img_locs)
-        return (cropped_patches, targets, img_locs, img_nos)
+        patch_locs = numpy.asarray(patch_locs)
+        return (cropped_patches, targets, patch_locs, img_nos)
 
     def get_next_patches(self,
             patches,
@@ -126,14 +123,17 @@ class OutputMap(object):
             img_nos,
             conv_targets):
         """
+        ***NOTE***:
+        This function is not being used and not very useful for our purposes.
+        Probably requires a rewrite. See remove_nonfaces function in the
+        multiscale_cascade_ensembles.py.
         Return the patches that are saved from the non_max_sup and thresholding.
         """
-        n_images = len(patches)
         cropped_patches = []
         targets = []
         img_nos_p = []
-        img_locs = []
-        non_empty_rfs = numpy.where(out_map!=0)
+        patch_locs = []
+        non_empty_rfs = numpy.where(out_map != 0)
 
         patch_count = 0
         rf_count = 0
@@ -147,7 +147,7 @@ class OutputMap(object):
                 target = conv_targets[patch_count]
                 img_nos_p.append(patch)
                 cropped_patches.append(patch)
-                img_locs.append(non_empty_rf)
+                patch_locs.append(non_empty_rf)
                 targets.append(conv_targets[non_empty_rf])
                 rf_count +=1
 
@@ -155,16 +155,25 @@ class OutputMap(object):
 
         cropped_patches = numpy.asarray(cropped_patches)
         targets = numpy.asarray(targets)
-        img_locs = numpy.asarray(img_locs)
+        patch_locs = numpy.asarray(patch_locs)
         img_nos_p = numpy.asarray(img_nos_p)
-        return (cropped_patches, targets, img_locs, img_nos_p)
+        return (cropped_patches, targets, patch_locs, img_nos_p)
 
 class CroppedPatchesDataset(Dataset):
     """
     CroppedPatchesDataset is by itself an iterator.
     """
-    def __init__(self, img_shape, iter_mode="fprop", h5_file=None, start=None, stop=None, mode=None):
+    def __init__(self,
+                 img_shape,
+                 iter_mode="fprop",
+                 h5_file=None,
+                 start=None,
+                 stop=None,
+                 mode=None):
+
         self.__dict__.update(locals())
+        self.img_shape = img_shape
+
         if self.self is not None:
             del self.self
 
@@ -187,10 +196,10 @@ class CroppedPatchesDataset(Dataset):
         self.h5file = tables.openFile(h5_file, mode=self.mode)
         self.dataset = self.h5file.root
 
-        self.patches = self.dataset.Data.Pt
-        self.targets = self.dataset.Data.Tgt
+        self.X = self.dataset.Data.Pt
+        self.Y = self.dataset.Data.Tgt
         self.imgnos = self.dataset.Data.Ino
-        self.imglocs = self.dataset.Data.Iloc
+        self.plocs = self.dataset.Data.Ploc
         self.data_n_rows = self.targets.shape[0]
 
     def set_iter_mode(self, r_mode):
@@ -253,7 +262,7 @@ class CroppedPatchesDataset(Dataset):
         begining_img_no = self.imgnos[batch_start_indx]
 
         mini_batch_patches = []
-        mini_batch_imglocs = []
+        mini_batch_plocs = []
         mini_batch_imgnos = []
         mini_batch_targets = []
 
@@ -264,10 +273,10 @@ class CroppedPatchesDataset(Dataset):
                 self.cur_idx = indx
                 break
             try:
-                mini_batch_patches.append(self.patches[indx.start])
-                mini_batch_targets.append(self.targets[indx.start])
+                mini_batch_patches.append(self.X[indx.start])
+                mini_batch_targets.append(self.Y[indx.start])
                 mini_batch_imgnos.append(self.imgnos[indx.start])
-                mini_batch_imglocs.append(self.imglocs[indx.start])
+                mini_batch_plocs.append(self.plocs[indx.start])
             except IndexError:
                 print "The index of minibatch goes beyond the boundary."
                 import ipdb; ipdb.set_trace()
@@ -277,5 +286,5 @@ class CroppedPatchesDataset(Dataset):
         if self.iter_mode == "train":
             return (mini_batch_patches, mini_batch_targets)
         else:
-            return (mini_batch_patches, mini_batch_targets, mini_batch_imgnos, mini_batch_imglocs)
+            return (mini_batch_patches, mini_batch_targets, mini_batch_imgnos, mini_batch_plocs)
 

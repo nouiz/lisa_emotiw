@@ -56,9 +56,9 @@ class Imagenet(dense_design_matrix.DenseDesignMatrixPyTables):
 
         assert start != None and stop != None
         if '/Data' in h5file_org.listNodes("/")[0]:
-            x_data = h5file_org.getNode("/Data").X
+            x_data = h5file_org.getNode("/Data").x
         else:
-            x_data = h5file_org.X
+            x_data = h5file_org.x
 
         #create new h5file at the specified path
         self.h5file = tables.openFile(path, mode = mode, title = "ImageNet Dataset")
