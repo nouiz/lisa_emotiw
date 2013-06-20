@@ -1,5 +1,5 @@
 from collections import OrderedDict
-import pylearn2.utils.string_utils
+from pylearn2.utils.string_utils import preprocess
 import tables
 import os
 import numpy
@@ -9,6 +9,8 @@ import PIL
 import PIL.Image
 import pylab
 import theano
+
+keypoints_names = ['left_eyebrow_inner_end', 'bottom_lip_top_left_midpoint', 'right_ear_top', 'mouth_bottom_lip_top', 'face_left', 'left_eyebrow_outer_midpoint', 'left_jaw_1', 'left_jaw_0', 'bottom_lip_top_left_center', 'left_eyebrow_center_top', 'left_eye_outer_corner', 'top_lip_bottom_right_midpoint', 'mouth_bottom_lip', 'left_mouth_outer_corner', 'left_eyebrow_center_bottom', 'top_lip_bottom_left_center', 'right_eyebrow_inner_end', 'chin_center', 'right_eyebrow_outer_midpoint', 'left_ear_bottom', 'right_eye_outer_corner', 'left_eyebrow_outer_end', 'top_lip_bottom_left_midpoint', 'bottom_lip_bottom_right_midpoint', 'right_eye_center_top', 'right_nostril_inner_end', 'top_lip_bottom_center', 'face_center', 'right_eye_inner_corner', 'right_eyebrow_center_top', 'left_eyebrow_center', 'right_ear_bottom', 'mouth_left_corner', 'nostrils_center', 'right_eyebrow_inner_midpoint', 'mouth_right_corner', 'chin_center_top', 'nose_ridge_bottom', 'right_eye_center', 'left_eye_bottom_outer_midpoint', 'left_eye_pupil', 'right_jaw_2', 'right_jaw_1', 'right_jaw_0', 'top_lip_bottom_right_center', 'top_lip_top_right_center', 'left_nostril_inner_end', 'right_eyebrow_center_bottom', 'chin_right', 'mouth_top_lip_bottom', 'right_ear_canal', 'bottom_lip_bottom_center', 'mouth_top_lip', 'right_eyebrow_center', 'chin_left', 'left_eye_top_outer_midpoint', 'left_jaw_2', 'nose_tip', 'bottom_lip_bottom_left_center', 'left_eye_top_inner_midpoint', 'right_eye_top_outer_midpoint', 'left_eye_bottom_inner_midpoint', 'top_lip_top_left_center', 'bottom_lip_bottom_right_center', 'bottom_lip_top_center', 'left_eye_center', 'bottom_lip_top_right_midpoint', 'left_eye_center_top', 'left_ear_center', 'top_lip_top_right_midpoint', 'bottom_lip_bottom_left_midpoint', 'right_eye_center_bottom', 'right_eye_bottom_outer_midpoint', 'left_eye_inner_corner', 'right_mouth_outer_corner', 'left_eyebrow_inner_midpoint', 'left_ear_top', 'right_ear_center', 'nose_center_top', 'right_eye_pupil', 'bottom_lip_top_right_center', 'left_eye_center_bottom', 'right_eye_top_inner_midpoint', 'left_cheek_2', 'face_right', 'right_nostril', 'top_lip_top_left_midpoint', 'right_eye_bottom_inner_midpoint', 'left_cheek_1', 'left_cheek_0', 'right_eyebrow_outer_end', 'nose_ridge_top', 'mouth_center', 'left_nostril', 'right_cheek_1', 'right_cheek_0', 'right_cheek_2', 'left_ear_canal']
 
 def overlay_me(data, label):
     img = PIL.Image.fromstring(data=data, mode='RGB', size=(96,96))
@@ -124,9 +126,9 @@ class LazyTargets(object):
 
         return numpy.asarray(res)
 
-class HDF5KeypointsWrapper(DenseDesignMatrix):
+class EmotiwKeypoints(DenseDesignMatrix):
     def __init__(self, which_set, start=None, stop=None, axes=('b', 0, 1, 'c'), stdev=0.8):
-        self.translation_dict = OrderedDict({1: 'left_eyebrow_inner_end', 2: 'mouth_top_lip_bottom', 3: 'right_ear_canal', 4: 'right_ear_top', 5: 'mouth_top_lip', 6: 'mouth_bottom_lip_top', 7: 'right_eyebrow_center', 8: 'chin_left', 9: 'nose_tip', 10: 'left_eyebrow_center_top', 11: 'left_eye_outer_corner', 12: 'right_ear', 13: 'mouth_bottom_lip', 14: 'left_eye_center', 15: 'left_mouth_outer_corner', 16: 'left_eye_center_top', 17: 'left_ear_center', 18: 'nostrils_center', 19: 'right_eye_outer_corner', 20: 'right_eye_center_bottom', 21: 'chin_center', 22: 'left_eye_inner_corner', 23: 'right_mouth_outer_corner', 24: 'left_ear_bottom', 25: 'right_eye_center_top', 26: 'right_eyebrow_inner_end', 27: 'left_eyebrow_outer_end', 28: 'left_ear_top', 29: 'right_ear_center', 30: 'nose_center_top', 31: 'face_center', 32: 'right_eye_inner_corner', 33: 'right_eyebrow_center_top', 34: 'left_eyebrow_center', 35: 'right_eye_pupil', 36: 'right_ear_bottom', 37: 'mouth_left_corner', 38: 'left_eye_center_bottom', 39: 'left_eyebrow_center_bottom', 41: 'mouth_right_corner', 42: 'right_nostril', 43: 'right_eye_center', 44: 'chin_right', 45: 'right_eyebrow_outer_end', 46: 'left_eye_pupil', 47: 'mouth_center', 48: 'left_nostril', 49: 'right_eyebrow_center_bottom', 50: 'left_ear_canal', 51: 'left_ear', 52: 'face_right', 53: 'face_left'})
+ #       self.translation_dict = OrderedDict({1: 'left_eyebrow_inner_end', 2: 'mouth_top_lip_bottom', 3: 'right_ear_canal', 4: 'right_ear_top', 5: 'mouth_top_lip', 6: 'mouth_bottom_lip_top', 7: 'right_eyebrow_center', 8: 'chin_left', 9: 'nose_tip', 10: 'left_eyebrow_center_top', 11: 'left_eye_outer_corner', 12: 'right_ear', 13: 'mouth_bottom_lip', 14: 'left_eye_center', 15: 'left_mouth_outer_corner', 16: 'left_eye_center_top', 17: 'left_ear_center', 18: 'nostrils_center', 19: 'right_eye_outer_corner', 20: 'right_eye_center_bottom', 21: 'chin_center', 22: 'left_eye_inner_corner', 23: 'right_mouth_outer_corner', 24: 'left_ear_bottom', 25: 'right_eye_center_top', 26: 'right_eyebrow_inner_end', 27: 'left_eyebrow_outer_end', 28: 'left_ear_top', 29: 'right_ear_center', 30: 'nose_center_top', 31: 'face_center', 32: 'right_eye_inner_corner', 33: 'right_eyebrow_center_top', 34: 'left_eyebrow_center', 35: 'right_eye_pupil', 36: 'right_ear_bottom', 37: 'mouth_left_corner', 38: 'left_eye_center_bottom', 39: 'left_eyebrow_center_bottom', 41: 'mouth_right_corner', 42: 'right_nostril', 43: 'right_eye_center', 44: 'chin_right', 45: 'right_eyebrow_outer_end', 46: 'left_eye_pupil', 47: 'mouth_center', 48: 'left_nostril', 49: 'right_eyebrow_center_bottom', 50: 'left_ear_canal', 51: 'left_ear', 52: 'face_right', 53: 'face_left'})
         if which_set not in ('train', 'test'):
             raise ValueError('which_set must be one of ("train", "test")')
 
@@ -134,76 +136,90 @@ class HDF5KeypointsWrapper(DenseDesignMatrix):
 
         self.pixels = numpy.arange(0, 96)
         self.which_set = which_set
-        self.start = start
-        self.stop = stop
+        
+        X = numpy.memmap(preprocess('${PYLEARN2_DATA_PATH}/faces/hdf5/complete_' + which_set + '_x.npy'))
+        Y = numpy.memmap(preprocess('${PYLEARN2_DATA_PATH}/faces/hdf5/complete_' + which_set + '_y.npy'), dtype=numpy.float32)
+        
+        num_examples = len(X)/(96.0*96.0*3.0)
 
-        files = ['multipie.h5', 'afw.h5', 'arface.h5', 'aflw.h5', 'ncku.h5', 'hiit6.h5', 'ihdp.h5', 'bioid.h5', 'lfpw.h5', 'caltech.h5', 'inrialpes.h5']
-        self.files = [pylearn2.utils.string_utils.preprocess(os.path.join('${KEYPOINTS_DATA_PATH}', 'faces', 'hdf5', f)) for f in files]
-        self.file_list = [tables.openFile(f) for f in self.files] 
+        if stop is None:
+            stop = num_examples
+        if start is None:
+            start = 0
+        
+        X = X[start*96*96*3:stop*96*96*3].view()
+        Y = Y[start*len(keypoints_names)*2:stop*len(keypoints_names)*2].view()
+        X.shape = (stop-start, 96*96*3)
+        Y.shape = (stop-start, len(keypoints_names), 2)
+        #self.make_targets(Y)
+        #XXX: Removes lazyness. Should be generated at around the same time as
+        #preprocessing and kept on local storage in hdf5 or something of the sort.
+
+      #  files = ['multipie.h5', 'afw.h5', 'arface.h5', 'aflw.h5', 'ncku.h5', 'hiit6.h5', 'ihdp.h5', 'bioid.h5', 'lfpw.h5', 'caltech.h5', 'inrialpes.h5']
+       # self.files = [pylearn2.utils.string_utils.preprocess(os.path.join('${KEYPOINTS_DATA_PATH}', 'faces', 'hdf5', f)) for f in files]
+        #self.file_list = [tables.openFile(f) for f in self.files] 
         #TODO: Never actually closed.
     
-        self.elems_in_files = [0]*len(files)
-        if which_set == 'test':
-            for idx, f in enumerate(self.file_list):
-                if len(f.root.test.data._f_listNodes()) != 0:
-                    self.elems_in_files[idx] = len(f.root.test.data.img) 
-        else:
-            for idx, f in enumerate(self.file_list):
-                if len(f.root.train.data._f_listNodes()) != 0:
-                    self.elems_in_files[idx] = len(f.root.train.data.img)
+        #self.elems_in_files = [0]*len(files)
+        #if which_set == 'test':
+         #   for idx, f in enumerate(self.file_list):
+          #      if len(f.root.test.data._f_listNodes()) != 0:
+           #         self.elems_in_files[idx] = len(f.root.test.data.img) 
+        #else:
+         #   for idx, f in enumerate(self.file_list):
+          #      if len(f.root.train.data._f_listNodes()) != 0:
+           #         self.elems_in_files[idx] = len(f.root.train.data.img)
             
-        super(HDF5KeypointsWrapper, self).__init__(X=[0]*sum(self.elems_in_files), y=[0]*sum(self.elems_in_files), #Although it's OK to have X and Y not actually be features and targets respectively, 
-                                                                                                                        #they still have to have the right shape[0].
-                                                        view_converter=DefaultViewConverter(shape=[96, 96, 3], axes=axes)) 
+        super(EmotiwKeypoints, self).__init__(X=X, y=Y, view_converter=DefaultViewConverter(shape=[96, 96, 3], axes=axes))
 
     def has_targets(self):
         return True
 
-    def restrict(self, start, stop):
-        if stop < start or start < 0 or stop > sum(self.elems_in_files):
-            raise ValueError("(%d, %d) is not a valid range. Valid range: (%d, %d)" % (start, stop, 0, sum(self.elems_in_files)))
-        if isinstance(start, int):
-            self.start = start
-        if isinstance(stop, int):
-            self.stop = stop
+ #   def restrict(self, start, stop):
+ #       if stop < start or start < 0 or stop > sum(self.elems_in_files):
+ #           raise ValueError("(%d, %d) is not a valid range. Valid range: (%d, %d)" % (start, stop, 0, sum(self.elems_in_files)))
+ #       if isinstance(start, int):
+ #           self.start = start
+ #       if isinstance(stop, int):
+ #           self.stop = stop
 
     def convert_to_one_hot(self, min_class=0):
         raise NotImplementedError("Keypoints can't be represented as one-hot vectors")
 
-    def get_topological_view(self, mat=None):
-        if mat is None:
-            return self.get_design_matrix().get_lazy_topo(self.view_converter)
+#    def get_topological_view(self, mat=None):
+ #       if mat is None:
+  #          return self.get_design_matrix().get_lazy_topo(self.view_converter)
         #NOTE: might need to create a custom converter
         #so it's aware of the lazy structures.
-        return self.view_converter.design_mat_to_topo_view(mat)
+   #     return self.view_converter.design_mat_to_topo_view(mat)
 
-    def get_weights_view(self, mat=None):
-        return self.get_topological_view(mat)
+#    def get_weights_view(self, mat=None):
+ #       return self.get_topological_view(mat)
 
-    def get_batch_design(self, batch_size, include_labels=False):
-        #slight adaptation from DenseDesignMatrix
-        size = sum(self.elems_in_files)
-        the_X = self.get_design_matrix()
-        the_y = self.get_targets()
-
-        try:
-            idx = self.rng.randint(size - batch_size + 1)
-        except ValueError:
-            if batch_size > size:
-                raise ValueError("Requested "+str(batch_size)+" examples"
-                    "from a dataset containing only "+str(size))
-            raise
-        rx = the_X[idx:idx + batch_size, :]
-        if include_labels:
-            if the_y is None:
-                return rx, None
-            ry = the_y[idx:idx + batch_size]
-            return rx, ry
-        rx = numpy.cast[theano.config.floatX](rx)
-        return rx
+#    def get_batch_design(self, batch_size, include_labels=False):
+#        #slight adaptation from DenseDesignMatrix
+#        size = sum(self.elems_in_files)
+#        the_X = self.get_design_matrix()
+#        the_y = self.get_targets()
+#
+#        try:
+#            idx = self.rng.randint(size - batch_size + 1)
+#        except ValueError:
+#            if batch_size > size:
+#                raise ValueError("Requested "+str(batch_size)+" examples"
+#                    "from a dataset containing only "+str(size))
+#            raise
+#        rx = the_X[idx:idx + batch_size, :]
+#        if include_labels:
+#            if the_y is None:
+#                return rx, None
+#            ry = the_y[idx:idx + batch_size]
+#            return rx, ry
+#        rx = numpy.cast[theano.config.floatX](rx)
+#        return rx
         
     def get_topo_batch_axis(self):
-        return 0
+        self.axes.index('b')
 
     def adjust_for_viewer(self, X):
         if len(X.shape) == 1:
@@ -212,31 +228,36 @@ class HDF5KeypointsWrapper(DenseDesignMatrix):
             return [map(lambda x: x/1.3, y) for y in X]
  
     def make_targets(self, y):
-        y = numpy.asarray(y)
-        #copied straight from FacialKeypoint - only difference is 98->96
+        #copied mostly from FacialKeypoint, with 98->96
         # y : (batch_size, num_keypoints):
         # (batch_size, num_keypoints*2, 96)
-        Y = numpy.zeros((y.shape[0], y.shape[1]*2, 96))
-        for i in xrange(y.shape[0]):
-            for j in xrange(y.shape[1]):
-                for k in self.pixels:
-                    if y[i, j, 0] == -1:
-                        Y[i, j*2, k] = -1
-                        Y[i, j*2+1, k] = -1
-                    else:
-                        Y[i, j*2, k] = numpy.exp((-(y[i, j][0]-k)**2)/(2*(self.stdev**2)))/(numpy.sqrt(2*3.14159265359)*self.stdev)
-                        Y[i, j*2+1, k] = numpy.exp((-(y[i, j][1]-k)**2)/(2*(self.stdev**2)))/(numpy.sqrt(2*3.14159265359)*self.stdev)
+       # Y = numpy.zeros((y.shape[0], y.shape[1]*2, 96))
+       # for i in xrange(y.shape[0]):
+       #     for j in xrange(y.shape[1]):
+       #         for k in self.pixels:
+       #             if y[i, j, 0] == -1:
+       #                 Y[i, j*2, k] = -1
+       #                 Y[i, j*2+1, k] = -1
+       #             else:
+       #                 Y[i, j*2, k] = numpy.exp((-(y[i, j][0]-k)**2)/(2*(self.stdev**2)))/(numpy.sqrt(2*3.14159265359)*self.stdev)
+       #                 Y[i, j*2+1, k] = numpy.exp((-(y[i, j][1]-k)**2)/(2*(self.stdev**2)))/(numpy.sqrt(2*3.14159265359)*self.stdev)
 
+       # print Y.shape
+       # return Y
+        #SHOULD work, takes too much memory so couldn't verify.
+        Y = numpy.memmap('/tmp/density_vectors.npy', dtype='float32', mode='write', shape=((y.shape[0], y.shape[1], 96)))
+        y = y.view().reshape(y.shape[0], y.shape[1], y.shape[2], 1)
+        Y[:, :, :] = (numpy.exp(-(y[:,:,:]-self.pixels)**2/(2*self.stdev**2)))/(numpy.sqrt(2*3.14159265359)*self.stdev)
         print Y.shape
         return Y
 
-    def get_design_matrix(self, topo=None):
-        if topo is not None:
-            return self.view_converter.topo_view_to_design_mat(topo)
-        return LazyDesignMatrix(self)
-
-    def get_targets(self):
-        return LazyTargets(self)
+    #def get_design_matrix(self, topo=None):
+    #    if topo is not None:
+    #        return self.view_converter.topo_view_to_design_mat(topo)
+    #    return LazyDesignMatrix(self)
+#
+#    def get_targets(self):
+#        return LazyTargets(self)
 
     def load_from_hdf5(self, f, which_set, idx, start, stop, data=True):
         #data: whether to load data or targets

@@ -150,7 +150,7 @@ def hdf5_as_npy(files, save_as):
             else:
                 t_size += x
 
-        char_arr_img = [len(x) != 0 and ord(x) or 0 for x in the_file.root.train.img[idx-t_size]]
+        char_arr_image = [len(x) != 0 and ord(x) or 0 for x in the_file.root.train.img[idx-t_size]]
 
         unflipped_image = []
         for idx, _ in enumerate(char_arr_image[::3]):
@@ -202,7 +202,6 @@ def hdf5_as_npy(files, save_as):
     flush_delay_in_lines = FLUSH_DELAY_IN_LINES
     
     print 'beginning dump of test data.'
-    print the_file.root.train.img[0]
     for i in xrange(sum(test_sizes)):
         if flush_delay_in_lines <= 0:
             flush_delay_in_lines = FLUSH_DELAY_IN_LINES
@@ -233,7 +232,7 @@ def hdf5_as_npy(files, save_as):
                 t_size += x
 
 
-        char_arr_img = [len(x) != 0 and ord(x) or 0 for x in the_file.root.test.img[idx-t_size]]
+        char_arr_image = [len(x) != 0 and ord(x) or 0 for x in the_file.root.test.img[idx-t_size]]
 
         unflipped_image = []
         for idx, _ in enumerate(char_arr_image[::3]):
