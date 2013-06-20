@@ -20,6 +20,8 @@ from pylearn2.datasets.dataset import Dataset
 from pylearn2.datasets import dense_design_matrix
 from pylearn2.datasets.dense_design_matrix import DefaultViewConverter
 
+from pylearn2.space import CompositeSpace
+
 from pylearn2.utils import iteration
 from pylearn2.utils.serial import load
 from pylearn2.utils.string_utils import preprocess
@@ -56,7 +58,11 @@ class FaceBBoxDDMIterator(iteration.FiniteDatasetIterator):
             bbox_conversion_type=ConversionType.GUID,
             topo=False,
             targets=True,
-            area_ratio=0.9):
+            area_ratio=0.9,
+            data_specs=None,
+            return_tuple=False):
+        self.targets = targets
+        self.topo = topo
 
         self.bbox_conversion_type = bbox_conversion_type
         self.img_shape = img_shape
@@ -64,29 +70,32 @@ class FaceBBoxDDMIterator(iteration.FiniteDatasetIterator):
         self.stride = stride
         self.area_ratio = area_ratio
         self.use_output_map = use_output_map
+        self._deprecated_interface = True
 
         super(FaceBBoxDDMIterator, self).__init__(dataset,
                 subset_iterator,
-                topo=topo,
-                targets=targets)
+                #topo=topo,
+                #targets=targets,
+                data_specs=data_specs,
+                return_tuple=return_tuple)
 
     def next(self):
         next_index = self._subset_iterator.next()
         if isinstance(next_index, numpy.ndarray) and len(next_index) == 1:
             next_index = next_index[0]
+        self._needs_cast = True
 
         if self._needs_cast:
-            features = numpy.cast[config.floatX](self._raw_data[next_index])
+            features = numpy.cast[config.floatX](self._raw_data[0][next_index])
         else:
-            features = self._raw_data[next_index,:]
+            features = self._raw_data[0][next_index,:]
 
-        if self._topo:
+        if self.topo:
             if len(features.shape) != 2:
                 features = features.reshape((1, features.shape[0]))
             features = self._dataset.get_topological_view(features)
-
-        if self._targets:
-            bbx_targets = get_image_bboxes(next_index, self._raw_targets)
+        if self.targets:
+            bbx_targets = get_image_bboxes(next_index, self._raw_data[1])
             if len(bbx_targets.shape) != 2:
                 bbx_targets = bbx_targets.reshape((1, bbx_targets.shape[0]))
             if self.use_output_map:
@@ -99,10 +108,14 @@ class FaceBBoxDDMIterator(iteration.FiniteDatasetIterator):
 
             if targets.shape[0] != features.shape[0]:
                 raise ValueError("There is a batch size mismatch between features and targets.")
+
+            self._targets_need_cast = False
             if self._targets_need_cast:
                 targets = numpy.cast[config.floatX](targets)
             return features, targets
         else:
+            if self._return_tuple:
+                features = (features,)
             return features
 
     def get_bare_outputs(self, bbx_targets):
@@ -181,7 +194,7 @@ class FaceBBoxDDMPytables(dense_design_matrix.DenseDesignMatrix):
         self.bbox_conversion_type = bbox_conversion_type
         self.h5file = h5file
         self.area_ratio = area_ratio
-
+        self._deprecated_interface = True
         FaceBBoxDDMPytables.filters = tables.Filters(complib='blosc', complevel=1)
 
 
@@ -233,11 +246,12 @@ class FaceBBoxDDMPytables(dense_design_matrix.DenseDesignMatrix):
         FaceBBoxDDMPytables.fill_hdf5(h5file = self.h5file,
                                             data_x = X,
                                             start = start)
-
+    """
     @functools.wraps(Dataset.iterator)
     def iterator(self, mode=None, batch_size=None,
             num_batches=None,
-            topo=None, targets=False, rng=None):
+            topo=None, targets=False, rng=None,
+            data_specs=None, return_tuple=False):
         # TODO: Refactor, deduplicate with DenseDesignMatrix.iterator
         if mode is None:
             if hasattr(self, '_iter_subset_class'):
@@ -262,6 +276,61 @@ class FaceBBoxDDMPytables(dense_design_matrix.DenseDesignMatrix):
         if rng is None and mode.stochastic:
             rng = self.rng
 
+    """
+    @functools.wraps(Dataset.iterator)
+    def iterator(self, mode=None, batch_size=None, num_batches=None,
+                 topo=None, targets=None, rng=None, data_specs=None,
+                 return_tuple=False):
+
+        # build data_specs from topo and targets if needed
+        if topo is None:
+            topo = getattr(self, '_iter_topo', False)
+        if topo:
+            # self.iterator is called without a data_specs, and with
+            # "topo=True", so we use the default topological space
+            # stored in self.X_topo_space
+            assert self.X_topo_space is not None
+            X_space = self.X_topo_space
+        else:
+            X_space = self.X_space
+
+        if targets is None:
+            if "targets" in data_specs[1]:
+                targets = True
+            else:
+                targets = False
+        if targets:
+            assert self.y is not None
+            y_space = self.data_specs[0].components[1]
+            space = CompositeSpace(components=(X_space, y_space))
+            source = ('features', 'targets')
+        else:
+            space = X_space
+            source = 'features'
+
+        data_specs = (space, source)
+        # TODO: Refactor
+        if mode is None:
+            if hasattr(self, '_iter_subset_class'):
+                mode = self._iter_subset_class
+            else:
+                raise ValueError('iteration mode not provided and no default '
+                                 'mode set for %s' % str(self))
+        else:
+            mode = resolve_iterator_class(mode)
+
+        if batch_size is None:
+            batch_size = getattr(self, '_iter_batch_size', None)
+
+        if num_batches is None:
+            num_batches = getattr(self, '_iter_num_batches', None)
+
+        if rng is None and mode.stochastic:
+            rng = self.rng
+
+        if data_specs is None:
+            data_specs = self._iter_data_specs
+
         return FaceBBoxDDMIterator(self,
                                     mode(self.X.shape[0], batch_size, num_batches, rng),
                                     img_shape=self.image_shape,
@@ -271,7 +340,9 @@ class FaceBBoxDDMPytables(dense_design_matrix.DenseDesignMatrix):
                                     topo=topo,
                                     targets=targets,
                                     area_ratio=self.area_ratio,
-                                    use_output_map=self.use_output_map)
+                                    use_output_map=self.use_output_map,
+                                    data_specs=data_specs,
+                                    return_tuple=return_tuple)
 
     @staticmethod
     def init_hdf5(path=None, shapes=None):
@@ -461,6 +532,7 @@ class FaceBBox(FaceBBoxDDMPytables):
 
         view_converter = dense_design_matrix.DefaultViewConverter((img_shape[0], img_shape[1], 1),
                 axes)
+        self._deprecated_interface = True
 
         super(FaceBBox, self).__init__(X=images,
                                     area_ratio=area_ratio,

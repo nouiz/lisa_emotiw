@@ -22,6 +22,7 @@ def get_dataset():
     stride = 8
     use_output_map = True
     dataset = FaceBBox(which_set=which_set,
+                        area_ratio=0.96,
                         start=start,
                         stop=stop,
                         use_output_map=use_output_map,
