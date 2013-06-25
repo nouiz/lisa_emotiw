@@ -55,17 +55,7 @@ def hdf5_as_npy(files, save_as):
             the_path = the_file.root.test.img
             the_idx = idx - t_size - train_sizes[f_idx]
 
-        try:
-            char_arr_image = [len(x) != 0 and ord(x) or 0 for x in the_path[the_idx]]
-        except IndexError, e:
-            print e
-            print the_idx
-            print the_path is the_file.root.test.img
-            print f_idx
-            print train_sizes[f_idx]
-            print t_size
-            print idx
-            return
+        char_arr_image = [len(x) != 0 and ord(x) or 0 for x in the_path[the_idx]]
 
         unflipped_image = []
         for idx, _ in enumerate(char_arr_image[::3]):
@@ -88,7 +78,7 @@ def hdf5_as_npy(files, save_as):
     del out_train_x
 
     flush_delay_in_lines = FLUSH_DELAY_IN_LINES
-    out_train_y = numpy.memmap(save_as + '_train_y.npy', dtype=numpy.float32, mode='write', shape=(sum(train_sizes), len(keypoints_names), 2))
+    out_train_y = numpy.memmap(save_as + '_train_y.npy', dtype=numpy.float32, mode='write', shape=(sum(total_sizes), len(keypoints_names), 2))
     for i, idx in enumerate(idx_array):
         if flush_delay_in_lines <= 0:
             flush_delay_in_lines = FLUSH_DELAY_IN_LINES
@@ -112,74 +102,6 @@ def hdf5_as_npy(files, save_as):
         flush_delay_in_lines -= 1
 
     del out_train_y
-    #print 'train data dumped successfully.'
-    #if sum(test_sizes) == 0:
-    #    return
-    #out_test_x = numpy.memmap(save_as + '_test_x.npy', mode='write', shape=(sum(test_sizes), 96*96*3))
-
-    #idx_array = range(sum(test_sizes))
-    #numpy.random.shuffle(idx_array)
-
-    #flush_delay_in_lines = FLUSH_DELAY_IN_LINES
-    #
-    #print 'beginning dump of test data.'
-    #for i, idx in enumerate(idx_array):
-    #    if flush_delay_in_lines <= 0:
-    #        flush_delay_in_lines = FLUSH_DELAY_IN_LINES
-    #        out_test_x.flush()
-
-    #    the_file = None
-    #    t_size = 0
-    #    for f_idx, x in enumerate(test_sizes):
-    #        if t_size + x > idx:
-    #            the_file = the_files[f_idx]
-    #            break
-    #        else:
-    #            t_size += x
-
-
-    #    char_arr_image = [len(x) != 0 and ord(x) or 0 for x in the_file.root.test.img[idx-t_size]]
-
-    #    unflipped_image = []
-    #    for idx, _ in enumerate(char_arr_image[::3]):
-    #        unflipped_image.append(char_arr_image[3*idx+2])
-    #        unflipped_image.append(char_arr_image[3*idx+1])
-    #        unflipped_image.append(char_arr_image[3*idx])
-
-    #    for l_num, _ in enumerate(unflipped_image[::96*3]):
-    #        for idx in xrange(96/2):
-    #            temp = unflipped_image[l_num*96*3 + idx*3:l_num*96*3 + idx*3 + 3]
-    #            unflipped_image[l_num*96*3 + idx*3:l_num*96*3 + idx*3 + 3] = unflipped_image[l_num*96*3 + 96*3 - idx*3 - 3:l_num*96*3 + 96*3 - idx*3]
-    #            unflipped_image[l_num*96*3 + 96*3 - idx*3 - 3:l_num*96*3 + 96*3 - idx*3] = temp
-
-    #    unflipped_image.reverse()
-
-    #    out_test_x[i, :] = unflipped_image 
-    #    flush_delay_in_lines -= 1
-
-    #del out_test_x
-
-    #flush_delay_in_lines = FLUSH_DELAY_IN_LINES
-    #out_test_y = numpy.memmap(save_as + '_test_y.npy', dtype=numpy.float32, mode='write', shape=(sum(test_sizes), len(keypoints_names), 2))
-    #for i, idx in enumerate(idx_array):
-    #    if flush_delay_in_lines <= 0:
-    #        flush_delay_in_lines = FLUSH_DELAY_IN_LINES
-    #        out_test_y.flush()
-
-    #    the_file = None
-    #    t_size = 0
-    #    for f_idx, x in enumerate(test_sizes):
-    #        if t_size + x > idx:
-    #            the_file = the_files[f_idx]
-    #            break
-    #        else:
-    #            t_size += x
-
-    #    out_test_y[i, :] = numpy.asarray(the_file.root.test.label[idx-t_size])
-    #    flush_delay_in_lines -= 1
-    #del out_test_y
-
-    #print 'test data dumped successfully.'
     print 'Done!'
 
     for f in the_files:
