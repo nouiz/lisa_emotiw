@@ -9,22 +9,21 @@ import PIL
 import PIL.Image
 import pylab
 import theano
+from LazyMemmap import LazyMemmap
 
 keypoints_names = ['left_eyebrow_inner_end', 'bottom_lip_top_left_midpoint', 'right_ear_top', 'mouth_bottom_lip_top', 'face_left', 'left_eyebrow_outer_midpoint', 'left_jaw_1', 'left_jaw_0', 'bottom_lip_top_left_center', 'left_eyebrow_center_top', 'left_eye_outer_corner', 'top_lip_bottom_right_midpoint', 'mouth_bottom_lip', 'left_mouth_outer_corner', 'left_eyebrow_center_bottom', 'top_lip_bottom_left_center', 'right_eyebrow_inner_end', 'chin_center', 'right_eyebrow_outer_midpoint', 'left_ear_bottom', 'right_eye_outer_corner', 'left_eyebrow_outer_end', 'top_lip_bottom_left_midpoint', 'bottom_lip_bottom_right_midpoint', 'right_eye_center_top', 'right_nostril_inner_end', 'top_lip_bottom_center', 'face_center', 'right_eye_inner_corner', 'right_eyebrow_center_top', 'left_eyebrow_center', 'right_ear_bottom', 'mouth_left_corner', 'nostrils_center', 'right_eyebrow_inner_midpoint', 'mouth_right_corner', 'chin_center_top', 'nose_ridge_bottom', 'right_eye_center', 'left_eye_bottom_outer_midpoint', 'left_eye_pupil', 'right_jaw_2', 'right_jaw_1', 'right_jaw_0', 'top_lip_bottom_right_center', 'top_lip_top_right_center', 'left_nostril_inner_end', 'right_eyebrow_center_bottom', 'chin_right', 'mouth_top_lip_bottom', 'right_ear_canal', 'bottom_lip_bottom_center', 'mouth_top_lip', 'right_eyebrow_center', 'chin_left', 'left_eye_top_outer_midpoint', 'left_jaw_2', 'nose_tip', 'bottom_lip_bottom_left_center', 'left_eye_top_inner_midpoint', 'right_eye_top_outer_midpoint', 'left_eye_bottom_inner_midpoint', 'top_lip_top_left_center', 'bottom_lip_bottom_right_center', 'bottom_lip_top_center', 'left_eye_center', 'bottom_lip_top_right_midpoint', 'left_eye_center_top', 'left_ear_center', 'top_lip_top_right_midpoint', 'bottom_lip_bottom_left_midpoint', 'right_eye_center_bottom', 'right_eye_bottom_outer_midpoint', 'left_eye_inner_corner', 'right_mouth_outer_corner', 'left_eyebrow_inner_midpoint', 'left_ear_top', 'right_ear_center', 'nose_center_top', 'right_eye_pupil', 'bottom_lip_top_right_center', 'left_eye_center_bottom', 'right_eye_top_inner_midpoint', 'left_cheek_2', 'face_right', 'right_nostril', 'top_lip_top_left_midpoint', 'right_eye_bottom_inner_midpoint', 'left_cheek_1', 'left_cheek_0', 'right_eyebrow_outer_end', 'nose_ridge_top', 'mouth_center', 'left_nostril', 'right_cheek_1', 'right_cheek_0', 'right_cheek_2', 'left_ear_canal']
 
 class EmotiwKeypoints(DenseDesignMatrix):
-    def __init__(self, which_set, start=None, stop=None, axes=('b', 0, 1, 'c'), stdev=0.8):
+    def __init__(self, start=None, stop=None, axes=('b', 0, 1, 'c'), stdev=0.8):
  #       self.translation_dict = OrderedDict({1: 'left_eyebrow_inner_end', 2: 'mouth_top_lip_bottom', 3: 'right_ear_canal', 4: 'right_ear_top', 5: 'mouth_top_lip', 6: 'mouth_bottom_lip_top', 7: 'right_eyebrow_center', 8: 'chin_left', 9: 'nose_tip', 10: 'left_eyebrow_center_top', 11: 'left_eye_outer_corner', 12: 'right_ear', 13: 'mouth_bottom_lip', 14: 'left_eye_center', 15: 'left_mouth_outer_corner', 16: 'left_eye_center_top', 17: 'left_ear_center', 18: 'nostrils_center', 19: 'right_eye_outer_corner', 20: 'right_eye_center_bottom', 21: 'chin_center', 22: 'left_eye_inner_corner', 23: 'right_mouth_outer_corner', 24: 'left_ear_bottom', 25: 'right_eye_center_top', 26: 'right_eyebrow_inner_end', 27: 'left_eyebrow_outer_end', 28: 'left_ear_top', 29: 'right_ear_center', 30: 'nose_center_top', 31: 'face_center', 32: 'right_eye_inner_corner', 33: 'right_eyebrow_center_top', 34: 'left_eyebrow_center', 35: 'right_eye_pupil', 36: 'right_ear_bottom', 37: 'mouth_left_corner', 38: 'left_eye_center_bottom', 39: 'left_eyebrow_center_bottom', 41: 'mouth_right_corner', 42: 'right_nostril', 43: 'right_eye_center', 44: 'chin_right', 45: 'right_eyebrow_outer_end', 46: 'left_eye_pupil', 47: 'mouth_center', 48: 'left_nostril', 49: 'right_eyebrow_center_bottom', 50: 'left_ear_canal', 51: 'left_ear', 52: 'face_right', 53: 'face_left'})
-        if which_set not in ('train', 'test'):
-            raise ValueError('which_set must be one of ("train", "test")')
-
+       
         self.stdev = stdev
 
         self.pixels = numpy.arange(0, 96)
-        self.which_set = which_set
+        #self.which_set = which_set
         
-        X = numpy.memmap(preprocess('${PYLEARN2_DATA_PATH}/faces/hdf5/complete_' + which_set + '_x.npy'))
-        Y = numpy.memmap(preprocess('${PYLEARN2_DATA_PATH}/faces/hdf5/complete_' + which_set + '_y.npy'), dtype=numpy.float32)
+        X = LazyMemmap(preprocess('${PYLEARN2_DATA_PATH}/faces/hdf5/complete_train_x.npy'), mode='c')
+        Y = LazyMemmap(preprocess('${PYLEARN2_DATA_PATH}/faces/hdf5/complete_train_y.npy'), dtype=numpy.float32, mode='c')
         
         num_examples = len(X)/(96.0*96.0*3.0)
 
@@ -55,11 +54,15 @@ class EmotiwKeypoints(DenseDesignMatrix):
             return map(lambda x: x/1.3, X)
         else:
             return [map(lambda x: x/1.3, y) for y in X]
+
+    
+    
  
     def make_targets(self, y):
         #Inspired by Nicholas' FacialKeyoint's make_targets
-        Y = numpy.memmap('/tmp/density_vectors.npy', dtype='float32', mode='write', shape=((y.shape[0], y.shape[1], 96, 2)))
+        Y = numpy.memmap('/tmp/density_vectors.npy', dtype='float32', mode='write', shape=((y.shape[0], y.shape[1], 96,  2)))
         y = y.view()
+        
         self.pixels = self.pixels.view()
         self.pixels.shape = (96, 1)
         y.shape=(y.shape[0], y.shape[1], 1, y.shape[2])
@@ -73,9 +76,10 @@ class EmotiwKeypoints(DenseDesignMatrix):
             if i % 10000 == 0 and i != 0:
                 Y.flush()
 
-        #Y = Y.view()
+                
+        Y = Y.view()
         #Y.shape = (y.shape[0], 2*y.shape[1], 96)
-
+        Y.shape = (y.shape[0], 2 * len(keypoints_names), 96)
         print Y.shape
         return Y
 
