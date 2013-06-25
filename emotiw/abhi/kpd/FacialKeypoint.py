@@ -147,11 +147,11 @@ class FacialKeypoint(DenseDesignMatrix):
 
 
 from pylearn2.utils import serial
+import Image
 
-def generateTest(dataset, modelPath, out_path):
+def generateTest(dataset, modelPath, out_path, batch_size = 8):
     model = serial.load(modelPath)
-# use smallish batches to avoid running out of memory
-    batch_size = 8
+    # use smallish batches to avoid running out of memory
     model.set_batch_size(batch_size)
     # dataset must be multiple of batch size of some batches will have
     # different sizes. theano convolution requires a hard-coded batch size
@@ -164,9 +164,9 @@ def generateTest(dataset, modelPath, out_path):
     assert dataset.X.shape[0] % batch_size == 0
         
     X = model.get_input_space().make_batch_theano()
-# (batch_size, 30, 98)
+    # (batch_size, 30, 98)
     preY = model.fprop(X)
-# (batch_size, 30)
+    # (batch_size, 30)
     Y = (T.arange(0,98).dimshuffle('x','x',0)*preY).sum(2)
     f = function([X], Y)
 
@@ -174,13 +174,28 @@ def generateTest(dataset, modelPath, out_path):
         
     for imgIdx in xrange(dataset.X.shape[0] / batch_size):
         x_arg = dataset.X[imgIdx * batch_size:(imgIdx + 1) * batch_size, :]
+        images = []
         if X.ndim > 2:
             x_arg = dataset.get_topological_view(x_arg)
         y.append(f(x_arg.astype(X.dtype)))
+        ys = f(x_arg.astype(X.dtype))
+        for i in range(batch_size):
+            images.append(x_arg[i, :,:,:].reshape((96,96,1)))
+            im = Image.fromarray(np.uint8(x_arg[i, :,:,:].reshape((96,96))*255 + 127))
+            imgrgb = Image.merge('RGB', (im,im,im))
+            pixmap = imgrgb.load()
+            print 'batch', i
+            for j in range(15):
+                print 'in', j
+                x , y = ys[i,2*j] , ys[i,2*j+1]
+                pixmap[int(x), int(y)] = (0,255,0)
+            imgrgb.show()
+        return
+        
     
     y = np.concatenate(y)
     assert y.shape[0] == dataset.X.shape[0]
-# discard any zero-padding that was used to give the batches uniform size
+    # discard any zero-padding that was used to give the batches uniform size
     y = y[:m]
 
     submission = []
@@ -219,7 +234,7 @@ def generateTest(dataset, modelPath, out_path):
                     'mouth_center_top_lip_y',
                     'mouth_center_bottom_lip_x',
                     'mouth_center_bottom_lip_y'], range(30)))
-
+    '''
     for row in submission[1:]:
         imgIdx = int(row[1]) - 1
         keypointName = row[2]
@@ -230,7 +245,7 @@ def generateTest(dataset, modelPath, out_path):
         writer = csv.writer(cvsTemplate)
         for row in submission:
             writer.writerow(row)
-
+    '''
   
 
 def test_works():
@@ -265,7 +280,7 @@ def test_works():
         pcklFile.close()
         batch_size = 8
         print 'going to compute test error'
-        generateTest(ddmTest, 'kpd_maxout2pcs_best.pkl', 'output_maxout2pcs.csv')
+        generateTest(ddmTrain, 'kpd_maxout_best.pkl', 'output_maxout2pcs.csv')
         return
 
     #creating layers
