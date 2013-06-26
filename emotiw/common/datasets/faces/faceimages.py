@@ -197,11 +197,18 @@ class FaceImagesDataset(object):
 
     def get_bbox(self, i):
         """
-        Returns a list of a bounding box around the faces in the ith image,
-        as recorded (or precomputed) in the dataset. Returns None if not available.
-
+        Returns coordinates for the bounding boxes around the faces in the ith image,
+        as recorded (or precomputed) in the dataset.
+        A list of 4-tuples is returned containing bounding box cooridnates for all faces in the image.
         This is necessary for datasets with images that contain several faces,
         And relevant for databases that could be used for training a face detector.
+        
+        Each 4-tuple is x1,y1,x2,y2 giving the coordinates
+        of the top left corner and bottom right corner of a bounding box.
+        Coordinate system has its origin in the upper left corner of the image
+        (horizontal_offset_in_pixels, vertical_offset_in_pixels).
+            
+        The call returns None if the information is not available.
 
         Default version returns the first one of get_orginal_bbox, get_picasa_bbox, get_opencv_bbox that is not None
         Subclasses should override one or several of these as appropriate.

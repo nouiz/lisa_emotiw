@@ -136,7 +136,10 @@ class MultiPie(FaceImagesDataset):
     def get_7emotion_index(self, i):
         #from TFD
         emotionsDic = { "anger":0, "disgust":1, "fear":2 , "happy":3, "sadness":4, "surprise":5, "neutral":6, "contempt":7}
-        return emotionsDic(self.lstImages[4])
+        idx = emotionsDic[self.lstImages[i][4]]
+        if idx==7:
+            return 0 # contempt is not one of those considered in the definition of this method in the base class, we map it to anger
+        return idx
     
     def __len__(self):
         return len(self.lstImages)        
