@@ -4,8 +4,11 @@ This file defines a Pylearn2 Dataset containing the face-tubes data for afew2
 All the facetubes for a given clip will be returned as different examples,
 each labeled with the label for the full clip.
 """
+# External dependencies
+import numpy as np
+
 # In-house dependencies
-from pylearn2.datasets import CompositeSpace, VectorSpace
+from pylearn2.space import CompositeSpace, VectorSpace
 
 # Current project
 from .afew2 import AFEW2ImageSequenceDataset
@@ -14,7 +17,7 @@ from .facetubes import FaceTubeDataset, FaceTubeSpace
 
 
 class AFEW2FaceTubes(FaceTubeDataset):
-    def __init__(self, which_set, preload_facetubes=True):
+    def __init__(self, which_set, preload_facetubes=True, shuffle_rng=None):
         if which_set == 'train':
             which_set = 'Train'
         elif which_set == 'valid':
@@ -28,6 +31,11 @@ class AFEW2FaceTubes(FaceTubeDataset):
             raise NotImplementedError(
                 "For now, we need to preload all facetubes")
 
+        if shuffle_rng is None:
+            shuffle_rng = np.random.RandomState((2013, 06, 11))
+        elif not isinstance(shuffle_rng, np.random.RandomState):
+            shuffle_rng = np.random.RandomState(shuffle_rng)
+
         dataset = AFEW2ImageSequenceDataset(preload_facetubes=False)
         train_idx, val_idx = dataset.get_standard_train_test_splits()[0]
         if which_set == 'Train':
@@ -38,17 +46,22 @@ class AFEW2FaceTubes(FaceTubeDataset):
             raise AssertionError
 
         if preload_facetubes:
-            self.features = []
-            self.clip_ids = []
-            self.targets = []
+            features = []
+            clip_ids = []
+            targets = []
 
             for idx in data_idx:
                 fts = dataset.get_facetubes(idx)
                 tgt = basic_7emotion_names.index(dataset.get_label(idx))
                 for ft in fts:
-                    self.features.append(fts)
-                    self.clip_ids.append(idx)
-                    self.targets.append(tgt)
+                    features.append(ft)
+                    clip_ids.append(idx)
+                    targets.append(tgt)
+
+            permutation = shuffle_rng.permutation(len(features))
+            self.features = [features[i] for i in permutation]
+            self.clip_ids = np.asarray(clip_ids)[permutation]
+            self.targets = np.asarray(targets)[permutation][:, np.newaxis]
 
         self.data = (self.features, self.clip_ids, self.targets)
         self.space = CompositeSpace((
