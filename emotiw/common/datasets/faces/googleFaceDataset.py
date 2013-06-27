@@ -45,7 +45,7 @@ class GoogleFaceDataset(FaceImagesDataset):
         data = cPickle.load(open(self.absolute_base_directory+"Clean/latest.pkl","rb"))
         data = data[1:]
         
-        print data
+        # print data
         self.labels = data[0]
         self.ids = data[2]
         self.queryIds = data[3]
@@ -71,9 +71,12 @@ class GoogleFaceDataset(FaceImagesDataset):
         return (self.ids == imageId).argmax()
 
     def get_original_bbox(self, i):
-        return [[self.X1[i], self.Y1[i],
-                 self.X2[i] - self.X1[i],
-                 self.Y2[i] - self.Y1[i]]]
+        return [(self.X1[i], self.Y1[i],
+                 self.X2[i], self.Y2[i])]
+
+        # return [[self.X1[i], self.Y1[i],
+        #          self.X2[i] - self.X1[i],
+        #          self.Y2[i] - self.Y1[i]]]
 
     def get_7emotion_index(self, i):
         return self.labels[i].argmax()

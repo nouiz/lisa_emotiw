@@ -19,9 +19,9 @@ def save_weights(model, epoch):
         return
     tile_j = int(numpy.ceil(numpy.sqrt(model.n_hiddens)))
     tile_i = int(numpy.ceil(float(model.n_hiddens) / tile_j))
-    
+
     W = (model.W.T)
-    
+
     image = PIL.Image.fromarray(tile_raster_images(
              X = W,
              img_shape = (31, 39), tile_shape = (tile_j, tile_i),
@@ -45,11 +45,11 @@ def main(n_hiddens=400,
 		 channel=None,
 		 **kwargs):
     print "Loading dataset..."
-    
+
     numpy.random.seed(0x7265257d5f)
-    
+
     LABELS = ["Disgust",  "Fear",  "Happy",  "Neutral",  "Sad",  "Surprise", "Angry"]
-    
+
     train_x = []
     train_y = []
     for directory, dirnames, filenames in os.walk("/data/lisa/data/faces/EmotiW/complete_audio_features/Train"):
@@ -57,13 +57,13 @@ def main(n_hiddens=400,
             if filename.find("%s.pkl" % features) != -1:
                 feat = numpy.load(os.path.join(directory, filename))
                 targ = numpy.argmax(map(lambda x: directory.find(x) != -1, LABELS))
-                
+
                 train_x.append(numpy.asarray(feat, theano.config.floatX))
                 train_y.append(targ)
     train_y = numpy.asarray(train_y)
-    
+
     pretrain_x = numpy.load("/data/lisatmp/dauphiya/emotiw/mlp_audio/train_x_%s.npy" % features)
-    
+
     valid_x = []
     valid_y = []
     for directory, dirnames, filenames in os.walk("/data/lisa/data/faces/EmotiW/complete_audio_features/Val"):
@@ -71,20 +71,20 @@ def main(n_hiddens=400,
             if filename.find("%s.pkl" % features) != -1:
                 feat = numpy.load(os.path.join(directory, filename))
                 targ = numpy.argmax(map(lambda x: directory.find(x) != -1, LABELS))
-                
+
                 valid_x.append(numpy.asarray(feat, theano.config.floatX))
                 valid_y.append(targ)
-    valid_y = numpy.asarray(train_y)
-    
-    means = numpy.asarray(numpy.sum([x.sum(0) for x in train_x], 0) / sum([x.shape[0] for x in train_x]), theano.config.floatX)
-    
+    valid_y = numpy.asarray(train_y, dtype=theano.config.floatX)
+
+    means = numpy.asarray(numpy.sum([x.sum(0) for x in train_x], 0) / sum([x.shape[0] for x in train_x]), dtype=theano.config.floatX)
+
     train_inds = range(len(train_x))
     numpy.random.shuffle(train_inds)
-    
+
     print "Building model..."
 
     layers = n_layers*[('L', n_hiddens)] +  [('S', train_y.max() + 1)]
-    
+
     if type(rbm_learning_rate) in [str, unicode]:
         rbm_learning_rate = eval(rbm_learning_rate)
 
@@ -96,7 +96,7 @@ def main(n_hiddens=400,
                    learning_rate=learning_rate,
                    l2=l2,
                    momentum=momentum)
-    
+
     rbms = []
     def project(x):
        for rbm in rbms:
@@ -126,74 +126,74 @@ def main(n_hiddens=400,
        numpy.save("rbm_W_%d.npy" % i, rbm.W)
 
        rbms.append(rbm)
-    
+
     print "Training model..."
 
     epoch_times = []
-    
+
     best_train_error = float('inf')
-    
+
     best_valid_error = float('inf')
-    
+
     for epoch in range(train_epochs):
         begin = time.time()
 
         losses = []
-        
+
         for minibatch in range(len(train_inds)):
             x = train_x[train_inds[minibatch]] - means
             y = train_y[[train_inds[minibatch]]]
-            
+
             inds = range(x.shape[0])
             numpy.random.shuffle(inds)
             inds = inds[:example_dropout]
-            
+
             losses.append(model.train(x[inds], y))
         end = time.time()
-        
+
         loss = numpy.mean(losses)
-        
+
         train_error = 0.
         for minibatch in range(len(train_inds)):
             x = train_x[train_inds[minibatch]] - means
             y = train_y[train_inds[minibatch]]
-            
+
             train_error += (y != model.output(x))[0]
         train_error /= len(train_inds)
-        
+
         valid_error = 0.
         for minibatch in range(len(valid_y)):
             x = valid_x[minibatch] - means
             y = valid_y[[minibatch]]
-            
+
             valid_error += (y != model.output(x))[0]
         valid_error /= len(valid_y)
-        
+
         epoch_times.append((end - begin) / 60)
-        
+
         mean_epoch_time = numpy.mean(epoch_times)
-        
+
         if train_error < best_train_error:
             best_train_error = train_error
         elif epoch > 50:
             model.trainer.learning_rate.set_value(numpy.asarray(0.95 * model.trainer.learning_rate.get_value(), dtype=theano.config.floatX))
-        
+
         if valid_error < best_valid_error:
             best_valid_error = valid_error
-            
+
             model.save()
         elif epoch > 50:
             model.trainer.learning_rate.set_value(numpy.asarray(0.95 * model.trainer.learning_rate.get_value(), dtype=theano.config.floatX))
-        
+
         print "epoch = %d, mean_time = %.2f, loss = %.4f, train_error = %.4f, valid_error = %.4f, learning rate = %.4f" % (epoch, mean_epoch_time, loss, train_error, valid_error, model.trainer.learning_rate.get_value())
-        
+        print "best validation error %.4f" % (best_valid_error)
         if channel != None:
             state.epoch = epoch
             state.epoch_time = mean_epoch_time
             state.loss = loss
             state.train_error = best_train_error
             state.valid_error = best_valid_error
-            
+
             channel.save()
 
 
@@ -210,7 +210,7 @@ def jobman_insert_random(n_jobs):
     jobs = []
     for _ in range(n_jobs):
         job = DD()
-        
+
         job.n_hiddens = numpy.random.randint(8, 512)
         job.n_layers = numpy.random.randint(1, 4)
         job.learning_rate = 10.**numpy.random.uniform(-3, -0)
@@ -271,10 +271,10 @@ def jobman_insert():
         }
 
     jobs = produit_cartesien_jobs(JOB_VALS)
-    
+
     for job in jobs:
         print job
-    
+
     answer = raw_input("Submit %d jobs?[y/N] " % len(jobs))
     if answer == "y":
         numpy.random.shuffle(jobs)
@@ -370,5 +370,11 @@ if __name__ == "__main__":
     elif "graph" in sys.argv:
         graph()
     else:
-        main()
+        main(n_hiddens=840,
+            learning_rate=0.0215195014115,
+            momentum=0.47406261015,
+            features="full.pca",
+            example_dropout=73,
+            nlayers=3,
+            rbm_epochs=0)
 

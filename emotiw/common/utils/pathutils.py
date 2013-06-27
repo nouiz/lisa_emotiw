@@ -39,8 +39,9 @@ def locate_data_path(filename, path_starts=None):
 
     if path_starts is None:
         path_starts = [
-                os.path.join(os.path.expanduser("~"), "data"),
-                "/data/lisa/data"]
+            "/Tmp/data",
+            os.path.join(os.path.expanduser("~"), "data"),
+            "/data/lisa/data"]
     for start in path_starts:
         path = os.path.join(start, filename)
         if os.path.exists(path):
