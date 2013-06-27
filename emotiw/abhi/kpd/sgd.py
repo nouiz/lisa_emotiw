@@ -295,6 +295,8 @@ class SGD(TrainingAlgorithm):
         rng = self.rng
         if not is_stochastic(self.train_iteration_mode):
             rng = None
+        #print 'self.supervised is' , self.supervised
+
         iterator = dataset.iterator(mode=self.train_iteration_mode,
                 batch_size=self.batch_size, targets=self.supervised,
                 topo=self.topo, rng = rng, num_batches = self.batches_per_iter)
