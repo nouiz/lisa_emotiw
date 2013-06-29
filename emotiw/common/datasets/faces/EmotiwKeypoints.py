@@ -45,8 +45,11 @@ class EmotiwKeypoints(DenseDesignMatrix):
         X.shape = (stop-start, 96*96*3)
         #print 'shape of X', X.mean(axis = 1).shape
         Y.shape = (stop-start, len(keypoints_names)* 2)
-        Y = self.make_targets(Y, hack)
-        
+        if hack is not None:
+            Y = self.make_targets(Y, hack)
+        else:
+            Y = self.make_targets(Y, 'all')
+
         super(EmotiwKeypoints, self).__init__(X=X, y=Y, view_converter=DefaultViewConverter(shape=[96, 96, 3], axes=axes))
 
     def has_targets(self):

@@ -48,24 +48,23 @@ class AFEW2FaceTubes(DenseDesignMatrix):
                 fts = dataset.get_facetubes(idx)
                 tgt = basic_7emotion_names.index(dataset.get_label(idx))
                 for ft in fts:
-                    _features.append(fts)
+                    _features.append(ft)
                     _clip_ids.append(idx)
                     _targets.append(tgt)
 
             features = []
             #self.clip_ids = []
             targets = []
-            for feature, clip_id, target in zip(_features, _clip_ids, _targets):
-                for feat in feature:
-                    # duplicate frames at the end if it's not modulo of sequence_length
-                    modulo = feat.shape[0] % sequence_length
-                    if modulo != 0:
-                        # TODO reuturn a warning here
-                        feat = numpy.concatenate((feat, feat[-modulo,:,:,:][None,:,:,:]))
-                    for i in xrange(feat.shape[0] / sequence_length):
-                        features.append(feat[i:i+sequence_length,:,:,:])
-                        #self.clip_ids.append(clip_id)
-                        targets.append(target)
+            for feat, clip_id, target in zip(_features, _clip_ids, _targets):
+                # duplicate frames at the end if it's not modulo of sequence_length
+                modulo = feat.shape[0] % sequence_length
+                if modulo != 0:
+                    # TODO reuturn a warning here
+                    feat = numpy.concatenate((feat, feat[-modulo,:,:,:][None,:,:,:]))
+                for i in xrange(feat.shape[0] / sequence_length):
+                    features.append(feat[i:i+sequence_length,:,:,:])
+                    #self.clip_ids.append(clip_id)
+                    targets.append(target)
 
             self.n_samples = len(features)
             feat_shape = features[0].shape
