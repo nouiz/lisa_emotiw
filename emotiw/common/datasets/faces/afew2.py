@@ -52,34 +52,38 @@ class AFEW2ImageSequenceDataset(afew.AFEWImageSequenceDataset):
         If preload_facetubes is True, all facetubes will be loaded
         when the dataset is built, which takes around 1.2 GB.
         """
-
-        if "smooth" in preproc:
-            # Use the bounding-boxes smoothed version of the face tubes.
-            self.face_tubes_base_dir = ("faces/EmotiW/smooth_picasa_face_tubes_%s_%s"
-                                        "/numpy_arr/concatenate")%(size[0], size[1])
-            # TODO: return the correct bounding boxes coordinates corresponding
-            # to the smoothed face tubes.  For the moment, we are using the default
-            # picasa boxes coordinates.
-            self.picasa_boxes_base_dir = "faces/EmotiW/picasa_boxes"
-
         self.facetubes_to_filter = None
-        if "remove_background_faces" in preproc:
-            # Remove background faces as many as possible from the dataset.
-            # NOTE: for the moment, only the smoothed version of face tubes
-            # is supported.
-            # Path to the dictionary giving for each dataset, the list of face
-            # tubes corresponding to background faces/objects.
-            abs_dir = locate_data_path("faces/EmotiW")
-            filename = os.path.join(abs_dir, "background_faces_info.pkl")
-            try:
-                f = open(filename, 'rb')
-                background_faces_info = cPickle.load(f)
-                f.close()
-                # Retrieve the list of background faces (clip_id, facetube_id)
-                # for the given dataset that will be filtered out.
-                self.facetubes_to_filter = background_faces_info[self.face_tubes_base_dir]
-            except IOError as e:
-                print e
+        for opt in preproc:
+            if opt == "smooth":
+                # Use the bounding-boxes smoothed version of the face tubes.
+                self.face_tubes_base_dir = ("faces/EmotiW/smooth_picasa_face_tubes_%s_%s"
+                                            "/numpy_arr/concatenate")%(size[0], size[1])
+                # TODO: return the correct bounding boxes coordinates
+                # corresponding to the smoothed face tubes.  For the
+                # moment, we are using the default picasa boxes coordinates.
+                self.picasa_boxes_base_dir = "faces/EmotiW/picasa_boxes"
+
+            if opt == "remove_background_faces":
+                # Remove background faces as many as possible from the dataset.
+                # NOTE: for the moment, only the smoothed version of face tubes
+                # is supported.
+                # Path to the dictionary giving for each dataset, the list of
+                # face tubes corresponding to background faces/objects.
+                abs_dir = locate_data_path("faces/EmotiW")
+                filename = os.path.join(abs_dir, "background_faces_info.pkl")
+                try:
+                    f = open(filename, 'rb')
+                    background_faces_info = cPickle.load(f)
+                    f.close()
+                    # Retrieve the list of background faces (clip_id, facetube_id)
+                    # for the given dataset that will be filtered out.
+                    if self.face_tubes_base_dir in background_faces_info:
+                        self.facetubes_to_filter = background_faces_info[self.face_tubes_base_dir]
+                    else:
+                        print ("The option %s doesn't support the dataset %s"
+                               %(opt, self.face_tubes_base_dir))
+                except IOError as e:
+                    print e
 
 
         super(AFEW2ImageSequenceDataset,self).__init__("AFEW2")
