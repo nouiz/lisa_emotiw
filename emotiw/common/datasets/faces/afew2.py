@@ -30,6 +30,7 @@
 """
 AFEW2 contains the data distributed with the EmotiW challenge.
 """
+import cPickle
 import glob
 import os
 
@@ -46,11 +47,41 @@ class AFEW2ImageSequenceDataset(afew.AFEWImageSequenceDataset):
     picasa_boxes_base_dir = "faces/EmotiW/picasa_boxes"
     face_tubes_base_dir = "faces/EmotiW/picasa_face_tubes_96_96"
 
-    def __init__(self, preload_facetubes=False):
+    def __init__(self, preload_facetubes=False, preproc=[], size=(96, 96)):
         """
         If preload_facetubes is True, all facetubes will be loaded
         when the dataset is built, which takes around 1.2 GB.
         """
+
+        if "smooth" in preproc:
+            # Use the bounding-boxes smoothed version of the face tubes.
+            self.face_tubes_base_dir = ("faces/EmotiW/smooth_picasa_face_tubes_%s_%s"
+                                        "/numpy_arr/concatenate")%(size[0], size[1])
+            # TODO: return the correct bounding boxes coordinates corresponding
+            # to the smoothed face tubes.  For the moment, we are using the default
+            # picasa boxes coordinates.
+            self.picasa_boxes_base_dir = "faces/EmotiW/picasa_boxes"
+
+        self.facetubes_to_filter = None
+        if "remove_background_faces" in preproc:
+            # Remove background faces as many as possible from the dataset.
+            # NOTE: for the moment, only the smoothed version of face tubes
+            # is supported.
+            # Path to the dictionary giving for each dataset, the list of face
+            # tubes corresponding to background faces/objects.
+            abs_dir = locate_data_path("faces/EmotiW")
+            filename = os.path.join(abs_dir, "background_faces_info.pkl")
+            try:
+                f = open(filename, 'rb')
+                background_faces_info = cPickle.load(f)
+                f.close()
+                # Retrieve the list of background faces (clip_id, facetube_id)
+                # for the given dataset that will be filtered out.
+                self.facetubes_to_filter = background_faces_info[self.face_tubes_base_dir]
+            except IOError as e:
+                print e
+
+
         super(AFEW2ImageSequenceDataset,self).__init__("AFEW2")
 
         self.absolute_base_directory = locate_data_path(self.base_dir)
@@ -60,6 +91,8 @@ class AFEW2ImageSequenceDataset(afew.AFEWImageSequenceDataset):
                 self.face_tubes_base_dir)
 
         self.preload_facetubes = preload_facetubes
+        self.preproc = preproc
+        self.size = size
         self.imagesequences = []
         self.labels = []
         self.seq_info = []
@@ -114,7 +147,7 @@ class AFEW2ImageSequenceDataset(afew.AFEWImageSequenceDataset):
                          }, csv_delimiter=',')
                     im_seq.set_ramanan_path_substitutions( {
                         'EmotiW/images/Train/':'EmotiW/ramananExtract/matExtractTrain/',
-                        'EmotiW/images/Val/':'EmotiW/ramananExtract/matExtractVal/',                        
+                        'EmotiW/images/Val/':'EmotiW/ramananExtract/matExtractVal/',
                         'Angry/':'1_',
                         'Disgust/':'2_',
                         'Fear/':'3_',
@@ -150,6 +183,7 @@ class AFEW2ImageSequenceDataset(afew.AFEWImageSequenceDataset):
             #print 'done, idx = %s' % idx
         #print 'finished, idx = %s' % idx
 
+
     def get_facetubes(self, i):
         """
         Get a tuple of ndarrays containing all facetubes of clip i.
@@ -176,6 +210,26 @@ class AFEW2ImageSequenceDataset(afew.AFEWImageSequenceDataset):
         npy_files = glob.glob(npy_glob)
         # sort the filenames of tubes
         npy_files.sort()
+        # Filter out the background faces filenames if required.
+        if self.facetubes_to_filter:
+            npy_files_to_be_kept = []
+            for npy_file in npy_files:
+                # Get only the seq_id and the facetube_id (=key)
+                npy_basename = os.path.basename(npy_file)
+                key = os.path.splitext(npy_basename)[0]
+                # Retrieve the seq_id of facetubes to be filtered out.
+                seq_ids = self.facetubes_to_filter[split_name][emo_name].keys()
+                if seq_id in seq_ids:
+                    # Retrieve all the facetubes ids associated to a background face.
+                    facetubes_ids = self.facetubes_to_filter[split_name][emo_name][seq_id]
+                    # Check if the given facetube is associated to a background face.
+                    if not key in facetubes_ids:
+                        # Not a background face thus it will be kept.
+                        npy_files_to_be_kept.append(npy_file)
+                else:
+                    # Not a background face thus it will be kept.
+                    npy_files_to_be_kept.append(npy_file)
+            npy_files = npy_files_to_be_kept
         #print 'npy_files:', npy_files
         rval = []
         for f in npy_files:
