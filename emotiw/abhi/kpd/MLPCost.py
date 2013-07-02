@@ -112,7 +112,9 @@ class MLPCost(Cost):
             assert (self.cost_type == 'default')
             costMatrix = model.layers[-1].cost_matrix(Y, Y_hat)
             costMatrix *= T.neq(Y, -1)  # This sets to zero all elements where Y == -1
-            cost = model.cost_from_cost_matrix(costMatrix)
+            cost = costMatrix.sum(axis=2).sum()
+            #cost = T.cast(cost, 'float32')
+            #cost = model.cost_from_cost_matrix(costMatrix)
         else:
             if self.cost_type == 'default':
                 cost = model.cost(Y, Y_hat)

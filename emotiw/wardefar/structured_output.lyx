@@ -1,0 +1,454 @@
+#LyX 2.0 created this file. For more info see http://www.lyx.org/
+\lyxformat 413
+\begin_document
+\begin_header
+\textclass article
+\use_default_options true
+\maintain_unincluded_children false
+\language english
+\language_package default
+\inputencoding auto
+\fontencoding global
+\font_roman default
+\font_sans default
+\font_typewriter default
+\font_default_family default
+\use_non_tex_fonts false
+\font_sc false
+\font_osf false
+\font_sf_scale 100
+\font_tt_scale 100
+
+\graphics default
+\default_output_format default
+\output_sync 0
+\bibtex_command default
+\index_command default
+\paperfontsize default
+\use_hyperref false
+\papersize default
+\use_geometry false
+\use_amsmath 1
+\use_esint 1
+\use_mhchem 1
+\use_mathdots 1
+\cite_engine basic
+\use_bibtopic false
+\use_indices false
+\paperorientation portrait
+\suppress_date false
+\use_refstyle 1
+\index Index
+\shortcut idx
+\color #008000
+\end_index
+\secnumdepth 3
+\tocdepth 3
+\paragraph_separation indent
+\paragraph_indentation default
+\quotes_language english
+\papercolumns 1
+\papersides 1
+\paperpagestyle default
+\tracking_changes false
+\output_changes false
+\html_math_output 0
+\html_css_as_file 0
+\html_be_strict false
+\end_header
+
+\begin_body
+
+\begin_layout Title
+Structured output model for frame-based classification on a sequence
+\end_layout
+
+\begin_layout Author
+David Warde-Farley & Yoshua Bengio
+\end_layout
+
+\begin_layout Date
+April 19, 2013
+\end_layout
+
+\begin_layout Section
+Model definition
+\end_layout
+
+\begin_layout Standard
+We consider a 
+\begin_inset Formula $K$
+\end_inset
+
+-class classification problem where the input is a sequence of length 
+\begin_inset Formula $T$
+\end_inset
+
+.
+ Let 
+\begin_inset Formula $y$
+\end_inset
+
+ be the integer-valued class label associated with the whole sequence, 
+\begin_inset Formula $x_{1}^{T}=(x_{1},x_{2},\ldots,x_{T})$
+\end_inset
+
+ be the input sequence, and 
+\begin_inset Formula $z_{1}^{T}=(z_{1},z_{2},\ldots,z_{T})$
+\end_inset
+
+ be the hidden variables we introduce for each time step.
+ We can parameterize the conditional distribution over the target given
+ the input as
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\begin{align*}
+p(y|x_{1}^{T}) & =\sum_{z_{1}^{T}}p(y,z_{1}^{T}|x_{1}^{T})
+\end{align*}
+
+\end_inset
+
+where we sum over all configurations 
+\begin_inset Formula $z$
+\end_inset
+
+ of the hidden variables.
+\end_layout
+
+\begin_layout Standard
+In our application, 
+\begin_inset Formula $z_{t}$
+\end_inset
+
+ is a frame-specific class label.
+ We parameterize the distribution through two potential functions replicated
+ across time: 
+\begin_inset Formula $\psi(z_{t},x_{t};y)$
+\end_inset
+
+, relating the timestep-specific latent label variable to the input (through
+ a frame-based classifier of some kind), and 
+\begin_inset Formula $\gamma(z_{i},z_{j};y)$
+\end_inset
+
+ relating the consecutive latent labels.
+ We define 
+\begin_inset Formula $\gamma(z_{i},z_{j};y)=1$
+\end_inset
+
+ wherever 
+\begin_inset Formula $j-i\neq1$
+\end_inset
+
+.
+ Additionally, for notational convenience, we define 
+\begin_inset Formula $z_{0}$
+\end_inset
+
+ to be a special dummy variable, and 
+\begin_inset Formula $\gamma(z_{0},z_{1};y)=1$
+\end_inset
+
+ for any values of 
+\begin_inset Formula $z_{1}$
+\end_inset
+
+ and 
+\begin_inset Formula $y$
+\end_inset
+
+.
+ Then the joint distribution over 
+\begin_inset Formula $y$
+\end_inset
+
+ and 
+\begin_inset Formula $z_{1}^{T}$
+\end_inset
+
+ is
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\[
+p(y,z_{1}^{T}|x_{1}^{T})=\frac{\prod_{t=1}^{T}\psi(z_{t,}x_{t};y)\gamma(z_{t-1},z_{t};y)}{Z}
+\]
+
+\end_inset
+
+where 
+\begin_inset Formula 
+\[
+Z=\sum_{y'}\sum_{z_{1}^{T}}\prod_{t=1}^{T}\psi(z_{t}x_{t};y')\gamma(z_{t-1},z_{t};y')
+\]
+
+\end_inset
+
+is the partition function (we could also define a 
+\begin_inset Quotes eld
+\end_inset
+
+prior class
+\begin_inset Quotes erd
+\end_inset
+
+ potential 
+\begin_inset Formula $\pi(y)$
+\end_inset
+
+ that depends only on the global label and multiply it in before the product
+ over time steps, in both expressions).
+\end_layout
+
+\begin_layout Standard
+When 
+\begin_inset Formula $j-i=1$
+\end_inset
+
+, let 
+\begin_inset Formula $\gamma(z_{i},z_{j};y)=\exp(-a_{z_{i}z_{j}y}),$
+\end_inset
+
+ where 
+\begin_inset Formula $A=[a_{ijk}]$
+\end_inset
+
+ is a 
+\begin_inset Formula $K\times K\times K$
+\end_inset
+
+ 3-tensor of learnable parameters (restricted to be non-negative, or some
+ small value greater than 0).
+ We probably want to fix 
+\begin_inset Formula $a_{iii}=0$
+\end_inset
+
+ for all values of 
+\begin_inset Formula $i$
+\end_inset
+
+ (i.e., it costs the model nothing to transition from a prediction of 
+\begin_inset Formula $Y$
+\end_inset
+
+ to a prediction of 
+\begin_inset Formula $Y$
+\end_inset
+
+ when the true label is indeed 
+\begin_inset Formula $Y$
+\end_inset
+
+); the other parameters might be fixed in some fashion or learned, with
+ more positive values indicating higher energy and thus reduced preference
+ for this state.
+ Let 
+\begin_inset Formula $\psi(z_{t},x_{t};y)=\exp(-\phi(z_{t},x_{t};y))$
+\end_inset
+
+, where 
+\begin_inset Formula $\phi(\cdot)$
+\end_inset
+
+ should assign high energy to the case of a misclassification and low energy
+ in the case of agreement with the global label.
+ Something like the negative logarithm of a sigmoid output unit should do
+ the trick (note that this implies that the classifier's output layer should
+ treat the task as 
+\begin_inset Formula $K$
+\end_inset
+
+ binary classification problems).
+\end_layout
+
+\begin_layout Section
+Marginalization via the forward-backward algorithm
+\end_layout
+
+\begin_layout Standard
+We define 
+\begin_inset Formula $\alpha(1,z_{1};y)=\psi(z_{1},x_{1};y)\gamma(z_{0},z_{1};y)=\psi(z_{1},x_{1};y)$
+\end_inset
+
+, and
+\begin_inset Formula 
+\[
+\alpha(t,z_{t};y)=\sum_{\hat{z}_{t-1}}\alpha(t-1,\hat{z}_{t-1};y)\psi(z_{t},x_{t};y)\gamma(\hat{z}_{t-1},z_{t};y)
+\]
+
+\end_inset
+
+where 
+\begin_inset Formula $\alpha(t,z_{t};y)\propto p(y,z_{t}|x_{1}^{t})$
+\end_inset
+
+, the probability of a given label state 
+\begin_inset Formula $z_{t}$
+\end_inset
+
+ at time 
+\begin_inset Formula $t$
+\end_inset
+
+ given the input sequence up to and including 
+\begin_inset Formula $x_{t}$
+\end_inset
+
+, marginalizing out 
+\begin_inset Formula $z_{1}^{t-1}$
+\end_inset
+
+.
+ It follows that 
+\begin_inset Formula $Z=\sum_{y'}\sum_{\hat{z}_{T}}\alpha(T,\hat{z}_{T};y')$
+\end_inset
+
+ and 
+\begin_inset Formula $p(y|x_{1}^{T})=Z^{-1}\sum_{\hat{z}_{T}}\alpha(T,\hat{z}_{T};y)$
+\end_inset
+
+.
+ 
+\end_layout
+
+\begin_layout Standard
+The analogous backward computation defines 
+\begin_inset Formula $\beta(T,z_{T};y)=1$
+\end_inset
+
+ and
+\begin_inset Formula 
+\[
+\beta(t,z_{t};y)=\sum_{\hat{z}_{t+1}}\psi(\hat{z}_{t+1},x_{t+1};y)\gamma(z_{t},\hat{z}_{t+1};y)\beta(t+1,\hat{z}_{t+1};y)
+\]
+
+\end_inset
+
+such that we obtain the smoothing distribution 
+\begin_inset Formula $p(y,z_{t}|x_{1}^{T})=\frac{\alpha(t,z_{t};y)\beta(t,z_{t};y)}{Z}$
+\end_inset
+
+.
+ Nearly identical computations can be used to compute the gradient of 
+\begin_inset Formula $p(y|x_{1}^{T})$
+\end_inset
+
+ with respect to the outputs of the frame-based classifier at each timestep,
+ by summing gradient contributions from the past and future time steps.
+\end_layout
+
+\begin_layout Section
+MAP inference via the Viterbi algorithm
+\end_layout
+
+\begin_layout Standard
+Viterbi decoding of the most likely sequence 
+\begin_inset Formula $(z_{1}^{T})^{\star}$
+\end_inset
+
+follows the same basic structure as the forward propagation above.
+ We define 
+\begin_inset Formula $\alpha^{\star}(1,z_{1};y)=\psi(z_{1},x_{1};y)\gamma(z_{0},z_{1};y)=\psi(z_{1},x_{1};y)$
+\end_inset
+
+, and
+\begin_inset Formula 
+\[
+\alpha^{\star}(t,z_{t};y)=\max_{\hat{z}_{t-1}}\alpha^{\star}(t-1,\hat{z}_{t-1})\psi(z_{t},x_{t};y)\gamma(\hat{z}_{t-1},z_{t};y)
+\]
+
+\end_inset
+
+with 
+\begin_inset Formula $\max_{\hat{z}_{T}}\alpha^{\star}(T,\hat{z}_{T};y)\propto\max_{\hat{z}_{1}^{T}}p(y,\hat{z}_{1}^{T}|x_{1}^{T})$
+\end_inset
+
+, and 
+\begin_inset Formula $z_{T}^{\star}(y)=\arg\max_{\hat{z}_{T}}\alpha^{\star}(T,\hat{z}_{T};y)$
+\end_inset
+
+.
+ The other optimal states 
+\begin_inset Formula $z_{t}^{\star}(y)$
+\end_inset
+
+ can determined by also storing the arg max over 
+\begin_inset Formula $\hat{z}{}_{t-1}$
+\end_inset
+
+in the above computation, e.g.
+\begin_inset Formula 
+\[
+w^{\star}(t,z_{t};y)=\arg\max_{\hat{z}_{t-1}}\alpha^{\star}(t-1,\hat{z}_{t-1})\psi(z_{t},x_{t};y)\gamma(\hat{z_{t-1},z_{t};y)}
+\]
+
+\end_inset
+
+The optimal state sequences for 
+\begin_inset Formula $t=1,2,\ldots,T-1$
+\end_inset
+
+ can be decoded by unfolding recursively backward from 
+\begin_inset Formula $z_{T}^{\star}(y)$
+\end_inset
+
+ above, e.g.
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\[
+z_{t}^{\star}(y)=w^{\star}(t+1,z_{t+1}^{\star};y)
+\]
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Section
+Learning
+\end_layout
+
+\begin_layout Standard
+Gradient descent with respect to 
+\begin_inset Formula $p(y|x)$
+\end_inset
+
+ is possible via the forward-backward algorithm and the aforementioned gradient
+ summing scheme.
+ One could also envision a max-margin criterion based on the above MAP inference
+, e.g.
+ let 
+\begin_inset Formula $z_{1}^{T\star}(y)=\arg\max_{\hat{z}_{1}^{T}}\log p(y,\hat{z}_{1}^{T}|x_{1}^{T})$
+\end_inset
+
+, calculated by the Viterbi scheme described above.
+ Then minimize
+\begin_inset Formula 
+\[
+C(x_{1}^{T},y)=-\min(\lambda,\min_{y'\neq y}E(y',z_{1}^{T\star}(y),x)-E(y,z_{1}^{T\star}(y),x))
+\]
+
+\end_inset
+
+where 
+\begin_inset Formula $E(y,z_{1}^{T},x)=-\sum_{t=1}^{T}\log\psi(z_{t},x_{t};y)-\log\gamma(z_{t-1},z_{t};y)$
+\end_inset
+
+ is the negative log of the unnormalized probability.
+ Note that this is equivalent to taking the difference of log probabilities
+ since 
+\begin_inset Formula $\log Z$
+\end_inset
+
+ would appear in both terms and thus cancel when taking the difference;
+ however, this obviates the need of computing partition function, requiring
+ only the max-product computations.
+\end_layout
+
+\end_body
+\end_document

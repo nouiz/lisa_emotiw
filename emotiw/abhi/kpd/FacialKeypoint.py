@@ -17,6 +17,11 @@ from pylearn2.training_algorithms.sgd import MomentumAdjustor
 from pylearn2.termination_criteria import MonitorBased
 from ExponentialDecayOverEpoch import ExponentialDecayOverEpoch
 from pylearn2.train_extensions.best_params import MonitorBasedSaveBest
+from test import *
+from theano import function
+from theano import tensor as T
+from pylearn2.models.maxout import Maxout
+from pylearn2.costs.mlp.dropout import Dropout
 
 # The number of features in the Y vector
 numberOfKeyPoints = 30
@@ -91,6 +96,8 @@ class FacialKeypoint(DenseDesignMatrix):
             y = y[index,:]
             self.pixels = np.arange(0,98)
             y = self.make_targets(y)
+            
+
         """    
         # (num_examples, num_keypoints, 2)
         y = y.reshape((y.shape[0],y.shape[1]/2,2))      
@@ -99,7 +106,7 @@ class FacialKeypoint(DenseDesignMatrix):
         y = make_spatial_keypoints(y)"""
             
         if start is not None:
-            assert which_set != 'test'
+            #assert which_set != 'test'
             assert isinstance(start, int)
             assert isinstance(stop, int)
             assert start >= 0
@@ -137,32 +144,144 @@ class FacialKeypoint(DenseDesignMatrix):
                 -1.)
         print Y.shape
         return Y
+
+
+from pylearn2.utils import serial
+import Image
+
+def generateTest(dataset, modelPath, out_path, batch_size = 8):
+    model = serial.load(modelPath)
+    # use smallish batches to avoid running out of memory
+    model.set_batch_size(batch_size)
+    # dataset must be multiple of batch size of some batches will have
+    # different sizes. theano convolution requires a hard-coded batch size
+    m = dataset.X.shape[0]
+    extra = batch_size - m % batch_size
+    assert (m + extra) % batch_size == 0
+    if extra > 0:
+        dataset.X = np.concatenate((dataset.X, np.zeros((extra, dataset.X.shape[1]),
+                                                        dtype=dataset.X.dtype)), axis=0)
+    assert dataset.X.shape[0] % batch_size == 0
+        
+    X = model.get_input_space().make_batch_theano()
+    # (batch_size, 30, 98)
+    preY = model.fprop(X)
+    # (batch_size, 30)
+    Y = (T.arange(0,98).dimshuffle('x','x',0)*preY).sum(2)
+    f = function([X], Y)
+
+    y = []
+        
+    for imgIdx in xrange(dataset.X.shape[0] / batch_size):
+        x_arg = dataset.X[imgIdx * batch_size:(imgIdx + 1) * batch_size, :]
+        images = []
+        if X.ndim > 2:
+            x_arg = dataset.get_topological_view(x_arg)
+        y.append(f(x_arg.astype(X.dtype)))
+        ys = f(x_arg.astype(X.dtype))
+        for i in range(batch_size):
+            images.append(x_arg[i, :,:,:].reshape((96,96,1)))
+            im = Image.fromarray(np.uint8(x_arg[i, :,:,:].reshape((96,96))*255 + 127))
+            imgrgb = Image.merge('RGB', (im,im,im))
+            pixmap = imgrgb.load()
+            print 'batch', i
+            for j in range(15):
+                print 'in', j
+                x , y = ys[i,2*j] , ys[i,2*j+1]
+                pixmap[int(x), int(y)] = (0,255,0)
+            imgrgb.show()
+        return
+        
+    
+    y = np.concatenate(y)
+    assert y.shape[0] == dataset.X.shape[0]
+    # discard any zero-padding that was used to give the batches uniform size
+    y = y[:m]
+
+    submission = []
+    with open('submissionFileFormat.csv', 'rb') as cvsTemplate:
+        reader = csv.reader(cvsTemplate)
+        for row in reader:
+            submission.append(row)
+
+    mapping = dict(zip(['left_eye_center_x',
+                    'left_eye_center_y',
+                    'right_eye_center_x',
+                    'right_eye_center_y',
+                    'left_eye_inner_corner_x',
+                    'left_eye_inner_corner_y',
+                    'left_eye_outer_corner_x',
+                    'left_eye_outer_corner_y',
+                    'right_eye_inner_corner_x',
+                    'right_eye_inner_corner_y',
+                    'right_eye_outer_corner_x',
+                    'right_eye_outer_corner_y',
+                    'left_eyebrow_inner_end_x',
+                    'left_eyebrow_inner_end_y',
+                    'left_eyebrow_outer_end_x',
+                    'left_eyebrow_outer_end_y',
+                    'right_eyebrow_inner_end_x',
+                    'right_eyebrow_inner_end_y',
+                    'right_eyebrow_outer_end_x',
+                    'right_eyebrow_outer_end_y',
+                    'nose_tip_x',
+                    'nose_tip_y',
+                    'mouth_left_corner_x',
+                    'mouth_left_corner_y',
+                    'mouth_right_corner_x',
+                    'mouth_right_corner_y',
+                    'mouth_center_top_lip_x',
+                    'mouth_center_top_lip_y',
+                    'mouth_center_bottom_lip_x',
+                    'mouth_center_bottom_lip_y'], range(30)))
+    '''
+    for row in submission[1:]:
+        imgIdx = int(row[1]) - 1
+        keypointName = row[2]
+        keyPointIndex = mapping[keypointName]
+        row.append(y[imgIdx, keyPointIndex])
+
+    with open(out_path, 'w') as cvsTemplate:
+        writer = csv.writer(cvsTemplate)
+        for row in submission:
+            writer.writerow(row)
+    '''
   
 
 def test_works():
     load = True
+
     if load == False:
         ddmTrain = FacialKeypoint(which_set = 'train', start=0, stop =6000)
         ddmValid = FacialKeypoint(which_set = 'train', start=6000, stop = 7049)
+        ddmTest = FacialKeypoint(which_set = 'test')
         # valid can_fit = false
         pipeline = preprocessing.Pipeline()
         stndrdz = preprocessing.Standardize()
         stndrdz.apply(ddmTrain, can_fit=True)
+        
         #doubt, how about can_fit = False?
         stndrdz.apply(ddmValid, can_fit=False)
+        stndrdz.apply(ddmTest, can_fit=False)
+
         GCN = preprocessing.GlobalContrastNormalization()
         GCN.apply(ddmTrain, can_fit =True)
         GCN.apply(ddmValid, can_fit =False)
+        GCN.apply(ddmTest, can_fit =False)
     
         pcklFile = open('kpd.pkl', 'wb')
-        obj = (ddmTrain, ddmValid)
+        obj = (ddmTrain, ddmValid, ddmTest, GCN, stndrdz)
         pickle.dump(obj, pcklFile)
         pcklFile.close()
         return
     else:
         pcklFile = open('kpd.pkl', 'rb')
-        (ddmTrain, ddmValid) = pickle.load(pcklFile)
+        (ddmTrain, ddmValid, ddmTest, GCN, stndrdz) = pickle.load(pcklFile)
         pcklFile.close()
+        batch_size = 8
+        print 'going to compute test error'
+        generateTest(ddmTrain, 'kpd_maxout_best.pkl', 'output_maxout2pcs.csv')
+        return
 
     #creating layers
         #2 convolutional rectified layers, border mode valid
@@ -182,11 +301,19 @@ def test_works():
                      max_kernel_norm = 1.9365)
 
         # Rectified linear units
-    layer3 = RectifiedLinear(dim = 3000,
-                             sparse_init = 15,
-                     layer_name = 'RectLin3')
+    #layer3 = RectifiedLinear(dim = 3000,
+    #                         sparse_init = 15,
+    #                 layer_name = 'RectLin3')
 
-        #multisoftmax
+    #Maxout layer
+    maxout = Maxout(layer_name= 'maxout',
+                    irange= .005,
+                    num_units= 2000,
+                    num_pieces= 2,
+                    max_col_norm= 1.9)
+
+
+    #multisoftmax
     n_groups = 30
     n_classes = 98 
     irange = 0
@@ -194,42 +321,53 @@ def test_works():
     layerMS = MultiSoftmax(n_groups=n_groups,irange = 0.05, n_classes=n_classes, layer_name= layer_name)
     
     #setting up MLP
-    MLPerc = MLP(batch_size = 8,
+    MLPerc = MLP(batch_size = batch_size,
                  input_space = Conv2DSpace(shape = [96, 96],
                  num_channels = 1),
-                 layers = [ layer1, layer2, layer3, layerMS])
+                 layers = [ layer1, layer2, maxout, layerMS])
 
     #mlp_cost
     missing_target_value = -1
     mlp_cost = MLPCost(cost_type='default', 
                             missing_target_value=missing_target_value )
+    mlp_cost.setup_dropout(input_include_probs= { 'convRect1' : .8 },
+                           input_scales= { 'convRect1': 1. })
+
+    #dropout_cost = Dropout(input_include_probs= { 'convRect1' : .8 },
+    #                      input_scales= { 'convRect1': 1. })
 
     #algorithm
     
     # learning rate, momentum, batch size, monitoring dataset, cost, termination criteria
-
+#monitoring_dataset = {'validation':ddmValid, 'training': ddmTrain}
     term_crit  = MonitorBased(prop_decrease = 0.00001, N = 30, channel_name = 'validation_objective')
-    kpSGD = KeypointSGD(learning_rate = 0.001, init_momentum = 0.5, monitoring_dataset = {'validation':ddmValid, 'training': ddmTrain}, batch_size = 8, batches_per_iter = 750,
+    kpSGD = KeypointSGD(learning_rate = 0.001, init_momentum = 0.5, 
+                        monitoring_dataset = {'validation':ddmValid, 'training': ddmTrain}, batch_size = batch_size, batches_per_iter = 750,
                         termination_criterion = term_crit,
-                        train_iteration_mode = 'random_uniform', 
                         cost = mlp_cost)
 
     #train extension
     train_ext = ExponentialDecayOverEpoch(decay_factor = 0.998, min_lr_scale = 0.01)
     #train object
     train = Train(dataset = ddmTrain,
-                  save_path='kpd_model2.pkl',
-                  save_freq=1,
+                  save_path='kpd_model2pcs_maxout.pkl',
+                  save_freq=3,
                   model = MLPerc,
                   algorithm= kpSGD,
                   extensions = [train_ext, 
                                 MonitorBasedSaveBest(channel_name='validation_objective',
-                                                     save_path= 'kpd_best.pkl'),
+                                                     save_path= 'kpd_maxout2pcs_best.pkl'),
+
                                 MomentumAdjustor(start = 1,
                                                  saturate = 20,
                                                  final_momentum = .9)] )
     train.main_loop()
     train.save()
+
+
+
+
+
 
 if __name__=='__main__':
     test_works()

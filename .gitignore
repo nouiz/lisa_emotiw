@@ -43,3 +43,15 @@ nosetests.xml
 
 #NFS
 .nfs*
+
+*.py~
+
+#Don't track the binary data files:
+*.npy
+*.pkl
+*.pickle
+*.h5
+
+#Don't track the image files:
+*.png
+*.jpg

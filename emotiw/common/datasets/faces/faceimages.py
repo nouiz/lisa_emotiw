@@ -45,6 +45,10 @@ from emotiw.common.utils.pathutils import locate_data_path, search_replace
 #from preprocess_face import * # getEyesPositions,getFaceBoundingBox
 
 basic_7emotion_names = ["anger", "disgust", "fear", "happy", "sad", "surprise", "neutral"]
+keypoints_names = ['left_eyebrow_inner_end', 'bottom_lip_top_left_midpoint', 'right_ear_top', 'mouth_bottom_lip_top', 'face_left', 'left_eyebrow_outer_midpoint', 'left_jaw_1', 'left_jaw_0', 'bottom_lip_top_left_center', 'left_eyebrow_center_top', 'left_eye_outer_corner', 'top_lip_bottom_right_midpoint', 'mouth_bottom_lip', 'left_mouth_outer_corner', 'left_eyebrow_center_bottom', 'top_lip_bottom_left_center', 'right_eyebrow_inner_end', 'chin_center', 'right_eyebrow_outer_midpoint', 'left_ear_bottom', 'right_eye_outer_corner', 'left_eyebrow_outer_end', 'top_lip_bottom_left_midpoint', 'bottom_lip_bottom_right_midpoint', 'right_eye_center_top', 'right_nostril_inner_end', 'top_lip_bottom_center', 'face_center', 'right_eye_inner_corner', 'right_eyebrow_center_top', 'left_eyebrow_center', 'right_ear_bottom', 'mouth_left_corner', 'nostrils_center', 'right_eyebrow_inner_midpoint', 'mouth_right_corner', 'chin_center_top', 'nose_ridge_bottom', 'right_eye_center', 'left_eye_bottom_outer_midpoint', 'left_eye_pupil', 'right_jaw_2', 'right_jaw_1', 'right_jaw_0', 'top_lip_bottom_right_center', 'top_lip_top_right_center', 'left_nostril_inner_end', 'right_eyebrow_center_bottom', 'chin_right', 'mouth_top_lip_bottom', 'right_ear_canal', 'bottom_lip_bottom_center', 'mouth_top_lip', 'right_eyebrow_center', 'chin_left', 'left_eye_top_outer_midpoint', 'left_jaw_2', 'nose_tip', 'bottom_lip_bottom_left_center', 'left_eye_top_inner_midpoint', 'right_eye_top_outer_midpoint', 'left_eye_bottom_inner_midpoint', 'top_lip_top_left_center', 'bottom_lip_bottom_right_center', 'bottom_lip_top_center', 'left_eye_center', 'bottom_lip_top_right_midpoint', 'left_eye_center_top', 'left_ear_center', 'top_lip_top_right_midpoint', 'bottom_lip_bottom_left_midpoint', 'right_eye_center_bottom', 'right_eye_bottom_outer_midpoint', 'left_eye_inner_corner', 'right_mouth_outer_corner', 'left_eyebrow_inner_midpoint', 'left_ear_top', 'right_ear_center', 'nose_center_top', 'right_eye_pupil', 'bottom_lip_top_right_center', 'left_eye_center_bottom', 'right_eye_top_inner_midpoint', 'left_cheek_2', 'face_right', 'right_nostril', 'top_lip_top_left_midpoint', 'right_eye_bottom_inner_midpoint', 'left_cheek_1', 'left_cheek_0', 'right_eyebrow_outer_end', 'nose_ridge_top', 'mouth_center', 'left_nostril', 'right_cheek_1', 'right_cheek_0', 'right_cheek_2', 'left_ear_canal']
+
+
+
 
 class FaceImagesDataset(object):
     """
@@ -126,9 +130,12 @@ class FaceImagesDataset(object):
             factorY = 1.0
             draw = ImageDraw.Draw(img)
 
+            if bbox != None and isinstance(bbox[0], list) and bbox[0] is not None:
+                bbox = bbox[0]
+
             if bbox == None:
                 print 'No bounding box information'
-                    
+            
             else:
                 print 'bbox:', bbox
                 w,h = (bbox[2]-bbox[0], bbox[3]-bbox[1])
@@ -145,11 +152,10 @@ class FaceImagesDataset(object):
                     
             print 'keypoints:'
             keypoints = self.get_keypoints_location(i)
-            if len(keypoints) == 0:
+            if keypoints is None or len(keypoints) == 0:
                 print 'No keypoint information available'
             else:
                 index = 1
-                print keypoints
                 for key in keypoints:
                     print index, ':' , key, '=', keypoints[key]
                     (x, y ) = keypoints[key]
@@ -194,11 +200,18 @@ class FaceImagesDataset(object):
 
     def get_bbox(self, i):
         """
-        Returns a list of a bounding box around the faces in the ith image,
-        as recorded (or precomputed) in the dataset. Returns None if not available.
-
+        Returns coordinates for the bounding boxes around the faces in the ith image,
+        as recorded (or precomputed) in the dataset.
+        A list of 4-tuples is returned containing bounding box cooridnates for all faces in the image.
         This is necessary for datasets with images that contain several faces,
         And relevant for databases that could be used for training a face detector.
+        
+        Each 4-tuple is x1,y1,x2,y2 giving the coordinates
+        of the top left corner and bottom right corner of a bounding box.
+        Coordinate system has its origin in the upper left corner of the image
+        (horizontal_offset_in_pixels, vertical_offset_in_pixels).
+            
+        The call returns None if the information is not available.
 
         Default version returns the first one of get_orginal_bbox, get_picasa_bbox, get_opencv_bbox that is not None
         Subclasses should override one or several of these as appropriate.
@@ -244,7 +257,10 @@ class FaceImagesDataset(object):
             with open(bboxpath) as f:
                 reader = csv.reader(f, delimiter=self.picasa_csv_delimiter)
                 for row in reader:
-                    bboxes.append([float(x) for x in row[:4]])
+                    try:
+                        bboxes.append([float(x) for x in row[:4]])
+                    except:
+                        pass
             return bboxes
 
         return None
@@ -353,7 +369,16 @@ class FaceImagesDataset(object):
             ys = matfile['ys'][0]
             # pdb.set_trace()
 
-            return dict([ ("ramanan_%d"%pos, coord) for pos,coord in enumerate(zip(xs,ys)) ])
+            pts_idx_dict_68 = {0: 'nostrils_center', 1: 'right_nostril_inner_end', 2: 'right_nostril', 3: 'left_nostril_inner_end', 4: 'left_nostril', 5: 'nose_tip', 6: 'nose_ridge_bottom', 7: 'nose_ridge_top', 8: 'nose_center_top', 9: 'right_eye_inner_corner', 10: 'right_eye_bottom_inner_midpoint', 11: 'right_eye_bottom_outer_midpoint', 12: 'right_eye_top_inner_midpoint', 13: 'right_eye_top_outer_midpoint', 14: 'right_eye_outer_corner', 15: 'right_eyebrow_outer_end', 16: 'right_eyebrow_outer_midpoint', 17: 'right_eyebrow_center', 18: 'right_eyebrow_inner_midpoint', 19: 'right_eyebrow_inner_end', 20: 'left_eye_inner_corner', 21: 'left_eye_bottom_inner_midpoint', 22: 'left_eye_bottom_outer_midpoint', 23: 'left_eye_top_inner_midpoint', 24: 'left_eye_top_outer_midpoint', 25: 'left_eye_outer_corner', 26: 'left_eyebrow_outer_end', 27: 'left_eyebrow_outer_midpoint', 28: 'left_eyebrow_center', 29: 'left_eyebrow_inner_midpoint', 30: 'left_eyebrow_inner_end', 31: 'mouth_top_lip', 32: 'top_lip_top_right_center', 33: 'top_lip_top_right_midpoint', 34: 'mouth_right_corner', 35: 'top_lip_bottom_right_midpoint', 36: 'top_lip_bottom_right_center', 37: 'top_lip_bottom_center', 38: 'top_lip_top_left_center', 39: 'top_lip_top_left_midpoint', 40: 'mouth_left_corner', 41: 'top_lip_bottom_left_midpoint', 42: 'top_lip_bottom_left_center', 43: 'bottom_lip_bottom_left_midpoint', 44: 'bottom_lip_top_left_midpoint' , 45: 'bottom_lip_bottom_left_center', 46: 'bottom_lip_top_left_center', 47: 'bottom_lip_bottom_right_center', 48: 'bottom_lip_top_right_center', 49: 'bottom_lip_bottom_left_midpoint', 50: 'mouth_bottom_lip', 51: 'chin_center', 52: 'chin_left', 53: 'left_jaw_1', 54: 'left_jaw_0', 55: 'left_cheek_1', 56: 'left_cheek_0', 57: 'left_ear_bottom', 58: 'left_ear_center', 59: 'left_ear_top', 60: 'chin_right', 61: 'right_jaw_1', 62: 'right_jaw_0', 63: 'right_cheek_1', 64: 'right_cheek_0', 65: 'right_ear_bottom', 66: 'right_ear_center', 67: 'right_ear_top'}
+
+            pts_idx_dict_39 = {0: 'left_nostril', 1: 'nostrils_center', 2: 'nose_tip', 3: 'nose_ridge_bottom', 4: 'nose_ridge_top', 5: 'nose_center_top', 6: 'left_eye_bottom_inner_midpoint', 7: 'left_eye_bottom_outer_midpoint', 8: 'left_eye_outer_corner', 9: 'left_eye_top_inner_midpoint', 10: 'left_eye_top_outer_midpoint', 11: 'left_eyebrow_inner_midpoint', 12: 'left_eyebrow_center', 13: 'left_eyebrow_outer_midpoint', 14: 'left_eyebrow_outer_end', 15: 'mouth_top_lip', 16: 'top_lip_top_left_center', 17: 'top_lip_top_left_midpoint', 18: 'mouth_left_corner', 19: 'bottom_lip_bottom_left_midpoint', 20: 'bottom_lip_bottom_left_center', 21: 'mouth_bottom_lip', 22: 'top_lip_bottom_left_midpoint', 23: 'top_lip_bottom_left_center', 24: 'top_lip_bottom_left_center', 25: 'bottom_lip_top_left_center', 26: 'bottom_lip_top_center', 27: 'chin_center_top', 28: 'chin_center', 29: 'chin_left', 30: 'left_jaw_2', 31: 'left_jaw_1', 32: 'left_jaw_0', 33: 'left_cheek_2', 34: 'left_cheek_1', 35: 'left_cheek_0', 36: 'left_ear_bottom', 37: 'left_ear_center', 38: 'left_ear_top'}
+            
+            translation_dict = pts_idx_dict_68
+
+            if len(xs) == 39:
+                translation_dict = pts_idx_dict_39
+
+            return dict([ (translation_dict[pos], coord) for pos,coord in enumerate(zip(xs,ys)) ])
 
             # The following correspondances were taken from the code in MultiPie, but apparently they do not correctly match those returned by Ramanan's procedure
             # pts_idx_dict_68 = {0: 'right_ear_top', 1: 'right_ear_center', 2: 'right_ear_bottom', 7: 'chin_right', 8: 'chin_center', 9: 'chin_left', 14: 'left_ear_bottom', 
@@ -713,35 +738,46 @@ class FaceDatasetExample(object):
     A view of a single example of a FaceImagesDataset
     Presented as an object with properties.
     Property names match accessor methods of the FaceImagesDataset.
+    For example .original_image_path will result in calling .get_original_image_path(i) on the dataset
     """
     
-    property_names = frozenset([
-        "original_image",
-        "original_image_path",
-        "original_image_path_relative_to_base_directory",
-        "bbox",
-        "eyes_location",
-        "keypoints_location",
-        "subject_id_of_ith_face",
-        "detailed_emotion_label",
-        "7emotion_label",
-        "7emotion_index",
-        "facs",
-        "head_pose",
-        "light_source_direction",
-        "gaze_direction",
-        "gender",
-        "is_mouth_opened"
-        ])
+    forbidden_property_names = frozenset([
+        "get_id_of_kth_subject"])
     
     def __init__(self, dataset, i):
         self._dataset = dataset
         self._i = i
         
     def __getattr__(self, property_name):
-        if property_name in FaceDatasetExample.property_names:            
-            dataset_method = getattr(self._dataset, "get_"+property_name)
-            return dataset_method(self._i)
-        else:
+        if property_name in FaceDatasetExample.forbidden_property_names:            
             raise AttributeError()
+        dataset_method = getattr(self._dataset, "get_"+property_name)
+        return dataset_method(self._i)
 
+def compute_eye_centers_from_keypoints(keypoint_dict):
+    """Returns (right_eye_x, right_eye_y), (left_eye_x, left_eye_y)
+    Where the returned coordinates estimate the center of the eye, based on the available keypoints.
+    If left_eye_center or right_eye_center is available, it will return those directly.
+    Otherwise, it computes the average of all entries named right_eye_* and left_eye_* respectively.
+    Otherwise, if no such entries are available for an eye, it will return None instead of the coordinates for that eye.
+    """
+    left_eye_center = keypoint_dict.get("left_eye_center",None)
+    right_eye_center = keypoint_dict.get("right_eye_center",None)
+
+    if left_eye_center is None or right_eye_center is None:
+        right_eye_coords = []
+        left_eye_coords = []
+
+        for key,coord in keypoint_dict.iteritems():
+            if key.startswith("right_eye_"):
+                right_eye_coords.append(coord)
+            elif key.startswith("left_eye_"):
+                left_eye_coords.append(coord)
+
+        if left_eye_center is None and len(left_eye_coords)>0:
+            left_eye_center = numpy.array(left_eye_coords).mean(axis=0)
+            
+        if right_eye_center is None and len(right_eye_coords)>0:
+            right_eye_center = numpy.array(right_eye_coords).mean(axis=0)
+
+    return right_eye_center, left_eye_center

@@ -46,10 +46,17 @@ class MultiPie(FaceImagesDataset):
         #read male and female
         metaPath = self.absolute_base_directory+'meta/subject_list.txt'
         f = open(metaPath)
+        f_lines = f.readlines()
+        self.num_subjects = len(f_lines)
 
-        for line in f:
+        i = 0
+        self.subject_id_to_idx = {}
+
+        for line in f_lines:
             if line!='':
                 self.lstgender.append(line.split(' ')[2])
+                self.subject_id_to_idx[line.split(' ')[0]] = i
+                i += 1
         
         cam = os.listdir(label)
         for c in cam:
@@ -61,25 +68,20 @@ class MultiPie(FaceImagesDataset):
                 parts = f.split('.')[0].split('_')
                 subject = int(parts[0])
                 session= parts[1]
-                imrelpath += 'session'+session+'/multiview/'+parts[0]+'/'+parts[2]+'/'+parts[3][0]+parts[3][1]+"_"+parts[3][2]+'/'
+                rec_num = parts[2]
+                imrelpath += 'session'+session+'/multiview/'+parts[0]+'/'+rec_num+'/'+parts[3][0]+parts[3][1]+"_"+parts[3][2]+'/'
                 imrelpath += "_".join(parts[0:5])+'.png'
                 filename = label+c+'/'+f
                 #print "loading ", filename #printing is slow and lots of files are being loaded.
-                pts_idx_dict_68 = {0: 'right_ear_top', 1: 'right_ear_center', 2: 'right_ear_bottom', 7: 'chin_right', 8: 'chin_center', 9: 'chin_left', 14: 'left_ear_bottom', 
-                                    15: 'left_ear_center', 16: 'left_ear_top', 17: 'right_eyebrow_outer_end', 19: 'right_eyebrow_center', 21: 'right_eyebrow_inner_end', 
-                                    22: 'left_eyebrow_inner_end', 24: 'left_eyebrow_center', 26: 'left_eyebrow_outer_end', 27: 'nose_center_top', 30: 'nose_tip', 31: 'right_nostril', 
-                                    34: 'nostrils_center', 35: 'left_nostril', 36: 'right_eye_outer_corner', 39: 'right_eye_inner_corner', 42: 'left_eye_inner_corner', 45: 'left_eye_outer_corner', 
-                                    48: 'mouth_right_corner', 51: 'mouth_top_lip', 54: 'mouth_left_corner', 57: 'mouth_bottom_lip', 62: 'mouth_center'}             
-                
-                pts_idx_dict_39 = {0: 'nose_center_top', 3: 'nose_tip', 4: 'nostrils_center', 5: 'left_nostril', 6: 'left_eyebrow_outer_end', 9: 'left_eyebrow_inner_end', 10: 'left_eye_outer_corner', 
-                                    15: 'mouth_top_lip', 18: 'mouth_left_corner', 21: 'mouth_bottom_lip', 22: 'mouth_center', 29: 'chin_center', 36: 'left_ear_bottom', 37: 'left_ear_center', 38: 'left_ear_top'}
+                pts_idx_dict_68 = {0: 'right_ear_top', 1: 'right_ear_center', 2: 'right_ear_bottom', 3: 'right_cheek_0', 4: 'right_cheek_1', 5: 'right_jaw_0', 6: 'right_jaw_1', 7: 'chin_right', 8: 'chin_center', 9: 'chin_left', 10: 'left_jaw_1', 11: 'left_jaw_0', 12: 'left_cheek_1', 13: 'left_cheek_0', 14: 'left_ear_bottom', 15: 'left_ear_center', 16: 'left_ear_top', 17: 'right_eyebrow_outer_end', 18: 'right_eyebrow_outer_midpoint', 19: 'right_eyebrow_center', 20: 'right_eyebrow_inner_midpoint', 21: 'right_eyebrow_inner_end', 22: 'left_eyebrow_inner_end', 23: 'left_eyebrow_inner_midpoint', 24: 'left_eyebrow_center', 25: 'left_eyebrow_outer_midpoint', 26: 'left_eyebrow_outer_end', 27: 'nose_center_top', 28: 'nose_ridge_top', 29: 'nose_ridge_bottom', 30: 'nose_tip', 31: 'right_nostril', 32: 'right_nostril_inner_end', 33: 'nostrils_center', 34: 'left_nostril_inner_end', 35: 'left_nostril', 36: 'right_eye_outer_corner', 37: 'right_eye_top_outer_midpoint', 38: 'right_eye_top_inner_midpoint', 39: 'right_eye_inner_corner', 40: 'right_eye_bottom_inner_midpoint', 41: 'right_eye_bottom_outer_midpoint', 42: 'left_eye_inner_corner', 43: 'left_eye_top_inner_midpoint', 44: 'left_eye_top_outer_midpoint', 45: 'left_eye_outer_corner', 46: 'left_eye_bottom_outer_midpoint', 47: 'left_eye_bottom_inner_midpoint', 48: 'mouth_right_corner', 49: 'top_lip_top_right_midpoint', 50: 'top_lip_top_right_center', 51: 'mouth_top_lip', 52: 'top_lip_top_left_center', 53: 'top_lip_top_left_midpoint', 54: 'mouth_left_corner', 55: 'bottom_lip_bottom_left_midpoint', 56: 'bottom_lip_bottom_left_center', 57: 'mouth_bottom_lip', 58: 'bottom_lip_bottom_right_center', 59: 'bottom_lip_bottom_right_midpoint', 60: 'top_lip_bottom_right_midpoint', 61: 'top_lip_bottom_right_center', 62: 'top_lip_bottom_center', 63: 'top_lip_bottom_left_center', 64: 'bottom_lip_top_left_midpoint', 65: 'bottom_lip_top_left_center', 66: 'bottom_lip_top_center', 67: 'bottom_lip_top_right_center'}
 
+                pts_idx_dict_39 = {0: 'nose_center_top', 1: 'nose_ridge_top', 2: 'nose_ridge_bottom', 3: 'nose_tip', 4: 'nostrils_center', 5: 'left_nostril', 6: 'left_eyebrow_outer_end', 7: 'left_eyebrow_outer_midpoint', 8: 'left_eyebrow_inner_midpoint', 9: 'left_eyebrow_inner_end', 10: 'left_eye_outer_corner', 11: 'left_eye_top_outer_midpoint', 12: 'left_eye_top_inner_midpoint', 13: 'left_eye_bottom_outer_midpoint', 14: 'left_eye_bottom_inner_midpoint', 15: 'mouth_top_lip', 16: 'top_lip_top_left_center', 17: 'top_lip_top_left_midpoint', 18: 'mouth_left_corner', 19: 'bottom_lip_bottom_left_midpoint', 20: 'bottom_lip_bottom_left_center', 21: 'mouth_bottom_lip', 22: 'bottom_lip_top_center', 23: 'top_lip_bottom_left_center', 24: 'top_lip_bottom_left_midpoint', 25: 'bottom_lip_top_left_midpoint', 26: 'bottom_lip_top_left_center', 27: 'mouth_bottom_lip', 28: 'chin_center_top', 29: 'chin_center', 30: 'left_jaw_2', 31: 'left_jaw_1', 32: 'left_jaw_0', 33: 'left_cheek_2', 34: 'left_cheek_1', 35: 'left_cheek_0', 36: 'left_ear_bottom', 37: 'left_ear_center', 38: 'left_ear_top'}
 
                 points = scipy.io.loadmat(filename)['pts']
                 this_dict = {}
                 translation_dict = pts_idx_dict_68
     
-                if len(points) < 68:
+                if len(points) == 39:
                     translation_dict = pts_idx_dict_39
 
                 for idx, p in enumerate(points):
@@ -94,20 +96,56 @@ class MultiPie(FaceImagesDataset):
                     
                     this_dict[name] = (p[0], p[1])
 
+                emotion = None
+                sess_int = int(session)
+                rec_int = int(rec_num) 
+
+                if sess_int == 1:
+                    if rec_int == 1:
+                        emotion = 'neutral'
+                    else:
+                        emotion = 'happy'
+                elif sess_int == 2:
+                    if rec_int == 1:
+                        emotion = 'neutral'
+                    elif rec_int == 2:
+                        emotion = 'surprise'
+                    else:
+                        emotion = 'neutral' #squinting
+
+                elif sess_int == 3:
+                    if rec_int == 1:
+                        emotion = 'neutral'
+                    elif rec_int == 2:
+                        emotion = 'happy'
+                    else:
+                        emotion = 'disgust'
+
+                else:
+                    if rec_int == 1 or rec_int == 3:
+                        emotion = 'neutral'
+                    else:
+                        emotion = 'fear' #actually "scream"
+
                 #There are some subjects without male or female information                
                 if subject<len(self.lstgender):
-                    self.lstImages.append([imrelpath,subject,this_dict,self.lstgender[subject]])
+                    self.lstImages.append([imrelpath,subject,this_dict,self.lstgender[subject],emotion])
                 else:
-                    self.lstImages.append([imrelpath,subject,this_dict,""])
-                
-    
+                    self.lstImages.append([imrelpath,subject,this_dict,"",emotion])
+
+    def get_7emotion_index(self, i):
+        #from TFD
+        emotionsDic = { "anger":0, "disgust":1, "fear":2 , "happy":3, "sadness":4, "surprise":5, "neutral":6, "contempt":7}
+        idx = emotionsDic[self.lstImages[i][4]]
+        if idx==7:
+            return 0 # contempt is not one of those considered in the definition of this method in the base class, we map it to anger
+        return idx
     
     def __len__(self):
         return len(self.lstImages)        
         
     def get_original_image_path_relative_to_base_directory(self, i):       
         return self.lstImages[i][0]    
-        
     
     def get_eyes_location(self, i):
         """
@@ -162,13 +200,19 @@ class MultiPie(FaceImagesDataset):
         return self.lstImages[i][2]    
         
     def get_subject_id_of_ith_face(self, i):
-        return str(self.lstImages[i][1])
+        return self.subject_id_to_idx[self.lstImages[i][1]]
         
     def get_id_of_kth_subject(self, k):    
-        return str(self.lstImages[k][1])
+        for x in self.subject_id_to_idx:
+            if self.subject_id_to_idx[x] == k:
+                return x
+        return -1
         
     def get_gender(self,i):        
         return str(self.lstImages[i][3])
+
+    def get_n_subjects(self):
+        return self.num_subjects
             
 def testWorks():
     save = 0

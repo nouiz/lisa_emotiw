@@ -1232,3 +1232,21 @@ class Pofa(FaceImagesDataset):
             return self.imageEmotions[i]
         else:
             return None
+
+
+#### List of dataset names, constructor, description
+
+datasets_constructors_list = [
+    ("TorontoFaceDataset", TorontoFaceDataset, "48x48 Toronto Face Dataset images. A mix of several other face expression datasets."),
+    ("StaticCKPlus", StaticCKPlus, "First (neutral) abnd last (most emotive) image from all CKPlus sequences. (part of TFD)"),
+    ("SFEW", SFEW, " (part of TFD)"),
+    ("MSFDE", MSFDE, " (part of TFD)"),
+    ("IndianFaceDatabase", IndianFaceDatabase, " (part of TFD)"),
+    ("Jaffe", Jaffe, " (part of TFD)"),
+    ("Jacfee", Jacfee, " (part of TFD)"),
+    ("ArFace", ArFace, " (part of TFD)"),
+    ("Kdef", Kdef, " (part of TFD)"),
+    ("NimStim", NimStim, " (part of TFD)"),
+    ("Pofa", Pofa, " (part of TFD)") ]
+
+

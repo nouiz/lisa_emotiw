@@ -1,24 +1,23 @@
 !obj:pylearn2.train.Train {
 
-    dataset: &train !obj:contestTransformerDataset.TransformerDataset {
+    dataset: &train !obj:emotiw.bouthilx.transform.TransformerDataset {
         raw: &raw !obj:emotiw.bouthilx.datasets.AFEWDataset {
-             base_path: '/data/lisatmp/bouthilx/',
+             base_path: '/data/afew/facetubes',
              which_set: 'train',
              preprocessor : &prepro !obj:pylearn2.datasets.preprocessing.Standardize {},
              fit_preprocessor: True,
-             fit_test_preprocessor: True,
         },
-        transformer : !obj:transformer.TransformationPipeline {
+        transformer : !obj:emotiw.bouthilx.transform.TransformationPipeline {
             input_space: !obj:pylearn2.space.Conv2DSpace {
                 shape: [96, 96],
                 num_channels: 3,
             },
             transformations: [
 
-                !obj:transformer.Flipping { p: 0.2 },
+                !obj:emotiw.bouthilx.transform.Flipping { p: 0.2 },
 
                 # If the new image is smaller, the empty space is black.
-                !obj:transformer.Scaling {
+                !obj:emotiw.bouthilx.transform.Scaling {
                      p: 0.9,
                      fct_settings: {
                          loc: 1.0,
@@ -26,14 +25,14 @@
                      },
                 },
 
-                !obj:transformer.Rotation {
+                !obj:emotiw.bouthilx.transform.Rotation {
                     p: 0.8,
                      fct_settings: {
                         loc: 0.0,
                         scale: 15  
                      }
                 },
-                !obj:transformer.Translation {
+                !obj:emotiw.bouthilx.transform.Translation {
                     p: 1.0,
                     fct_settings: {
                         loc: 0.0,
@@ -41,7 +40,7 @@
                      }
                 },
 
-                !obj:transformer.Occlusion { 
+                !obj:emotiw.bouthilx.transform.Occlusion { 
                     p: 0.6,
                     nb: 20,
                     fct_settings: {
@@ -114,7 +113,7 @@
         monitoring_dataset:
             {
                 'trainsub' : !obj:emotiw.bouthilx.datasets.AFEWDataset {
-                    base_path: '/home/xavier/data/icml_2013_emotions',
+                    base_path: '/data/afew/facetubes',
                     which_set: 'train',
                     start: 0,
                     stop: 2000,
@@ -123,6 +122,7 @@
                 },
 
                 'valid' : !obj:emotiw.bouthilx.datasets.AFEWDataset {
+                    base_path: '/data/afew/facetubes',
                     which_set: 'valid',
                     start: 0,
                     stop: 2000,
@@ -151,6 +151,9 @@
         !obj:pylearn2.train_extensions.best_params.MonitorBasedSaveBest {
              channel_name: 'valid_y_misclass',
              save_path: "${PYLEARN2_TRAIN_FILE_FULL_STEM}_best.pkl"
+        }, !obj:emotiw.bouthilx.transform.SaveTransform {
+             freq: 10,
+             save_path: "${PYLEARN2_TRAIN_FILE_FULL_STEM}_examples"
         }, !obj:pylearn2.training_algorithms.sgd.OneOverEpoch {
                 start: 15,
         }
