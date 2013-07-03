@@ -46,8 +46,8 @@ def generateTest(dataset, modelPath,  batch_size = 8):
     # (batch_size, 30, 98)
     preY = model.fprop(X)
     # (batch_size, 30)
-    Y = (T.arange(0,96).dimshuffle('x','x',0)*preY).sum(2)
-    
+    Y = (T.arange(0,96).dimshuffle('x','x',0)*preY).sum(axis = 2)
+    #Y = T.argmax(preY, axis=2)
     f = function([X], Y)
 
     y = []
@@ -56,20 +56,31 @@ def generateTest(dataset, modelPath,  batch_size = 8):
         x_arg = dataset.X[imgIdx * batch_size:(imgIdx + 1) * batch_size, :]
         images = []
         if X.ndim > 2:
-            x_arg = dataset.get_topological_view(x_arg)
-        y.append(f(x_arg.astype(X.dtype)))
-        ys = f(x_arg.astype(X.dtype))
+            x_arg2 = dataset.get_topological_view(x_arg)
+        y.append(f(x_arg2.astype(X.dtype)))
+        ys = f(x_arg2.astype(X.dtype))
         for i in range(batch_size):
-            images.append(x_arg[i, :,:,:].reshape((96,96,1)))
-            im = Image.fromarray(np.uint8(x_arg[i, :,:,:].reshape((96,96))*255 + 127))
+            #print ys[i, 25,:]
+            images.append(x_arg2)
+            transf = x_arg[i]
+            diff = (max(transf) - min(transf))
+            transf = (transf/diff)*255
+            transf = np.cast['uint8'](transf)
+            im = Image.frombuffer(data=transf, size=(96,96), mode='RGB')
+            #im.show()
+            #continue
+            im = im.convert('L')
+            im = im.convert('RGB')
+            
             #imgrgb = Image.merge('RGB', (im,im,im))
-            pixmap = imgrgb.load()
+            pixmap = im.load()
             print 'batch', i
-            for j in range(15):
-                print 'in', j
+            for j in range(numberOfKeyPoints/2):
+                #print 'in', j 
+                #x, y = (0,0)
                 x , y = ys[i,2*j] , ys[i,2*j+1]
                 pixmap[int(x), int(y)] = (0,255,0)
-            imgrgb.show()
+            im.save('./results/'+str(i)+'.png')
         return
         
     
@@ -90,12 +101,15 @@ def test_works():
     
     #creating layers
         #2 convolutional rectified layers, border mode valid
-    model_file = 'emotiw_kpd_best.pkl'
-    batch_size = 32
+    #model_file = 'eos3/eos3Ind_1_best.joblib'
+    model_file = 'titan2/titan2_lr_0.01_finMomentum_0.8_batch_size_32_mlp.RectifiedLinear.joblib'
+    model_file = 'titan2/titan2_best.joblib'
+    model_file = 'titan3/titan3_best.joblib'
+    batch_size = 64
 
     from emotiw.common.datasets.faces.EmotiwKeypoints import EmotiwKeypoints
     
-    ddmTest = EmotiwKeypoints(hack = 'val')
+    ddmTest = EmotiwKeypoints(hack = 'test', preproc='STD')
 
     generateTest(ddmTest, model_file, batch_size = batch_size)
 
