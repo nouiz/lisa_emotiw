@@ -44,10 +44,7 @@ class ImageSequenceDataset(object):
 
     def __getitem__(self, i):
         """
-        Returns an object that exposes all properties of the ith face example
-        Technically it will return an instance of FaceDatasetExample on which
-        accessing properties will be handled by calling the corresponding get_... method
-        of the current dataset, with parameter i.
+        Returns the ith sequence. Can also be called with a range or a list, to get subsets of this dataset.
         """
 
         if isinstance(i, int):
@@ -64,8 +61,6 @@ class ImageSequenceDataset(object):
 
     def get_sequence(self, i):
         """Returns a sequence of image frames that will typically be a subclass of FaceImagesDataset.
-        Warning: if a given image form a video contains several detected faces (as per bbox) it may be repeated several consecutive times
-        with the associated bounding box info changing.
         """
         raise NotImplementedError(
             "get_sequence not yet implemented in class " + str(type(self)) + " please implement it")

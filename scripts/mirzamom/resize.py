@@ -4,6 +4,9 @@ import numpy
 from skimage import transform, io
 from gif import sort_nicely
 import ipdb
+from os import listdir
+from os.path import join
+
 
 def resize(input, size):
 
@@ -45,7 +48,8 @@ if __name__ == "__main__":
                 tubes = [item.split("/")[-1].split("-")[1] for item in tubes]
                 tubes = numpy.unique(tubes)
                 for tube in tubes:
-                    frames = glob.glob("{}{}/{}/{}-{}*.jpg".format(src, set_n, emot, clip, tube))
+                    #frames = glob.glob("{}{}/{}/{}-{}*.jpg".format(src, set_n, emot, clip, tube))
+                    frames = [ join(src, set_n, emot, f) for f in listdir(join(src, set_n, emot)) if f.startswith('%s-%s-'%(clip, tube)) ]
                     sort_nicely(frames)
                     rval = []
                     for frame in frames:
