@@ -63,7 +63,7 @@ class AFEW2FaceTubes(DenseDesignMatrix):
             for feat, clip_id, target in zip(_features, _clip_ids, _targets):
                 # duplicate frames at the end if it's not modulo of sequence_length
                 modulo = feat.shape[0] % sequence_length
-                if modulo != 0 and False:
+                if modulo != 0:
                     # TODO return a warning here
                     feat = numpy.concatenate((feat, feat[-modulo,:,:,:][None,:,:,:]))
                 for i in xrange(feat.shape[0] / sequence_length):
