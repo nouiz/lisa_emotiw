@@ -55,7 +55,7 @@ class NewClipsImageSequenceDataset(afew2.AFEW2ImageSequenceDataset):
         if preproc:
             raise NotImplementedError()
 
-        super(NewClipsImageSequenceDataset, self).__init__("NewClips")
+        super(afew.AFEWImageSequenceDataset, self).__init__("NewClips")
 
         self.absolute_base_directory = locate_data_path(self.base_dir)
         #self.absolute_picasa_boxes_base_directory = locate_data_path(
