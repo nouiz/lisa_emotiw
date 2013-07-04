@@ -85,7 +85,6 @@ class AFEW2FaceTubes(DenseDesignMatrix):
             self.n_samples = count
             feat_shape = features[0].shape
             features = numpy.concatenate(features)
-            features = numpy.transpose(features, (0, 2, 1))
             features = features.reshape((self.n_samples, sequence_length * feat_shape[1] * feat_shape[2]))
 
         one_hot = numpy.zeros((self.n_samples, 7), dtype = 'float32')
