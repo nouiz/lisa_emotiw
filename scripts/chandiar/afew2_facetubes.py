@@ -77,7 +77,7 @@ class AFEW2FaceTubes(DenseDesignMatrix):
                     #feat = numpy.concatenate((feat, feat[-modulo,:,:,:][None,:,:,:]))
                 for i in xrange(feat.shape[0] - sequence_length + 1):
                     features.append(feat[i:i+sequence_length,:,:])
-                    assert len(features[-1]) == 3
+                    assert len(features[-1]) == sequence_length
                     count += 1
                     #self.clip_ids.append(clip_id)
                     targets.append(target)
@@ -85,6 +85,7 @@ class AFEW2FaceTubes(DenseDesignMatrix):
             self.n_samples = count
             feat_shape = features[0].shape
             features = numpy.concatenate(features)
+            features = numpy.transpose(features, (0, 2, 1))
             features = features.reshape((self.n_samples, sequence_length * feat_shape[1] * feat_shape[2]))
 
         one_hot = numpy.zeros((self.n_samples, 7), dtype = 'float32')
@@ -105,15 +106,17 @@ if __name__ == '__main__':
     # Load the smoothed train and valid face tubes of size 48 x 48 and remove
     # background faces as many as possible.
     print '... loading smooth face tubes'
-    smooth_train = AFEW2FaceTubes('train', sequence_length = 3, size=(48, 48),
+    smooth_train = AFEW2FaceTubes('train', sequence_length = 4, size=(48, 48),
         preproc=['smooth', 'remove_background_faces'], greyscale=True)
     print 'shape of smooth train dataset: ', smooth_train.X.shape
-    import pdb; pdb.set_trace()
 
-    smooth_valid = AFEW2FaceTubes('valid', sequence_length = 1, size=(48, 48),
+    smooth_valid = AFEW2FaceTubes('valid', sequence_length = 4, size=(48, 48),
         preproc=['smooth', 'remove_background_faces'], greyscale=True)
     print 'shape of smooth valid dataset: ', smooth_valid.X.shape
+    import pdb; pdb.set_trace()
 
+   
+    '''
     # Load the original train and valid face tubes (no preprocessing) of size
     # 96 x 96 where each training example consists of 3 frames from the same
     # facetube.
@@ -124,3 +127,4 @@ if __name__ == '__main__':
     train = AFEW2FaceTubes('valid', sequence_length = 3)
     print 'shape of valid dataset: ', train.X.shape
     import pdb; pdb.set_trace()
+    '''
