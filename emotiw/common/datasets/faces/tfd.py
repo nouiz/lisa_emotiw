@@ -122,6 +122,14 @@ class TorontoFaceDataset(FaceImagesDataset):
     def get_original_image(self, idx):
         return self.images[idx]
 
+    def get_keypoints_location(self, idx):
+        return {'right_eye_pupil': (11, 10), 
+                'left_eye_pupil': (37, 10), 
+                'nose_tip': (24, 24), 
+                'mouth_center': (39, 39), 
+                'mouth_left_corner': (14, 36), 
+                'mouth_right_corner': (34, 36)}
+
     def get_original_image_path_relative_to_base_directory(self, i):
         return None
 
