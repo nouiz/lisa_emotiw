@@ -874,7 +874,8 @@ class NeuralNetworkTrainer(object):
 
         params = [layer.W for layer in layers] + [layer.b for layer in layers]
         self.learning_rate = theano.shared(numpy.asarray(learning_rate, dtype=theano.config.floatX))
-        self.use_nesterov = use_nesterov
+        self.layers = layers
+        self.max_col_norm = max_col_norm
 
         #Initialize parameters for rmsprop:
         accumulators = OrderedDict({})
@@ -917,11 +918,11 @@ class NeuralNetworkTrainer(object):
                     gparam = gparam - mean_grad
                     updates[acc_mg] = mean_grad
 
-                if momentum and not self.use_nesterov:
+                if momentum and not use_nesterov:
                     memory = theano.shared(param.get_value() * 0.)
                     updates[param] = param - memory
                     updates[memory] = momentum * memory + learn_rates[i] * gparam
-                elif self.use_nesterov:
+                elif use_nesterov:
                     memory = theano.shared(param.get_value() * 0.)
                     new_memo = momentum * memory - learn_rates[i] * gparam
                     updates[memory] = new_memo
@@ -930,11 +931,11 @@ class NeuralNetworkTrainer(object):
                     updates[param] = param - learn_rates[i] * gparam
                 i +=1
             else:
-                if momentum and not self.use_nesterov:
+                if momentum and not use_nesterov:
                     memory = theano.shared(param.get_value() * 0.)
                     updates[param] = param - memory
                     updates[memory] = momentum * memory + learning_rate * gparam
-                elif self.use_nesterov:
+                elif use_nesterov:
                     memory = theano.shared(param.get_value() * 0.)
                     new_memo = momentum * memory - learning_rate * gparam
                     updates[memory] = new_memo
@@ -945,6 +946,7 @@ class NeuralNetworkTrainer(object):
         if max_col_norm is not None:
             updates = self.constrain_weights(layers, updates, max_col_norm)
 
+        self.updates = updates
         self._train = theano.function(inputs, outputs=cost, updates=updates)
 
     def constrain_weights(self, layers, updates, max_col_norm, epsilon=1e-8):
@@ -956,6 +958,8 @@ class NeuralNetworkTrainer(object):
         return updates
 
     def train(self, *args):
+        if self.max_col_norm:
+            self.constrain_weights(self.layers, self.updates, self.max_col_norm)
         return self._train(*args)
 
 
