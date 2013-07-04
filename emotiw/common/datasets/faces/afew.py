@@ -42,7 +42,10 @@ class AFEWImageSequence(FaceImagesDataset):
         super(AFEWImageSequence, self).__init__(dataset_name, relative_image_base_directory)
 
         self.imageRelativePath = []  # Relative path to images
-        self.emotionIndex = basic_7emotion_names.index(emotionName.lower())
+        if emotionName is None:
+            self.emotionIndex = None
+        else:
+            self.emotionIndex = basic_7emotion_names.index(emotionName.lower())
         self.imageIndex = {}
 
         # Fetch images
