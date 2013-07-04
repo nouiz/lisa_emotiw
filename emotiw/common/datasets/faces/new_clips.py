@@ -125,4 +125,5 @@ class NewClipsImageSequenceDataset(afew2.AFEW2ImageSequenceDataset):
             return self.load_facetubes(self.seq_info[i])
 
     def load_facetubes(self, clip_name):
-        raise NotImplementedError()
+        # Not available yet
+        return None
