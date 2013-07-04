@@ -280,6 +280,8 @@ class SGD(TrainingAlgorithm):
         self.params = params
 
     def train(self, dataset):
+        #print 'entering train:', dataset.name
+        #print 'dataset.y', dataset.y
         if not hasattr(self, 'sgd_update'):
             raise Exception("train called without first calling setup")
         model = self.model
@@ -295,6 +297,8 @@ class SGD(TrainingAlgorithm):
         rng = self.rng
         if not is_stochastic(self.train_iteration_mode):
             rng = None
+        #print 'self.supervised is' , self.supervised
+
         iterator = dataset.iterator(mode=self.train_iteration_mode,
                 batch_size=self.batch_size, targets=self.supervised,
                 topo=self.topo, rng = rng, num_batches = self.batches_per_iter)
@@ -303,7 +307,10 @@ class SGD(TrainingAlgorithm):
         else:
             batch_idx = 0
         if self.supervised:
+            ind = 0
             for (batch_in, batch_target) in iterator:
+                #print 'updating batch:', 
+                #ind += 1
                 self.sgd_update(batch_in, batch_target)
                 actual_batch_size = batch_in.shape[batch_idx]
                 self.monitor.report_batch(actual_batch_size)

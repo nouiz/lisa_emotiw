@@ -32,6 +32,7 @@ import glob
 import cPickle
 from scipy import io as sio
 import unicodedata
+import csv
 
 from faceimages import FaceImagesDataset
 
@@ -55,6 +56,13 @@ class GoogleFaceDataset(FaceImagesDataset):
         self.Y1 = data[9]
         self.X2 = data[10]
         self.Y2 = data[11]
+
+        self.set_picasa_path_substitutions(
+            {"faces/GoogleDataset/images/":"faces/GoogleDataset/images/facesCoordinates/",
+             '.png':'.txt',
+             '.jpg':'.txt',
+             }
+            , csv_delimiter=',')
     
     def get_name(self):
         return "GoogleFaceDataset"
@@ -77,6 +85,30 @@ class GoogleFaceDataset(FaceImagesDataset):
         # return [[self.X1[i], self.Y1[i],
         #          self.X2[i] - self.X1[i],
         #          self.Y2[i] - self.Y1[i]]]
+
+    def get_picasa_bbox(self, i):
+        """Returns a list of bounding boxes precomputed by picasa.
+        Calls get_picasa_path_from_image_path
+        to locate the file containing the precomputed bounding box info"""
+        imagepath = self.get_original_image_path(i)
+        # pdb.set_trace()
+        bboxpath = self.get_picasa_path_from_image_path(imagepath)
+        if bboxpath is not None and os.path.exists(bboxpath):
+            bboxes = []
+            with open(bboxpath) as f:
+                reader = csv.reader(f, delimiter=self.picasa_csv_delimiter)
+                for row in reader:
+                    picasaBatchNumber, idxInPicasaBatch, row, col, height, width = row
+                    if picasaBatchNumber!="picasaBatchNumber":
+                        print bboxpath, ":", picasaBatchNumber, idxInPicasaBatch, row, col, height, width
+                        row, col, height, width = float(row), float(col), float(height), float(width)
+                        bbox = [col, row, col+width, row+height]
+                        print "bbox:", bbox
+                        bboxes.append(bbox)
+            return bboxes
+
+        return None
+
 
     def get_7emotion_index(self, i):
         return self.labels[i].argmax()

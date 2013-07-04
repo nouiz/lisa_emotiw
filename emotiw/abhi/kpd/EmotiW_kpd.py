@@ -24,9 +24,9 @@ from pylearn2.models.maxout import Maxout
 from pylearn2.costs.mlp.dropout import Dropout
 
 # The number of features in the Y vector
-numberOfKeyPoints = 30
+numberOfKeyPoints = 98*2
 
-class FacialKeypoint(DenseDesignMatrix):
+class Emotiw_FacialKeypoint(DenseDesignMatrix):
     """
     A Pylearn2 Dataset object for accessing the data for the
     Kaggle facial-keypoint-detection contest for the IFT 6266 H13 course.
@@ -36,6 +36,8 @@ class FacialKeypoint(DenseDesignMatrix):
                  start=None,
                  stop=None,
                  axes=('b', 0, 1, 'c'),
+                 im_size = (96,96, 3),
+                 missing_target_value = -1,
                  stdev=0.8):
         """
         which_set: A string specifying which portion of the dataset
@@ -52,51 +54,33 @@ class FacialKeypoint(DenseDesignMatrix):
                     dataset, should it be allowed to fit the test set?
         """
 
+        self.missing_target_value = missing_target_value
         self.stdev = stdev
-        files = {'train': 'training.csv', 'test': 'test.csv'}
+        files = {'train': ('/data/lisa/data/faces/hdf5/complete_train_x.npy', '/data/lisa/data/faces/hdf5/complete_train_y.npy'),
+                 'test': ('/data/lisa/data/faces/hdf5/complete_test_x.npy', '/data/lisa/data/faces/hdf5/complete_test_y.npy')}
 
         try:
             filename = files[which_set]
         except KeyError:
             raise ValueError("Unrecognized dataset name: " + which_set)
 
-        path = os.path.join("${HOME}/Downloads/", filename)
-        path = preprocess(path)
-        csv_file = open(path, 'r')
-
-        reader = csv.reader(csv_file)
-        # Discard header
-        row = reader.next()
-        print row
-
-        y_list = []
-        X_list = []
-
-        for row in reader:
-            if which_set == 'train':
-                y_float = self.readKeyPoints(row)
-                X_row_str = row[numberOfKeyPoints]  # The image is at the last position
-                y_list.append(y_float)
-            else:
-                _, X_row_str = row
-            X_row_strs = X_row_str.split(' ')
-            X_row = map(lambda x: float(x), X_row_strs)
-            X_list.append(X_row)
-
-        X = np.asarray(X_list)
-        if which_set == 'train':
-            y = np.asarray(y_list)
-        else:
-            y = None
-
-        if which_set == 'train':
-            index = range(X.shape[0])
-            np.random.shuffle(index)
-            X = X[index,:]
-            y = y[index,:]
-            self.pixels = np.arange(0,98)
-            y = self.make_targets(y)
-            
+        train_x = np.memmap(files['train'][0], dtype='uint8', mode='r')
+        numSamples = len(train_x)/(96*96*3)
+        train_x = train_x.reshape((numSamples,(96*96*3)))
+        test_x = np.memmap(files['test'][0], dtype='uint8', mode='r')
+        numSamples = len(test_x)/(96*96*3)
+        test_x = test_x.reshape((numSamples,(96*96*3)))
+        X = np.vstack((train_x.view(),test_x.view()))
+        del train_x, test_x
+        train_y = np.memmap(files['train'][1], dtype='float32', mode='r')
+        numSamples = len(train_y)/(numberOfKeyPoints)
+        train_y = train_y.reshape((numSamples,numberOfKeyPoints))
+        test_y = np.memmap(files['test'][1], dtype='float32', mode='r')
+        numSamples = len(test_y)/numberOfKeyPoints
+        test_y = test_y.reshape((numSamples,numberOfKeyPoints))
+        y = np.vstack((train_y.view(), test_y.view()))
+        del train_y, test_y
+        self.out_len = im_size[0]+2 if im_size[0] > im_size[1] else im_size[1]+2
 
         """    
         # (num_examples, num_keypoints, 2)
@@ -106,43 +90,36 @@ class FacialKeypoint(DenseDesignMatrix):
         y = make_spatial_keypoints(y)"""
             
         if start is not None:
-            #assert which_set != 'test'
             assert isinstance(start, int)
             assert isinstance(stop, int)
             assert start >= 0
             assert start < stop
             assert stop <= X.shape[0]
-            X = X[start:stop, :]
+            X = X.view()[start:stop, :]
             if y is not None:
-                y = y[start:stop, :]
+                y = y.view()[start:stop, :]
             print y.shape
 
-        view_converter = DefaultViewConverter(shape=[96, 96, 1], axes=axes)
+        self.pixels = np.arange(0,self.out_len)
+        #y = self.make_targets(y)
+        print 'length of total dataset:', y.shape[0]
 
-        super(FacialKeypoint, self).__init__(X=X, y=y, view_converter=view_converter)
+
+
+        view_converter = DefaultViewConverter(shape=[im_size[0], im_size[1], im_size[2]], axes = axes)
+        super(Emotiw_FacialKeypoint, self).__init__(X=X, y=y, view_converter=view_converter)
 
     def adjust_for_viewer(self, X):
         return (X - 127.5) / 127.5
-
-    def readKeyPoints(self, row):
-        """
-        Reads the list of keypoints from a row in the csv file
-        """
-        kp = [-1] * numberOfKeyPoints
-        for i in range(numberOfKeyPoints):
-            if row[i] is not None and row[i] != "":
-                kp[i] = float(row[i])
-        return kp
         
     def make_targets(self, y):
         # y : (batch_size, num_keypoints):
         # (batch_size, num_keypoints*2, 98)
         Y = np.zeros((y.shape[0], y.shape[1], 98))
         for i in xrange(y.shape[1]):
-            Y[:,i,:] = np.where(y[:,i].reshape(y.shape[0],1)!=-1.,
+            Y[:,i,:] = np.where(y[:,i].reshape(y.shape[0],1)!= self.missing_target_value,
                 (np.exp(-(y[:,i].reshape(y.shape[0],1)-self.pixels)**2/(2*self.stdev**2)))/(np.sqrt(2*3.14159265359)*self.stdev),
-                -1.)
-        print Y.shape
+                 self.missing_target_value)
         return Y
 
 
@@ -252,30 +229,32 @@ def test_works():
     load = True
 
     if load == False:
-        ddmTrain = FacialKeypoint(which_set = 'train', start=0, stop =6000)
-        ddmValid = FacialKeypoint(which_set = 'train', start=6000, stop = 7049)
-        ddmTest = FacialKeypoint(which_set = 'test')
+        from emotiw.common.datasets.faces.EmotiwKeypoints import EmotiwKeypoints
+        ddmTrain = EmotiwKeypoints(start=0, stop =40000)
+        ddmValid = EmotiwKeypoints(start= 40000)
+      #  ddmTest =  EmotiwKeypoints(start=0, stop = )
         # valid can_fit = false
-        pipeline = preprocessing.Pipeline()
-        stndrdz = preprocessing.Standardize()
-        stndrdz.apply(ddmTrain, can_fit=True)
+        #pipeline = preprocessing.Pipeline()
+
+        #stndrdz = preprocessing.Standardize()
+        #stndrdz.apply(ddmTrain, can_fit=True)
         
         #doubt, how about can_fit = False?
-        stndrdz.apply(ddmValid, can_fit=False)
-        stndrdz.apply(ddmTest, can_fit=False)
+        #stndrdz.apply(ddmValid, can_fit=False)
+        #stndrdz.apply(ddmTest, can_fit=False)
 
         GCN = preprocessing.GlobalContrastNormalization()
         GCN.apply(ddmTrain, can_fit =True)
         GCN.apply(ddmValid, can_fit =False)
-        GCN.apply(ddmTest, can_fit =False)
+        #GCN.apply(ddmTest, can_fit =False)
     
-        pcklFile = open('kpd.pkl', 'wb')
+        pcklFile = open('emotiw_kpd.pkl', 'wb')
         obj = (ddmTrain, ddmValid, ddmTest, GCN, stndrdz)
         pickle.dump(obj, pcklFile)
         pcklFile.close()
         return
-    else:
-        pcklFile = open('kpd.pkl', 'rb')
+    elif False:
+        pcklFile = open('emotiw_kpd.pkl', 'rb')
         (ddmTrain, ddmValid, ddmTest, GCN, stndrdz) = pickle.load(pcklFile)
         pcklFile.close()
         batch_size = 8
@@ -285,6 +264,46 @@ def test_works():
 
     #creating layers
         #2 convolutional rectified layers, border mode valid
+    batch_size = 64
+    lr = 0.0001
+    finMomentum = 0.8
+    maxout_units  = 2000
+    num_pcs = 3
+    save_path = './titan/titanInd_1_lr_0_0001_btch_64_momFinal_0_8_maxout_2000_3.joblib'
+    best_path = './titan/titanInd_1_best.joblib'
+    #save_path = './eos3/eos3Ind_1_lr_0_0001_btch_32_momFinal_0_9_maxout_1500_3.joblib'
+    #best_path = './eos3/eos3Ind_1_best.joblib'
+    numBatches = 400000/batch_size
+    print 'Apllying preprocessing' 
+    from emotiw.common.datasets.faces.EmotiwKeypoints import EmotiwKeypoints
+    '''
+    ddmTrain = EmotiwKeypoints(start=0, stop =40000)
+    ddmValid = EmotiwKeypoints(start=40000, stop = 44000)
+    ddmTest = EmotiwKeypoints(start=44000)
+    
+    stndrdz = preprocessing.Standardize()
+    stndrdz.applyLazily(ddmTrain, can_fit=True, name = 'train')
+    print 'preprocess STD 1'
+    stndrdz.applyLazily(ddmValid, can_fit=False, name = 'val')
+    print 'precprocessed std2'
+    stndrdz.applyLazily(ddmTest, can_fit=False, name = 'test')
+    print 'making gcn object'
+    GCN = preprocessing.GlobalContrastNormalization(batch_size = 1000)
+    print 'aplying gcn to ddmTrain'
+    GCN.apply(ddmTrain, can_fit =True, name = 'train')
+    print 'precrocessed gcn1'
+    GCN.apply(ddmValid, can_fit =False, name = 'val')
+    print 'precrocessed gcn1'
+    GCN.apply(ddmTest, can_fit = False, name = 'test')
+    return
+    '''
+
+    ddmTrain = EmotiwKeypoints(hack = 'train')
+    #print ddmTrain.y
+    ddmValid = EmotiwKeypoints(hack = 'val')
+    #print ddmValid.y
+    #print ddmTrain.y
+    #print ddmTrain.y.shape
     layer1 = ConvRectifiedLinear(layer_name = 'convRect1',
                      output_channels = 64,
                      irange = .05,
@@ -308,14 +327,14 @@ def test_works():
     #Maxout layer
     maxout = Maxout(layer_name= 'maxout',
                     irange= .005,
-                    num_units= 2000,
-                    num_pieces= 2,
+                    num_units= maxout_units,
+                    num_pieces= num_pcs,
                     max_col_norm= 1.9)
 
 
     #multisoftmax
-    n_groups = 30
-    n_classes = 98 
+    n_groups = 196
+    n_classes = 96 
     irange = 0
     layer_name = 'multisoftmax'
     layerMS = MultiSoftmax(n_groups=n_groups,irange = 0.05, n_classes=n_classes, layer_name= layer_name)
@@ -323,7 +342,7 @@ def test_works():
     #setting up MLP
     MLPerc = MLP(batch_size = batch_size,
                  input_space = Conv2DSpace(shape = [96, 96],
-                 num_channels = 1),
+                 num_channels = 3),
                  layers = [ layer1, layer2, maxout, layerMS])
 
     #mlp_cost
@@ -341,8 +360,8 @@ def test_works():
     # learning rate, momentum, batch size, monitoring dataset, cost, termination criteria
 #monitoring_dataset = {'validation':ddmValid, 'training': ddmTrain}
     term_crit  = MonitorBased(prop_decrease = 0.00001, N = 30, channel_name = 'validation_objective')
-    kpSGD = KeypointSGD(learning_rate = 0.001, init_momentum = 0.5, 
-                        monitoring_dataset = {'validation':ddmValid, 'training': ddmTrain}, batch_size = batch_size, batches_per_iter = 750,
+    kpSGD = KeypointSGD(learning_rate = lr, init_momentum = 0.5, 
+                        monitoring_dataset = {'validation':ddmValid}, batch_size = batch_size,
                         termination_criterion = term_crit,
                         cost = mlp_cost)
 
@@ -350,24 +369,19 @@ def test_works():
     train_ext = ExponentialDecayOverEpoch(decay_factor = 0.998, min_lr_scale = 0.01)
     #train object
     train = Train(dataset = ddmTrain,
-                  save_path='kpd_model2pcs_maxout.pkl',
-                  save_freq=3,
+                  save_path= save_path,
+                  save_freq=10,
                   model = MLPerc,
                   algorithm= kpSGD,
                   extensions = [train_ext, 
                                 MonitorBasedSaveBest(channel_name='validation_objective',
-                                                     save_path= 'kpd_maxout2pcs_best.pkl'),
+                                                     save_path= best_path),
 
                                 MomentumAdjustor(start = 1,
-                                                 saturate = 20,
-                                                 final_momentum = .9)] )
+                                                 saturate = 25,
+                                                 final_momentum = finMomentum)] )
     train.main_loop()
     train.save()
-
-
-
-
-
 
 if __name__=='__main__':
     test_works()
