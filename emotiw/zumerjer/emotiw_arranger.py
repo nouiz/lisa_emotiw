@@ -75,7 +75,12 @@ class EmotiwArrangerIter(object):
         images, targets, imgnos = [], [], []
         next_index = self.iter_mode.next()
         batch_idx = [0]*len(self.inst.datasets)
-        vals = [it.next() for it in self.iterators]
+
+        vals = []
+        for idx, it in enumerate(self.iterators):
+            n = it.next()
+            source = self.datasets[idx].get_data_specs()[1]
+            vals.append((n[source.index('features')], n[source.index('targets')]))
 
         die_values = self.rng.rand(self.batch_size)
 
