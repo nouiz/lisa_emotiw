@@ -389,7 +389,7 @@ class FiniteDatasetIteratorVariableSize(FiniteDatasetIterator):
                     fn = (lambda batch, dspace=dspace, sp=sp:
                           dspace.np_format_as(batch, sp))
                 else:
-                    fn = (lambda batch, dspace=dspace, sp=sp:
-                          dspace.np_format_as(fn(batch), sp))
+                    fn = (lambda batch, dspace=dspace, sp=sp, fn_=fn:
+                          dspace.np_format_as(fn_(batch), sp))
 
             self._convert[i] = fn
