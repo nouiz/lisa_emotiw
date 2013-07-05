@@ -3,8 +3,9 @@ from os import system
 import subprocess
 import curses
 import atexit
+import os
 
-params = ['lr', 'momentum', 'type', 'units', 'pieces', 'norm_reg']
+params = ['lr', 'momentum', 'type', 'units', 'pieces', 'norm_reg', 'batch_size']
 
 def cleanup(wnd=None):
     if wnd is not None:
@@ -15,7 +16,9 @@ def cleanup(wnd=None):
 
 if __name__ == '__main__':
     atexit.register(cleanup)
-    experiment = argv[1]
+    experiment = os.path.abspath(argv[1])
+    prepath, _ = os.path.split(experiment)
+
     default_machine = 'localhost'
 
     devices = []
@@ -61,12 +64,14 @@ if __name__ == '__main__':
 
     write_params = ""
     for i in xrange(max_len):
-        exp_params = 'experiment_' + str(i) + '_params.py'
-        exp_out = 'experiment_' + str(i) + '_output.txt'
+        exp_params = os.path.join(prepath, 'experiment_' + str(i) + '_params.py')
+        exp_out = os.path.join(prepath, 'experiment_' + str(i) + '_output.txt')
+        exp_err = os.path.join(prepath, 'experiment_' + str(i) + '_err.txt')
 
         write_params = "if [ -e '" + exp_params + "' ]; then rm '" + exp_params
         write_params += "'; fi; if [ -e '" + exp_out + "' ]; then rm '"
-        write_params += exp_out + "'; fi; sed "
+        write_params += exp_out + "'; fi; "
+        write_params += "if [ -e '" + exp_err + "' ]; then rm '" + exp_err + "'; fi; sed "
 
         for x in rules:
             if x == 'host':
@@ -74,6 +79,19 @@ if __name__ == '__main__':
             write_params += "-e 's/\\(" + str(x) + "=\\).*$/\\1" + rules[x][i] + "/g' "
 
         system(write_params + " < experiment_params.py > " + exp_params)
+        
+        has_device = system('grep -i "device=" ' + exp_params)
+        has_host = system('grep -i "device=" ' + exp_params)
+
+        if has_device != 0: #EXIT_SUCCESS => entry found
+            system('echo "device=\\\"' + devices[i] + '\\\"" >> ' + exp_params)
+        else:
+            system("sed 's/\\(device=\\).*$/\\1\\\"" + devices[i] + "\\\"/g' < {} > {}".format(exp_params, exp_params))
+        if has_host != 0: #EXIT_SUCCESS => entry found
+            system('echo "host=\\\"' + rules['host'][i] + '\\\"" >> ' + exp_params)
+        else:
+            system("sed 's\\(host=\\).*$/\\1\\\"" + rules['host'][i] + "\\\"/g' < {} > {}".format(exp_params, exp_params))
+
         flag = 'THEANO_FLAGS="device='+devices[i]+',mode=FAST_RUN,floatX=float32"'
         command = flag + ' python ' + experiment + ' ' + str(i)
         if rules['host'][i] != 'localhost':
@@ -81,12 +99,12 @@ if __name__ == '__main__':
                                             rules['host'][i],
                                             command],
                                             stdout=open(exp_out, mode='w'),
-                                            stderr=open('/dev/null', mode='w')))
+                                            stderr=open(exp_err, mode='w')))
         else:
             exp_pid.append(subprocess.Popen(command,
                                             shell=True,
                                             stdout=open(exp_out, mode='w'),
-                                            stderr=open('/dev/null', mode='w')))
+                                            stderr=open(exp_err, mode='w')))
 
     wnd = curses.initscr()
     curses.echo()

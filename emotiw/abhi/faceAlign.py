@@ -11,7 +11,6 @@ import scipy
 from scipy import io as sio
 import Image
 
-
 class faceAlign(object):
    def __init__(self, datasetObjects, keypoint_dictionary, face_size = (256, 256), margin = 0.2):
    
@@ -129,6 +128,7 @@ class faceAlign(object):
        def cost_(A_t_flat, pi_t, z_t, oneCol, self):
            A_t = A_t_flat.reshape((3,3))
            cost, A_t_grad = self.cost(A_t, pi_t, z_t, oneCol)
+           print cost
            return [cost, A_t_grad.reshape((9))]
 
        #getting keypoints
@@ -151,8 +151,15 @@ class faceAlign(object):
           #getting image
           face_org = self.get_face_pil_image(dataset, index)
           face_org.show()
-          trans_face = self.get_transformed_image(face_org, A_t)
+          trans_face = self.get_transformed_image(face_org, A_t, True)
+          pixmap = trans_face.load()
+          for i in xrange(self.numKeypoints):
+             x = int(z_t[2*i])
+             y = int(z_t[2*i+1])
+             pixmap[x,y] = (200,0,0)
+
           trans_face.show()
+
           return (A_t, trans_face)
        else:
           return A_t
@@ -185,6 +192,12 @@ class faceAlign(object):
            if x > 0 and y > 0:
                if x < width and y < height:
                    pixmapT[x_, y_] = pixmap[x,y]
+             
+       if drawKeypoints:
+          for i in xrange(len(self.meanX)):
+             (x,y)= self.meanX[i],self.meanY[i]
+             pixmapT[int(x),int(y)] = (0,200,0)
+    
        return imgT           
 
    def get_keypoints_based_bbox(self, dataset, index):
@@ -284,31 +297,86 @@ class faceAlign(object):
 
 def dummy_test():
     import pickle
-    from emotiw.common.datasets.faces.afew2 import AFEW2ImageSequenceDataset
-    from emotiw.common.datasets.faces.faceimages import keypoints_names
-    #pickle_file = open('../common/datasets/faces/multipie.pkl', 'rb')
-    
-    if True:
-        pickle_file = open('afew2.pkl', 'rb')
-        obj = pickle.load(pickle_file)
-  #      obj.verify_samples()
-        pickle_file.close()
-    else:
-        pickle_file = open('afew2.pkl', 'wb')
-        obj = AFEW2ImageSequenceDataset() 
-        pickle.dump(obj, pickle_file)
-        pickle_file.close()
-        return
 
+    from emotiw.common.datasets.faces.faceimages import keypoints_names
+
+    #sequence Datasets
+    from emotiw.common.datasets.faces.afew2 import AFEW2ImageSequenceDataset
+
+    #Static Datasets
+    from emotiw.common.datasets.faces.multipie import MultiPie
+        
+    #without keypoints
+    from emotiw.common.datasets.faces.tfd import TorontoFaceDataset
+    from emotiw.common.datasets.faces.tfd import SFEW
+    from emotiw.common.datasets.faces.afew import AFEWImageSequence
+
+    
+    datasetObjs = []
+    datasetObjs = pickle.load(open("datasetObjs.pkl","r"))
+#    alignObj = pickle.load(open( "AlignObj.pkl", "r" ))
+    paths = []
+
+    '''
+    datasetObjs.append(MultiPie())
+    Afew2 = AFEW2ImageSequenceDataset()
+    
+
+    for i in xrange(len(Afew2)):
+       print 'sequence:', i
+       datasetObjs.append(Afew2.get_sequence(i))
+
+
+    pickle.dump( datasetObjs, open( "datasetObjs.pkl", "wb" ))
+    return 
+   
+    
     keys = {}
     index = 0 
     for key in keypoints_names:
         keys[key] = index
         index += 1
+        
+    alignObj = faceAlign(datasetObjects = datasetObjs, keypoint_dictionary = keys, face_size = (96, 96), margin = 0.2)
+    '''
 
-    alignObj = faceAlign(datasetObjects = [obj.get_sequence(0), obj.get_sequence(1)], keypoint_dictionary = keys, face_size = (256, 256), margin = 0.2)
-    #alignObj.apply(obj.get_sequence(1), 10)
-    alignObj.apply_sequence(obj.get_sequence(0), window = 2, returnImage = True)
+    keysp1 = datasetObjs[0].get_keypoints_location(0)
+    keysp2 = datasetObjs[639].get_keypoints_location(0)
+
+    img = Image.new('RGB', (1024, 576), 'black')
+    import ImageDraw
+    draw = ImageDraw.Draw(img)
+    pixmap = img.load()
+
+    print keysp1
+    print keysp2
+    
+    keys = {}
+    index = 0 
+    for key in keypoints_names:
+        keys[key] = index
+        index += 1
+    
+
+    for i in keysp1:
+       (x,y) = keysp1[i]
+       pixmap[int(x), int(y)] = (200,0,0)
+       draw.text((int(x), int(y)), str(keys[i]), (0,0,200))
+       
+    for i in keysp2:
+       (x,y) = keysp2[i]
+       pixmap[int(x), int(y)] = (0,200,0)
+       pixmap[int(x), int(y)] = (200,0,0)
+       draw.text((int(x), int(y)), str(keys[i]), (0,0,200))
+
+
+    img.show()
+    return
+
+ #   pickle.dump( alignObj, open( "AlignObj.pkl", "wb" ))
+    alignObj.apply(datasetObjs[0], 10)[1].show()
+    alignObj.apply(datasetObjs[639], 10)[1].show()
+    #alignObj.apply_sequence(obj.get_sequence(0), window = 2, returnImage = True)
 #    alignObj.apply(obj, 2500)
 
 

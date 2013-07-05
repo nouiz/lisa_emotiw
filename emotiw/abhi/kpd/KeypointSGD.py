@@ -1,7 +1,7 @@
 from sgd import SGD
 import numpy as np
 from pylearn2.monitor import Monitor
-from theano import config
+from theano import config, shared
 import theano.tensor as T
 from theano import function
 from theano.gof.op import get_debug_values
@@ -104,7 +104,16 @@ class KeypointSGD(SGD):
             if self.momentum:
                 self.monitor.add_channel(name='momentum', ipt=ipt,
                         val=self.momentum, dataset=monitoring_dataset)
-            
+            '''
+            Ypred = model.fprop(X)
+            Y_ = (T.arange(0,96).dimshuffle('x','x',0)*Ypred).sum(axis = 2)
+            y = monitoring_dataset.y
+            the_y = T.matrix('targetsss')
+            mse = Print('MSE')(T.mean(T.square(Y_-the_y)))
+            funct = function(inputs=[X], outputs=mse)
+            real_funct = function(inputs=[X,the_y], outputs=funct(), givens=[y=monitoring_dataset.y])
+            self.monitor.add_channel(name='MSE', ipt=(y, X), val = 2, dataset=monitoring_dataset, prereqs=(funct))
+            '''
 
         params = list(model.get_params())
         assert len(params) > 0
