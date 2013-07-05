@@ -54,10 +54,10 @@ class FrameMax(Model):
         self.output_space = VectorSpace(dim=7)
         #self.final_layer.input_space = self.mlp.layers[-1].get_output_space()
 
-        self.W = theano.shared(np.zeros((n_classes, n_classes, n_classes),
-                                        dtype=config.floatX))
-        self.W.name = 'crf_w'
-        self.name = 'crf'
+        #self.W = theano.shared(np.zeros((n_classes, n_classes, n_classes),
+                                        #dtype=config.floatX))
+        #self.W.name = 'crf_w'
+        #self.name = 'crf'
 
     def fprop(self, inputs):
 
@@ -86,9 +86,14 @@ class FrameMax(Model):
                     input_scales, per_example)
         rval = tensor.max(rval, axis=0)
         rval = rval.dimshuffle('x', 0)
-        rval = self.final_layer.dropout_fprop(rval, default_input_include_prob,
+
+        # TODO if you set input prob, the final layer doesn't recognize h0
+        if input_include_probs is None and input_scales is None:
+            rval = self.final_layer.dropout_fprop(rval, default_input_include_prob,
                     input_include_probs, default_input_scale,
                     input_scales, per_example)
+        else:
+            rval = self.final_layer.fprop(rval)
 
         return rval
 
