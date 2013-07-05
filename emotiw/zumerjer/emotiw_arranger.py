@@ -55,7 +55,7 @@ class EmotiwArrangerIter(object):
         return face_imgs, face_tgts
 
     def _pick_idx_given_rnd(self, rnd, weights, num_left):
-        cumul_sum = [sum(weights[0:i]) * int(bool(num_left[i])) for i in xrange(len(weights))]
+        cumul_sum = [sum(weights[0:i+1]) * int(bool(num_left[i])) for i in xrange(len(weights))]
         #0 if none left, cumulative sum otherwise.
 
         #return the index if:
@@ -88,7 +88,6 @@ class EmotiwArrangerIter(object):
             die_value = die_values[sum(batch_idx)]
             pick_from = self._pick_idx_given_rnd(die_value, self.weights,
                     numpy.asarray(self.n_face_per_batch) - numpy.asarray(batch_idx))
-            self.inst.face_table.insert_face_table(imgno=self.img_idx[pick_from])
             batch_idx[pick_from] += 1
             self.img_idx[pick_from] += 1
             the_vals = vals[pick_from]

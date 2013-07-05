@@ -100,7 +100,7 @@ class EmotiwArrangerIter(object):
 
             if hasattr(dset, 'get_sequence'):
                 seq_idx, prev_sum = self._get_sequence_idx(dset, elem_idx)
-                img_idx = elem_idx - prev_sum - 1
+                img_idx = elem_idx - prev_sum
                 sequence = dset.get_sequence(seq_idx)
                 missing_frames = 3 - (len(sequence)-img_idx)
                 the_img = []
@@ -117,7 +117,7 @@ class EmotiwArrangerIter(object):
                                     the_img),
                                     sequence.get_7emotion_index(0))
             else:
-                the_str = dset.get_original_image(elem_idx).tostring()
+                the_str = [ord(y) for y in dset.get_original_image(elem_idx).tostring()]
                 the_vals = ([the_str for x in range(3)], dset.get_7emotion_index(pick_from))
 
             images.append(the_vals[0])
