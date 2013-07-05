@@ -86,7 +86,7 @@ class AFEW2ImageSequenceDataset(afew.AFEWImageSequenceDataset):
                     print e
 
 
-        super(AFEW2ImageSequenceDataset,self).__init__("AFEW2")
+        super(afew.AFEWImageSequenceDataset,self).__init__("AFEW2")
 
         self.absolute_base_directory = locate_data_path(self.base_dir)
         self.absolute_picasa_boxes_base_directory = locate_data_path(

@@ -16,6 +16,8 @@ from inrialpesWrapper import InrialpesHeadPose
 
 from emotiw.common.datasets.faces.afew import AFEWImageSequenceDataset
 from emotiw.common.datasets.faces.afew2 import AFEW2ImageSequenceDataset
+from emotiw.common.datasets.faces.afew2_test import AFEW2TestImageSequenceDataset
+from emotiw.common.datasets.faces.new_clips import NewClipsImageSequenceDataset
 
 # The following are lists of triples (dataset_name, dataset_constructor, description)
 
@@ -32,8 +34,11 @@ image_datasets_constructors_list = [ ("AFLW", AFLW, ""),
                                      ("LFPW", Lfpw, "")
                                      ] + tfd_datasets_constructors_list
 
-image_sequence_datasets_constructors_list = [ ("AFEWImageSequenceDataset", AFEWImageSequenceDataset, ""),
-                                        ("AFEW2ImageSequenceDataset", AFEW2ImageSequenceDataset, "") ]
+image_sequence_datasets_constructors_list = [
+    ("AFEWImageSequenceDataset", AFEWImageSequenceDataset, ""),
+    ("AFEW2ImageSequenceDataset", AFEW2ImageSequenceDataset, ""),
+    ("AFEW2TestImageSequenceDataset", AFEW2TestImageSequenceDataset, ""),
+    ("NewClipsImageSequenceDataset", NewClipsImageSequenceDataset, "")]
 
 instantiated_datasets = {}
 
