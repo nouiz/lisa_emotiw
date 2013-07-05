@@ -31,11 +31,14 @@ class AttousaDataset(ImageSequenceDataset):
         self.sequences = []
 
         abspath = '/data/lisatmp2/emo_video/new_clips/ExtractedFrames/'
-        emotion_re = re.compile('[a-zA-Z]*(?=[0-9]*)')
+        lines = open(os.path.join(abspath, 'labels.txt')).readlines()
 
-        for folder in os.listdir(abspath):
-            emotion = re.match(emotion_re, folder).group(0).replace("noclass", "neutral")
-            self.sequences.append(AttousaFrame(os.path.join(abspath, folder), emotion))
+        for l in lines:
+            folder = l.split()[0].replace(".avi", "")
+            emotion = l.split()[1].replace("Angry", "Anger")
+
+            if emotion != 'REJECT':
+                self.sequences.append(AttousaFrame(os.path.join(abspath, folder), emotion))
 
         super(AttousaDataset, self).__init__('Attousa Extracted Frames')
 
