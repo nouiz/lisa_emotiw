@@ -10,9 +10,11 @@ import gzip
 import scipy
 from scipy import io as sio
 import Image
+import math
+
 
 class faceAlign(object):
-   def __init__(self, datasetObjects, keypoint_dictionary, face_size = (256, 256), margin = 0.2):
+   def __init__(self, datasetObjects, keypoint_dictionary, face_size = (256, 256), margin = 0.3):
    
       self.margin = margin
       self.face_size = face_size
@@ -27,6 +29,7 @@ class faceAlign(object):
           dataset = datasetObjects[i]
           indexLocs = range(len(dataset))
           (mX, mY, num) = self.calculate_mean(dataset, indexLocs, keypoint_dictionary, margin)
+          print 'Mean for dataset:',i,'calculated'
           meanX[i,:] = mX
           meanY[i,:] = mY
           num_each_keypoint[i, :] = num
@@ -41,6 +44,7 @@ class faceAlign(object):
       mu = numpy.zeros((2*self.numKeypoints, 1))
       mu[0::2,0] = self.meanX[:]
       mu[1::2,0] = self.meanY[:]
+      
       self.mu.set_value(mu)
       self.setup_theano()
 
@@ -70,14 +74,14 @@ class faceAlign(object):
       self.cost = theano.function(inputs=[A_t_, pi_t, z_t, oneCol],
                                   outputs=[cost_, A_t_grad_])
 
-   def apply_sequence(self, dataset, window = 2, returnImage = True):
+   def apply_sequence(self, dataset, window = 2, returnA_t = False, perturb = False, flip=False):
       numFrame = len(dataset)
       mats = []
       mean = 0
       meanNum = 0
       #calculate the mean A_t for the clip
       for i in range(numFrame):
-         mats.append(self.apply(dataset, i, returnImage=False))
+         mats.append(self.apply(dataset, i, returnA_t=True))
          mean += mats[i]
          meanNum += 1
       mean = mean/meanNum
@@ -98,6 +102,10 @@ class faceAlign(object):
       #calculate weighted mean A_t given the window size
       transMats_final = []
       images = []
+
+      if perturb:
+         pMat = self.get_perturb_Mat(5,5,True)
+
       for frame in range(numFrame) :
          matrx = 0
          sumWeights = 0
@@ -106,21 +114,61 @@ class faceAlign(object):
             sumWeights += weight
             matrx += weight * mats[i]
 
-         transMats_final.append(matrx/sumWeights)
-         if(returnImage):
+         if perturb:
+            b4BasePertrb = matrx/sumWeights
+            aftrBasePertrb = numpy.dot(pMat, b4BasePertrb)
+            frmPMat = self.get_perturb_Mat()
+            transMats_final.append(numpy.dot(frmPMat, aftrBasePertrb))
+         else:
+            transMats_final.append(matrx/sumWeights)
+
+         if not returnA_t:
             face_org = self.get_face_pil_image(dataset, frame)  
             image = self.get_transformed_image(face_org, transMats_final[frame])
+            if flip:
+               image = image.transpose(Image.FLIP_LEFT_RIGHT)
+            if perturb:
+               string = 'perturb_'
+            else:
+               string = 'org_'
+
+            image.show(string+str(frame))
             images.append(image)
 
       #returns result
-      if(returnImage == True):
-         return (transMats_final, images)
-      else:
+      if returnA_t:
          return transMats_final
+      else:
+         return images
             
-                    
+   def get_perturb_Mat(self, maxTrans = 3, maxRotDegree = 2, scaling=False):
+      Mat = numpy.zeros((3,3))
+      Mat[2,:]=[0,0,1]
+          
+      #tranlation
+      transMat = Mat.copy()
+      transMat[0,2] = maxTrans * (numpy.random.random((1))-0.5)
+      transMat[1,2] = maxTrans * (numpy.random.random((1))-0.5)
+      transMat[2,2] = 0.0
 
-   def apply(self, dataset, index, returnImage = True):
+      #rotation
+      rotMat = Mat.copy()
+      theta = (numpy.random.random((1))-0.5) * 3.14159265359*(maxRotDegree/180.0)
+      rotMat[0:2,0:2] = [[math.cos(theta), math.sin(theta)],[-1 * math.sin(theta), math.cos(theta)]]
+
+      #scaling
+      if scaling:
+         scaleMat = Mat.copy()
+         scaleFactor = 1 + numpy.random.random((1)) * 0.1 
+         scaleMat[0,0] = scaleMat[1,1] = scaleFactor
+         perturbMat = numpy.dot(rotMat, numpy.dot(scaleMat,(numpy.eye(3)+transMat)))
+      else:
+         perturbMat = numpy.dot(rotMat,numpy.eye(3)+transMat)
+
+      return perturbMat
+
+
+   def apply(self, dataset, index, returnA_t = False,  perturb = False, flip = False):
        oneCol = numpy.ones((self.numKeypoints, 1))
        temp = numpy.random.random((9))
        temp[6:9] = [0,0,1]
@@ -128,7 +176,7 @@ class faceAlign(object):
        def cost_(A_t_flat, pi_t, z_t, oneCol, self):
            A_t = A_t_flat.reshape((3,3))
            cost, A_t_grad = self.cost(A_t, pi_t, z_t, oneCol)
-           print cost
+           #print cost
            return [cost, A_t_grad.reshape((9))]
 
        #getting keypoints
@@ -147,25 +195,31 @@ class faceAlign(object):
        A_t, cost, uselessDict  = scipy.optimize.fmin_l_bfgs_b(func=cost_, x0=temp , fprime=None, args=(pi_t, z_t, oneCol, self))
        A_t = A_t.reshape((3,3))
        
-       if returnImage == True:
-          #getting image
-          face_org = self.get_face_pil_image(dataset, index)
-          face_org.show()
-          trans_face = self.get_transformed_image(face_org, A_t, True)
-          pixmap = trans_face.load()
-          for i in xrange(self.numKeypoints):
-             x = int(z_t[2*i])
-             y = int(z_t[2*i+1])
-             pixmap[x,y] = (200,0,0)
+       if perturb:
+          A_t = numpy.dot(self.get_perturb_Mat(5,5,True), A_t)
 
-          trans_face.show()
-
-          return (A_t, trans_face)
-       else:
+       if returnA_t:
           return A_t
 
+       face_org = self.get_face_pil_image(dataset, index)
+          #face_org.show()
+       trans_face = self.get_transformed_image(face_org, A_t)
+
+       if  flip:
+          return trans_face.transpose(Image.FLIP_LEFT_RIGHT)
+       else:
+          return trans_face
+
    
-   def get_transformed_image(self, pil_image, A_t, drawKeypoints = False):
+   def draw_template(self, image):
+       pixmap = image.load()
+       for i in xrange(len(self.meanX)):
+          (x,y)= self.meanX[i],self.meanY[i]
+          pixmap[int(x),int(y)] = (0,200,0)
+       return image
+
+
+   def get_transformed_image(self, pil_image, A_t):
        pixmap = pil_image.load()
        imgT = Image.new('RGB', pil_image.size, 'black')
        pixmapT = imgT.load()
@@ -193,11 +247,6 @@ class faceAlign(object):
                if x < width and y < height:
                    pixmapT[x_, y_] = pixmap[x,y]
              
-       if drawKeypoints:
-          for i in xrange(len(self.meanX)):
-             (x,y)= self.meanX[i],self.meanY[i]
-             pixmapT[int(x),int(y)] = (0,200,0)
-    
        return imgT           
 
    def get_keypoints_based_bbox(self, dataset, index):
@@ -246,6 +295,18 @@ class faceAlign(object):
                keypoints[key] = (x_, y_)
        return keypoints
 
+
+   def apply_gcn(self, image):
+       image = image.convert('RGB')
+       npImg = numpy.array(pic.getdata()).reshape(image.size[0], image.size[1], 3)
+       npUnrolled = npImg[:]
+       mean = numpy.mean(npUnrolled)
+       std = numpy.std(npUnrolled)
+       npImage = ((npUnrolled - mean)/std).reshape(image.size[0], image.size[1],3)
+       return npImage
+      
+   
+
    def calculate_mean(self, dataset, indexLocs, keypointDictionary, margin):
        meanX = numpy.zeros((len(keypointDictionary)))
        meanY = numpy.zeros((len(keypointDictionary)))
@@ -271,7 +332,13 @@ class faceAlign(object):
       
    def get_face_pil_image(self, dataset, index):
        imagePath = dataset.get_original_image_path(index)
-       image = Image.open(imagePath)
+       if imagePath == None:
+          image = dataset.get_original_image(index)
+          print image
+          image = Image.fromarray(image)
+          image = image.convert('RGB')
+       else:
+          image = Image.open(imagePath)
        (imWidth, imHeight) = image.size
        #original bounding box
        bbox = dataset.get_bbox(index)
@@ -290,7 +357,7 @@ class faceAlign(object):
                int(bbox[3] + margin * height))
 
        face_crop = image.crop(bbox)
-
+       
        #return resized face_image
        return face_crop.resize(self.face_size)
 
@@ -308,28 +375,26 @@ def dummy_test():
         
     #without keypoints
     from emotiw.common.datasets.faces.tfd import TorontoFaceDataset
-    from emotiw.common.datasets.faces.tfd import SFEW
     from emotiw.common.datasets.faces.afew import AFEWImageSequence
 
     
     datasetObjs = []
     datasetObjs = pickle.load(open("datasetObjs.pkl","r"))
-#    alignObj = pickle.load(open( "AlignObj.pkl", "r" ))
+    alignObj = pickle.load(open( "AlignObj.pkl", "r" ))
     paths = []
-
     '''
+    datasetObjs.append(TorontoFaceDataset())
+    print 'added TorrontoFaceDatset'
     datasetObjs.append(MultiPie())
+    print 'added Multipie'
     Afew2 = AFEW2ImageSequenceDataset()
-    
-
     for i in xrange(len(Afew2)):
        print 'sequence:', i
        datasetObjs.append(Afew2.get_sequence(i))
-
+    print 'added AFEW2'
 
     pickle.dump( datasetObjs, open( "datasetObjs.pkl", "wb" ))
     return 
-   
     
     keys = {}
     index = 0 
@@ -337,17 +402,19 @@ def dummy_test():
         keys[key] = index
         index += 1
         
-    alignObj = faceAlign(datasetObjects = datasetObjs, keypoint_dictionary = keys, face_size = (96, 96), margin = 0.2)
+    alignObj = faceAlign(datasetObjects = datasetObjs, keypoint_dictionary = keys, face_size = (48, 48), margin = 0.3)
+    pickle.dump( alignObj, open( "AlignObj.pkl", "wb" ))
+
     '''
 
-    keysp1 = datasetObjs[0].get_keypoints_location(0)
-    keysp2 = datasetObjs[639].get_keypoints_location(0)
+    keysp1 = datasetObjs[0].get_keypoints_location(46)
+    keysp2 = datasetObjs[1].get_keypoints_location(0)
 
     img = Image.new('RGB', (1024, 576), 'black')
     import ImageDraw
     draw = ImageDraw.Draw(img)
     pixmap = img.load()
-
+   
     print keysp1
     print keysp2
     
@@ -357,7 +424,7 @@ def dummy_test():
         keys[key] = index
         index += 1
     
-
+    
     for i in keysp1:
        (x,y) = keysp1[i]
        pixmap[int(x), int(y)] = (200,0,0)
@@ -371,12 +438,19 @@ def dummy_test():
 
 
     img.show()
+    
+    
     return
+    
 
- #   pickle.dump( alignObj, open( "AlignObj.pkl", "wb" ))
-    alignObj.apply(datasetObjs[0], 10)[1].show()
-    alignObj.apply(datasetObjs[639], 10)[1].show()
-    #alignObj.apply_sequence(obj.get_sequence(0), window = 2, returnImage = True)
+    alignObj.draw_template(alignObj.apply(datasetObjs[0], 10, perturb=True)).show('perturbed')
+    alignObj.draw_template(alignObj.apply(datasetObjs[1], 10, perturb = False)).show()
+
+    #alignObj.apply(datasetObjs[639], 10, True, True)[1].show('perturbed')
+    #alignObj.apply(datasetObjs[639], 10)[1].show()
+
+  #  alignObj.apply_sequence(datasetObjs[485], window = 2,  perturb=False)
+  #  alignObj.apply_sequence(datasetObjs[485], window = 2,  perturb=True, flip = True)
 #    alignObj.apply(obj, 2500)
 
 

@@ -96,6 +96,7 @@ class KeypointSGD(SGD):
                 ipt = (X, Y)
             else:
                 ipt = X
+
             dataset_name = self.monitoring_dataset.keys()[0]
             monitoring_dataset = self.monitoring_dataset[dataset_name]
             #TODO: have Monitor support non-data-dependent channels
