@@ -1,5 +1,6 @@
 import numpy
 from pylearn2.utils.iteration import resolve_iterator_class
+import Image, cv
 
 
 class EmotiwArrangerIter(object):
@@ -17,19 +18,15 @@ class EmotiwArrangerIter(object):
                  rng=_default_seed):
 
         self.inst = inst
-        self.n_face_per_batch = [int(batch_size * self.weights[i]) for i in xrange(len(self.weights))]
+        self.n_face_per_batch = [int(batch_size * self.inst.weights[i]) for i in xrange(len(self.inst.weights))]
         self.batch_size = batch_size
 
-        self.iterators = [inst.dataset[i].iterator(mode=iter_mode,
-                                                   batch_size=self.n_face_per_batch[i],
-                                                   topo=topo,
-                                                   targets=targets) for i in xrange(len(inst.dataset))]
         self.rng = numpy.random.RandomState(rng)
 
         self.total_n_exs = self.inst.total_n_exs
         self.topo = topo
         self.targets = targets
-        self.iter_mode = self.inst.subset_iterator
+        self.iter_mode = iter_mode
 
         self.img_idx = [0]*len(self.inst.datasets)
 
@@ -85,7 +82,7 @@ class EmotiwArrangerIter(object):
 
         for i in xrange(next_index.start, next_index.stop):
             die_value = die_values[sum(batch_idx)]
-            pick_from = self._pick_idx_given_rnd(die_value, self.weights,
+            pick_from = self._pick_idx_given_rnd(die_value, self.inst.weights,
                     numpy.asarray(self.n_face_per_batch) - numpy.asarray(batch_idx))
             batch_idx[pick_from] += 1
             self.img_idx[pick_from] += 1
@@ -110,12 +107,17 @@ class EmotiwArrangerIter(object):
                     for i in xrange(missing_frames):
                         the_img.append(the_img[-1])
                 else:
-                    the_img = [sequence.get_original_image(i).to_string() for i in
-                                (img_idx-1, img_idx, img_idx+1)]
 
-                the_vals = (map(lambda img: [ord(x) for x in img],
-                                    the_img),
-                                    sequence.get_7emotion_index(0))
+                    the_img = [Image.fromstring("RGB",
+                                                cv.GetSize(sequence.get_original_image(i)),
+                                                sequence.get_original_image(i).tostring())#XXX
+                                                for i in (img_idx-1, img_idx, img_idx+1)]
+                    the_img = [x.resize((96,96), Image.ANTIALIAS).tostring() for x in the_img]
+
+                the_vals = ([], sequence.get_7emotion_index(0))
+                for x in the_img:
+                    the_vals[0].append([ord(y) for y in x])
+
             else:
                 the_str = [ord(y) for y in dset.get_original_image(elem_idx).tostring()]
                 the_vals = ([the_str for x in range(3)], dset.get_7emotion_index(pick_from))
@@ -162,32 +164,34 @@ class ArrangementGenerator(object):
         self.total_n_exs = sum(self.ex_per_dset)
 
     def iterator(self,
-                 mode=None,
+                 mode='sequential',
                  batch_size=None,
                  num_batches=None,
                  rng=None):
         """
         Method inherited from the Dataset.
         """
-        self.mode = mode
-        self.batch_size = batch_size
-        mode = resolve_iterator_class(mode)
+        if batch_size is None and mode == 'sequential':
+            batch_size = 1
 
-        self.subset_iterator = mode(self.total_n_exs,
+        self.batch_size = batch_size
+        self.mode = resolve_iterator_class(mode)
+
+        self.subset_iterator = self.mode(self.total_n_exs,
                                     batch_size,
                                     num_batches,
                                     rng=None)
 
         return EmotiwArrangerIter(self,
-                                  mode,
+                                  self.subset_iterator,
                                   batch_size=batch_size)
 
     def dump_to(self, path):
-        out_X = numpy.memmap(path, mode='w+', dtype=numpy.uint8, shape=(self.total_n_exs, 3, 96, 96, 3))
-        out_y = numpy.memmap(path, mode='w+', dtype=numpy.uint8, shape=(self.total_n_exs, 1))
+        out_X = numpy.memmap(path + '_x.npy', mode='w+', dtype=numpy.uint8, shape=(self.total_n_exs, 3, 96, 96, 3))
+        out_y = numpy.memmap(path + '_y.npy', mode='w+', dtype=numpy.uint8, shape=(self.total_n_exs, 1))
 
         for idx, item in enumerate(self.iterator()):
-            out_X[idx, :] = item[0]
+            out_X[idx, :] = [numpy.asarray(x).reshape(96, 96, 3) for x in item[0][0]]
             out_y[idx, :] = item[1]
 
         del out_X

@@ -107,6 +107,7 @@ class AFEW2TestImageSequenceDataset(afew2.AFEW2ImageSequenceDataset):
         idx = 0
         # find all clips
         clip_names = glob.glob(os.path.join(self.absolute_base_directory, '*'))
+        clip_names.sort()
 
         # For each clip
         for clip_name in clip_names:
@@ -114,7 +115,7 @@ class AFEW2TestImageSequenceDataset(afew2.AFEW2ImageSequenceDataset):
             im_seq = afew.AFEWImageSequence(
                 "AFEW2Test",
                 rel_img_dir,
-                '*.jpg',
+                '*.png',
                 None)
 
             im_seq.set_picasa_path_substitutions(

@@ -19,7 +19,7 @@ from pylearn2.utils import safe_zip
 from pylearn2.utils.data_specs import is_flat_specs
 from pylearn2.utils.iteration import (FiniteDatasetIterator,
                                       resolve_iterator_class)
-from pylearn2.space import CompositeSpace, Space, VectorSpace
+from pylearn2.space import CompositeSpace, Space, VectorSpace, Conv2DSpace
 
 # Current project
 
@@ -69,7 +69,10 @@ class FaceTubeSpace(Space):
         return np.zeros(shape)
 
     @functools.wraps(Space.get_origin_batch)
-    def get_origin_batch(self, n):
+    def get_origin_batch(self, n, dtype = None):
+        if dtype is None:
+            dtype = config.floatX
+
         assert n == 1, "batch processing not supported for face tubes"
         # the length of 't' will vary among examples, we use 1 here,
         # but it could change
@@ -79,7 +82,7 @@ class FaceTubeSpace(Space):
                 't': 1,
                 'b': 1}
         shape = [dims[elem] for elem in self.axes]
-        return np.zeros(shape)
+        return np.zeros(shape, dtype = dtype)
 
     @functools.wraps(Space.make_theano_batch)
     def make_theano_batch(self, name=None, dtype=None, batch_size=None):
@@ -186,7 +189,8 @@ class FaceTubeSpace(Space):
                 new_axes = ['b'] + [axis for axis in self.axes if axis != 'b']
                 batch = batch.transpose(*[self.axes.index(axis)
                                           for axis in new_axes])
-            return batch.reshape((batch.shape[0], -1))
+                #return batch.reshape((batch.shape[0], -1))
+            return batch.reshape((batch.shape[0], np.prod(batch.shape)/batch.shape[0]))
 
         raise NotImplementedError("%s doesn't know how to format as %s"
                                   % (str(type(self)), str(type(space))))
@@ -210,11 +214,37 @@ class FaceTubeSpace(Space):
                 new_axes = ['b'] + [axis for axis in self.axes if axis != 'b']
                 batch = batch.transpose(*[self.axes.index(axis)
                                           for axis in new_axes])
-            return batch.reshape((batch.shape[0], -1))
+            # since batch size is one, we make t the batchsize
+            if self.axes[1] != 't':
+                # We need to ensure that the batch index goes on the first axis
+                # before the reshape
+                new_axes = ['b', 't'] + [axis for axis in self.axes if axis != 'b']
+                batch = batch.transpose(*[self.axes.index(axis)
+                                          for axis in new_axes])
+
+                #return batch.reshape((batch.shape[1], -1))
+            return batch.reshape((batch.shape[1], np.prod(batch.shape)/batch.shape[1]))
+
+        if isinstance(space, Conv2DSpace):
+            if self.axes[0] != 'b' or self.axes[1] != 't':
+                new_axes = ['b', 't'] + [axis for axis in self.axes if axis not in ['b', 't']]
+                batch = batch.transpose(*[self.axes.index(axis)
+                                        for axis in new_axes])
+
+            dims = {'b' : batch.shape[1], 'c' : space.num_channels, 0 : space.shape[0], 1 : space.shape[1]}
+            if space.axes != space.default_axes:
+                shape = [dims[ax] for ax in space.default_axes]
+                batch = batch.reshape(shape)
+                batch = batch.transpose(*[space.default_axes.index(ax) for ax in space.axes])
+            return batch
 
         raise NotImplementedError("%s doesn't know how to format as %s"
                                   % (str(type(self)), str(type(space))))
 
+    @functools.wraps(Space.get_total_dimension)
+    def get_total_dimension(self):
+
+        return self.shape[0] * self.shape[1] * self.num_channels
 
 class FaceTubeDataset(Dataset):
     def get_data(self):
@@ -359,7 +389,7 @@ class FiniteDatasetIteratorVariableSize(FiniteDatasetIterator):
                     fn = (lambda batch, dspace=dspace, sp=sp:
                           dspace.np_format_as(batch, sp))
                 else:
-                    fn = (lambda batch, dspace=dspace, sp=sp:
-                          dspace.np_format_as(fn(batch), sp))
+                    fn = (lambda batch, dspace=dspace, sp=sp, fn_=fn:
+                          dspace.np_format_as(fn_(batch), sp))
 
             self._convert[i] = fn
