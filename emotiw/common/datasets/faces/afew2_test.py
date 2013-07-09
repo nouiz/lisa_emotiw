@@ -34,6 +34,8 @@ import cPickle
 import glob
 import os
 
+import numpy as np
+
 from emotiw.common.utils.pathutils import locate_data_path
 import afew
 import afew2
@@ -45,7 +47,7 @@ class AFEW2TestImageSequenceDataset(afew2.AFEW2ImageSequenceDataset):
     # there is a symlink instead.
     base_dir = "faces/EmotiWTest/Test_Vid_Distr/ExtractedFrame"
     picasa_boxes_base_dir = "faces/EmotiWTest/Test_Vid_Distr/BoundBoxData"
-    face_tubes_base_dir = base_dir # "faces/EmotiWTest/Test_Vid_Distr/FaceTube"
+    face_tubes_base_dir = base_dir # "faces/EmotiWTest/Test_Vid_Distr/FaceTube_96_96"
     face_tubes_boxes_base_dir = "faces/EmotiWTest/Test_Vid_Distr/picasa_tubes_pickles"
 
     def __init__(self, preload_facetubes=False, preproc=[], size=(96, 96)):
@@ -55,23 +57,15 @@ class AFEW2TestImageSequenceDataset(afew2.AFEW2ImageSequenceDataset):
         """
         self.facetubes_to_filter = None
         for opt in preproc:
-            # TODO: fix paths
             if opt == "smooth":
-                #raise NotImplementedError()
                 # Use the bounding-boxes smoothed version of the face tubes.
-                #self.face_tubes_base_dir = ("faces/EmotiWTest/smooth_picasa_face_tubes_%s_%s"
-                #                            "/numpy_arr/concatenate")%(size[0], size[1])
-                # TODO: return the correct bounding boxes coordinates
-                # corresponding to the smoothed face tubes.  For the
-                # moment, we are using the default picasa boxes coordinates.
+                self.face_tubes_base_dir = ("faces/EmotiWTest/smooth_picasa_face_tubes_%s_%s"
+                                            "/numpy_arr_concatenated")%(size[0], size[1])
                 self.face_tubes_boxes_base_dir = ("faces/EmotiWTest/smooth_picasa_face_tubes_%s_%s"
                                                   "/picasa_tubes_pickles")%(size[0], size[1])
 
             if opt == "remove_background_faces":
-                raise NotImplementedError("The option %s is not supported yet."%opt)
                 # Remove background faces as many as possible from the dataset.
-                # NOTE: for the moment, only the smoothed version of face tubes
-                # is supported.
                 # Path to the dictionary giving for each dataset, the list of
                 # face tubes corresponding to background faces/objects.
                 abs_dir = locate_data_path("faces/EmotiW")
@@ -186,5 +180,37 @@ class AFEW2TestImageSequenceDataset(afew2.AFEW2ImageSequenceDataset):
             return self.load_facetubes(self.seq_info[i])
 
     def load_facetubes(self, clip_name):
-        # Not available yet
-        return None
+        seq_id = clip_name.split("/")[-1]
+        npy_dir = self.face_tubes_base_directory
+        #print 'npy_dir:', npy_dir
+        #print 'seq_id:', seq_id
+        npy_glob = os.path.join(npy_dir, '{0}-*.npy'.format(seq_id))
+        #print 'npy_glob:', npy_glob
+        npy_files = glob.glob(npy_glob)
+        # sort the filenames of tubes
+        npy_files.sort()
+        # Filter out the background faces filenames if required.
+        if self.facetubes_to_filter:
+            npy_files_to_be_kept = []
+            for npy_file in npy_files:
+                # Get only the seq_id and the facetube_id (=key)
+                npy_basename = os.path.basename(npy_file)
+                key = os.path.splitext(npy_basename)[0]
+                # Retrieve the seq_id of facetubes to be filtered out.
+                seq_ids = self.facetubes_to_filter[split_name][emo_name].keys()
+                if seq_id in seq_ids:
+                    # Retrieve all the facetubes ids associated to a background face.
+                    facetubes_ids = self.facetubes_to_filter[split_name][emo_name][seq_id]
+                    # Check if the given facetube is associated to a background face.
+                    if not key in facetubes_ids:
+                        # Not a background face thus it will be kept.
+                        npy_files_to_be_kept.append(npy_file)
+                else:
+                    # Not a background face thus it will be kept.
+                    npy_files_to_be_kept.append(npy_file)
+            npy_files = npy_files_to_be_kept
+        #print 'npy_files:', npy_files
+        rval = []
+        for f in npy_files:
+            rval.append(np.load(f))
+        return tuple(rval)

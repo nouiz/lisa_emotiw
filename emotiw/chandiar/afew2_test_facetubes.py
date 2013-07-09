@@ -20,8 +20,7 @@ import warnings
 
 class AFEW2FaceTubes(DenseDesignMatrix):
     def __init__(self, which_set, sequence_length = 3, preload_facetubes=True,
-                 batch_size = None, preproc=[], size=(96, 96),
-                 greyscale = False):
+                 preproc=[], size=(96, 96), greyscale = False):
 
         if which_set == 'train':
             which_set = 'Train'
@@ -40,8 +39,6 @@ class AFEW2FaceTubes(DenseDesignMatrix):
                                             preproc=preproc,
                                             size=size)
         self.dataset = dataset
- 
-        return
 
         train_idx, val_idx = dataset.get_standard_train_test_splits()[0]
         if which_set == 'Train':
@@ -54,90 +51,51 @@ class AFEW2FaceTubes(DenseDesignMatrix):
         if preload_facetubes:
             _features = []
             _clip_ids = []
-            _targets = []
 
             for idx in data_idx:
                 fts = dataset.get_facetubes(idx)
-                tgt = basic_7emotion_names.index(dataset.get_label(idx))
                 for ft in fts:
                     temp = []
                     for frame in ft:
-                        temp.append(cv2.cvtColor(frame, cv.CV_BGR2GRAY))
+                        if greyscale:
+                            temp.append(cv2.cvtColor(frame, cv.CV_BGR2GRAY))
+                        else:
+                            temp.append(frame)
                     ft = numpy.array(temp)
                     _features.append(ft)
                     _clip_ids.append(idx)
-                    _targets.append(tgt)
 
             features = []
-            #self.clip_ids = []
             targets = []
             count = 0
-            for feat, clip_id, target in zip(_features, _clip_ids, _targets):
-                # duplicate frames at the end if it's not modulo of sequence_length
-                modulo = feat.shape[0] % sequence_length
-                #if modulo != 0:
-                    # TODO return a warning here
-                    #feat = numpy.concatenate((feat, feat[-modulo,:,:,:][None,:,:,:]))
+            total = 0
+            for feat, clip_id in zip(_features, _clip_ids):
                 for i in xrange(feat.shape[0] - sequence_length + 1):
                     features.append(feat[i:i+sequence_length,:,:])
                     assert len(features[-1]) == sequence_length
                     count += 1
-                    #self.clip_ids.append(clip_id)
-                    targets.append(target)
+                    total += len(features[-1])
 
             self.n_samples = count
             feat_shape = features[0].shape
             features = numpy.concatenate(features)
-            features = features.reshape((self.n_samples, sequence_length * feat_shape[1] * feat_shape[2]))
+            features = features.reshape((self.n_samples, sequence_length * numpy.product(feat_shape[1:])))
 
-        one_hot = numpy.zeros((self.n_samples, 7), dtype = 'float32')
-        for i in xrange(self.n_samples):
-            one_hot[i, targets[i]] = 1.
-        targets = one_hot
-
+        '''
         if batch_size is not None and self.n_samples % batch_size != 0:
             warnings.warn("since batch size is forced adding some duplicate data, be carefull when comparing results. fixed batch size is needed usually for convolution networks")
             self.n_samples = self.n_samples - (self.n_samples % batch_size)
             features = features[:self.n_samples]
             targets = targets[:self.n_samples]
+        '''
 
         #view_converter = dense_design_matrix.DefaultViewConverter((sequence_length, 96, 96, 3), axes = ('b', 't', 0, 1, 'c'))
-        super(AFEW2FaceTubes, self).__init__(X = features, y = targets, axes = ('b', 'c', 0, 1))
+        super(AFEW2FaceTubes, self).__init__(X = features, axes = ('b', 'c', 0, 1))
 
 if __name__ == '__main__':
-    # Load the unprocessed train face tubes dataset.
-    train = AFEW2FaceTubes('train', sequence_length = 4)
-    mehdi_bbox_coords = train.dataset.get_bbox_coords(10)
-
-
-    # Load the smoothed train and valid face tubes of size 48 x 48 and remove
-    # background faces as many as possible.
+    # Load the smoothed train face tubes of size 48 x 48
     print '... loading smooth face tubes'
-    smooth_train = AFEW2FaceTubes('train', sequence_length = 4, size=(48, 48),
+    smooth_train = AFEW2FaceTubes('train', sequence_length = 1, size=(48, 48),
         preproc=['smooth'], greyscale=True)
-    raul_bbox_coords = smooth_train.dataset.get_bbox_coords(10)
-
 
     import pdb; pdb.set_trace()
-
-    #print 'shape of smooth train dataset: ', smooth_train.X.shape
-
-
-    #smooth_valid = AFEW2FaceTubes('valid', sequence_length = 4, size=(48, 48),
-    #    preproc=['smooth', 'remove_background_faces'], greyscale=True)
-
-    #print 'shape of smooth valid dataset: ', smooth_valid.X.shape
-
-
-    '''
-    # Load the original train and valid face tubes (no preprocessing) of size
-    # 96 x 96 where each training example consists of 3 frames from the same
-    # facetube.
-    print '... loading original face tubes'
-    train = AFEW2FaceTubes('train', sequence_length = 3)
-    print 'shape of train dataset: ', train.X.shape
-
-    train = AFEW2FaceTubes('valid', sequence_length = 3)
-    print 'shape of valid dataset: ', train.X.shape
-    import pdb; pdb.set_trace()
-    '''
