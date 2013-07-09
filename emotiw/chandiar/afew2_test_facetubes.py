@@ -93,7 +93,8 @@ class AFEW2FaceTubes(DenseDesignMatrix):
         super(AFEW2FaceTubes, self).__init__(X = features, axes = ('b', 'c', 0, 1))
 
 if __name__ == '__main__':
-    # Load the smoothed train face tubes of size 48 x 48
+    # Load the smoothed train face tubes of size 48 x 48 with facetubes in 
+    # grescale (set greyscale to True if you want in facetubes in RGB).
     print '... loading smooth face tubes'
     smooth_train = AFEW2FaceTubes('train', sequence_length = 1, size=(48, 48),
         preproc=['smooth'], greyscale=True)

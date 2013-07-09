@@ -60,7 +60,7 @@ class AFEW2TestImageSequenceDataset(afew2.AFEW2ImageSequenceDataset):
             if opt == "smooth":
                 # Use the bounding-boxes smoothed version of the face tubes.
                 self.face_tubes_base_dir = ("faces/EmotiWTest/smooth_picasa_face_tubes_%s_%s"
-                                            "/numpy_arr_concatenated")%(size[0], size[1])
+                                            "/v2/numpy_arr_concatenated")%(size[0], size[1])
                 self.face_tubes_boxes_base_dir = ("faces/EmotiWTest/smooth_picasa_face_tubes_%s_%s"
                                                   "/picasa_tubes_pickles")%(size[0], size[1])
 
