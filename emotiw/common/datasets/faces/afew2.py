@@ -46,6 +46,7 @@ class AFEW2ImageSequenceDataset(afew.AFEWImageSequenceDataset):
     base_dir = "faces/EmotiW/images"
     picasa_boxes_base_dir = "faces/EmotiW/picasa_boxes"
     face_tubes_base_dir = "faces/EmotiW/picasa_face_tubes_96_96"
+    face_tubes_boxes_base_dir = "faces/EmotiW/picasa_tubes_pickles"
 
     def __init__(self, preload_facetubes=False, preproc=[], size=(96, 96)):
         """
@@ -55,13 +56,12 @@ class AFEW2ImageSequenceDataset(afew.AFEWImageSequenceDataset):
         self.facetubes_to_filter = None
         for opt in preproc:
             if opt == "smooth":
-                # Use the bounding-boxes smoothed version of the face tubes.
+                # Smoothed face tubes directory.
                 self.face_tubes_base_dir = ("faces/EmotiW/smooth_picasa_face_tubes_%s_%s"
                                             "/numpy_arr/concatenate")%(size[0], size[1])
-                # TODO: return the correct bounding boxes coordinates
-                # corresponding to the smoothed face tubes.  For the
-                # moment, we are using the default picasa boxes coordinates.
-                self.picasa_boxes_base_dir = "faces/EmotiW/picasa_boxes"
+                # Smoothed bounding boxes directory.
+                self.face_tubes_boxes_base_dir = ("faces/EmotiW/"
+                    "smooth_picasa_face_tubes_%s_%s/picasa_tubes_pickles")%(size[0], size[1])
 
             if opt == "remove_background_faces":
                 # Remove background faces as many as possible from the dataset.
@@ -93,6 +93,8 @@ class AFEW2ImageSequenceDataset(afew.AFEWImageSequenceDataset):
                 self.picasa_boxes_base_dir)
         self.face_tubes_base_directory = locate_data_path(
                 self.face_tubes_base_dir)
+        self.absolute_face_tubes_boxes_base_directory = locate_data_path(
+                self.face_tubes_boxes_base_dir)
 
         self.preload_facetubes = preload_facetubes
         self.preproc = preproc
@@ -186,6 +188,35 @@ class AFEW2ImageSequenceDataset(afew.AFEWImageSequenceDataset):
 
             #print 'done, idx = %s' % idx
         #print 'finished, idx = %s' % idx
+
+
+    def get_bbox_coords(self, i):
+        """
+        Get a list of dictionary containing all facetubes' bounding boxes
+        coordinates of clip i.  These bounding box coordinates are relative
+        to the original picasa image (uncropped version).
+
+        The dictionary gives the bounding boxes for all frames in a facetube.
+        The key is the frame number and we associate it a list of 4 numbers
+        representing the bounding box coordinates of that frame.
+
+        Each 4-tuple is x1,y1,x2,y2 giving the coordinates of the top left
+        corner and bottom right corner of a bounding box.  Coordinate system
+        has its origin in the upper left corner of the image
+        (horizontal_offset_in_pixels, vertical_offset_in_pixels).
+        """
+        rval = []
+        split_name, emo_name, seq_id = self.seq_info[i]
+        path = os.path.join(self.absolute_face_tubes_boxes_base_directory, "%s_%s.pkl"%(split_name, emo_name))
+        try:
+            f = open(path, 'rb')
+            bbox_coords = cPickle.load(f)
+            f.close()
+            if seq_id in bbox_coords:
+                rval = bbox_coords[seq_id]
+        except IOError:
+            pass
+        return rval
 
 
     def get_facetubes(self, i):
