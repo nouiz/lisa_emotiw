@@ -99,6 +99,10 @@ class FrameMax(Model):
         rval.update(self.final_layer.get_lr_scalers())
         return rval
 
+    def censor_updates(self, updates):
+        self.mlp.censor_updates(updates)
+        self.final_layer.censor_updates(updates)
+
     def get_input_source(self):
         return self.input_source
 
@@ -236,6 +240,7 @@ class FrameCRF(Model):
             desired_W = tensor.where(updated_W < 0, self.W, updated_W)
             updates[self.W] = desired_W
 
+        self.mlp.censor_updates(updates)
 
     def get_params(self):
         return self.mlp.get_params() + [self.W]
@@ -258,14 +263,15 @@ class FrameCRF(Model):
     def get_monitoring_channels(self, data):
 
         X, Y = data
-        state = self.fprop(X)
+        y_hat = self.fprop(X)
         rval = OrderedDict()
         #X = self.input_space.format_as(X, self.mlp.input_space)
         #rval = self.mlp.get_monitoring_channels((X, Y))
 
         if Y is not None:
             # batch size is always one, so this is OK
-            y_hat = tensor.argmax(state.dimshuffle('x', 0), axis=1)
+            rval['y_nll'] = self.cost(Y, y_hat)
+            y_hat = tensor.argmax(y_hat.dimshuffle('x', 0), axis=1)
             y = tensor.argmax(Y, axis=1)
             misclass = tensor.neq(y, y_hat).mean()
             misclass = tensor.cast(misclass, config.floatX)
