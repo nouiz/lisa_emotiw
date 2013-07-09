@@ -107,8 +107,7 @@ class AFEW2FaceTubes(DenseDesignMatrix):
 if __name__ == '__main__':
     # Load the unprocessed train face tubes dataset.
     train = AFEW2FaceTubes('train', sequence_length = 4)
-    mehdi_bbox_coords = train.dataset.get_bbox_coords(0)
-    import pdb; pdb.set_trace()
+    mehdi_bbox_coords = train.dataset.get_bbox_coords(10)
 
 
     # Load the smoothed train and valid face tubes of size 48 x 48 and remove
@@ -116,7 +115,7 @@ if __name__ == '__main__':
     print '... loading smooth face tubes'
     smooth_train = AFEW2FaceTubes('train', sequence_length = 4, size=(48, 48),
         preproc=['smooth'], greyscale=True)
-    raul_bbox_coords = smooth_train.dataset.get_bbox_coords(0)
+    raul_bbox_coords = smooth_train.dataset.get_bbox_coords(10)
 
 
     import pdb; pdb.set_trace()

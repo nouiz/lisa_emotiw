@@ -205,7 +205,7 @@ class AFEW2ImageSequenceDataset(afew.AFEWImageSequenceDataset):
         has its origin in the upper left corner of the image
         (horizontal_offset_in_pixels, vertical_offset_in_pixels).
         """
-        rval = {}
+        rval = []
         split_name, emo_name, seq_id = self.seq_info[i]
         path = os.path.join(self.absolute_face_tubes_boxes_base_directory, "%s_%s.pkl"%(split_name, emo_name))
         try:

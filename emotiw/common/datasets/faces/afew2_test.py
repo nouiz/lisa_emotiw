@@ -166,7 +166,7 @@ class AFEW2TestImageSequenceDataset(afew2.AFEW2ImageSequenceDataset):
         has its origin in the upper left corner of the image
         (horizontal_offset_in_pixels, vertical_offset_in_pixels).
         """
-        rval = {}
+        rval = []
         seq_id = self.seq_info[i].split("/")[-1]
         path = os.path.join(self.face_tubes_boxes_base_directory, "%s.pkl"%seq_id)
         try:
