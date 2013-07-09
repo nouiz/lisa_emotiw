@@ -23,7 +23,7 @@ class EmotiwPreprocSeq(FaceImagesDataset):
 
 
 class EmotiwPreprocDataset(ImageSequenceDataset):
-    def __init__(self, emotion):
+    def __init__(self, emotion, size = (48, 48), num_channels = 3, img_per_seq = 3):
         abs_path = '/data/lisatmp2/emotiw/dataset'
         image_path = os.path.join(abs_path, emotion + '_x.npy')
         emote_path = os.path.join(abs_path, emotion + '_y.npy')
@@ -31,7 +31,8 @@ class EmotiwPreprocDataset(ImageSequenceDataset):
         self.emotions = numpy.memmap(emote_path, mode='c', dtype=numpy.uint8)
         self.images = numpy.memmap(image_path, mode='c', dtype=numpy.uint8)
         self.images = self.images.view()
-        self.images.shape = (len(self.emotions), 3, 48, 48, 3)
+        self.images.shape = (len(self.emotions), -1, size[0], size[0], num_channels)
+        self.ips = img_per_seq
 
     def get_sequence(self, i):
         return EmotiwPreprocSeq(self.images[i], self.emotions[i])
