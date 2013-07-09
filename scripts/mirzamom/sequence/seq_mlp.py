@@ -52,12 +52,6 @@ class FrameMax(Model):
                            * input_space.shape[1]
                            * input_space.num_channels)
         self.output_space = VectorSpace(dim=7)
-        #self.final_layer.input_space = self.mlp.layers[-1].get_output_space()
-
-        #self.W = theano.shared(np.zeros((n_classes, n_classes, n_classes),
-                                        #dtype=config.floatX))
-        #self.W.name = 'crf_w'
-        #self.name = 'crf'
 
     def fprop(self, inputs):
 
@@ -67,12 +61,6 @@ class FrameMax(Model):
         rval = tensor.max(rval, axis=0)
         rval = rval.dimshuffle('x', 0)
         rval = self.final_layer.fprop(rval)
-        #if self.mlp.output_space != self.detector_space:
-            #rval = self.mlp.output_space.formt_as(self.detector_space)
-
-        #import ipdb
-        #ipdb.set_trace()
-        #rval = crf(rval, self.W)
 
         return rval
 
@@ -98,8 +86,12 @@ class FrameMax(Model):
         return rval
 
     def get_params(self):
-        #return self.mlp.get_params() + [self.W]
         return self.mlp.get_params() + self.final_layer.get_params()
+
+    def get_lr_scalers(self):
+        rval = self.mlp.get_lr_scalers()
+        rval.update(self.final_layer.get_lr_scalers())
+        return rval
 
     def get_input_source(self):
         return self.input_source
@@ -112,7 +104,6 @@ class FrameMax(Model):
                                 VectorSpace(dim=7)))
         source = (self.get_input_source(), self.get_target_source())
         return (space, source)
-
 
     def get_monitoring_channels(self, data):
 
@@ -145,5 +136,122 @@ class FrameMax(Model):
 
     def cost(self, Y, Y_hat):
         return self.final_layer.cost(Y, Y_hat)
+
+class FrameCRF(Model):
+    """Frame based classifier, then CRF on top. For detail read the
+    /lisa_emotiw/emotiw/wardefar/structured_output.lyx
+    """
+
+    def __init__(self, mlp, n_classes = None, input_source='features', input_space=None):
+        """
+        Parameters
+        ----------
+        mlp: Pylearn2 MLP class
+            The frame based classifier
+
+        """
+
+        if n_classes is None:
+            if hasattr(mlp.layers[-1], 'dim'):
+                self.n_classes = mlp.layers[-1].dim
+            elif hasattr(mlp.layers[-1], 'n_classes'):
+                self.n_classes = mlp.layers[-1].n_classes
+            else:
+                raise ValueError("n_classes was not provided and couldn't be infered from the mlp's last layer")
+        else:
+            self.n_classes = n_classes
+
+        self.mlp = mlp
+        self.input_source = input_source
+        assert isinstance(input_space, FaceTubeSpace)
+        self.input_space = input_space
+        self.input_size = (input_space.shape[0]
+                           * input_space.shape[1]
+                           * input_space.num_channels)
+        self.output_space = VectorSpace(dim=7)
+
+        rng = self.mlp.rng
+        self.W = theano.shared(rng.uniform(size=(n_classes, n_classes, n_classes)).astype(config.floatX))
+        self.W.name = 'crf_w'
+        self.name = 'crf'
+
+    def fprop(self, inputs):
+
+        # format inputs
+        inputs = self.input_space.format_as(inputs, self.mlp.input_space)
+        rval = self.mlp.fprop(inputs)
+        rval = self.crf_fprop(rval)
+
+        return rval
+
+    def dropout_fprop(self, state_below, default_input_include_prob=0.5,
+                    input_include_probs=None, default_input_scale=2.,
+                    input_scales=None, per_example=True):
+
+        state_below = self.input_space.format_as(state_below, self.mlp.input_space)
+        rval = self.mlp.dropout_fprop(state_below, default_input_include_prob,
+                    input_include_probs, default_input_scale,
+                    input_scales, per_example)
+        rval = self.crf_fprop(rval)
+
+        return rval
+
+    def crf_fprop(self, Y_hat):
+
+        assert hasattr(Y_hat, 'owner')
+        owner = Y_hat.owner
+        assert owner is not None
+        op = owner.op
+        if isinstance(op, Print):
+            assert len(owner.inputs) == 1
+            Y_hat, = owner.inputs
+            owner = Y_hat.owner
+            op = owner.op
+        assert isinstance(op, tensor.nnet.Softmax)
+        z, = owner.inputs
+        assert z.ndim == 2
+
+        z = z - z.max(axis=1).dimshuffle(0, 'x')
+        log_prob = z - tensor.log(tensor.exp(z).sum(axis=1).dimshuffle(0, 'x'))
+        return crf(-log_prob, self.W)
+
+    def get_params(self):
+        return self.mlp.get_params() + [self.W]
+
+    def get_lr_scalers(self):
+        return self.mlp.get_lr_scalers()
+
+    def get_input_source(self):
+        return self.input_source
+
+    def get_input_space(self):
+        return self.input_space
+
+    def get_monitoring_data_specs(self):
+        space = CompositeSpace((self.get_input_space(),
+                                VectorSpace(dim=7)))
+        source = (self.get_input_source(), self.get_target_source())
+        return (space, source)
+
+    def get_monitoring_channels(self, data):
+
+        X, Y = data
+        state = self.fprop(X)
+        rval = OrderedDict()
+        #X = self.input_space.format_as(X, self.mlp.input_space)
+        #rval = self.mlp.get_monitoring_channels((X, Y))
+
+        if Y is not None:
+            # batch size is always one, so this is OK
+            y_hat = tensor.argmax(state.dimshuffle('x', 0), axis=1)
+            y = tensor.argmax(Y, axis=1)
+            misclass = tensor.neq(y, y_hat).mean()
+            misclass = tensor.cast(misclass, config.floatX)
+            rval['y_misclass'] = misclass
+
+        return rval
+
+    def cost(self, Y, Y_hat):
+        return (Y * Y_hat).sum(axis=1).mean()
 
 
