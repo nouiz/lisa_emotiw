@@ -181,6 +181,7 @@ class faceAlign(object):
 
        #getting keypoints
        keypoints = self.get_keypoints(dataset, index)
+       #print keypoints
        z_t = numpy.zeros((2*self.numKeypoints,1))
        pi_t = numpy.zeros((2*self.numKeypoints,1))
        for key in keypoints:
@@ -191,6 +192,7 @@ class faceAlign(object):
            pi_t[2*i] = 1.0
            pi_t[2*i+1] = 1.0
        
+       #print z_t
        #calculate transformation matrix
        A_t, cost, uselessDict  = scipy.optimize.fmin_l_bfgs_b(func=cost_, x0=temp , fprime=None, args=(pi_t, z_t, oneCol, self))
        A_t = A_t.reshape((3,3))
@@ -202,7 +204,15 @@ class faceAlign(object):
           return A_t
 
        face_org = self.get_face_pil_image(dataset, index)
-          #face_org.show()
+       pixmap = face_org.load()
+       '''
+       for key in keypoints:
+          i = self.keypoint_dictionary[key]
+          (x,y) = keypoints[key]
+          pixmap[x,y] = (200,0,0)
+
+       self.draw_template(face_org).show()
+       '''
        trans_face = self.get_transformed_image(face_org, A_t)
 
        if  flip:
@@ -215,6 +225,7 @@ class faceAlign(object):
        pixmap = image.load()
        for i in xrange(len(self.meanX)):
           (x,y)= self.meanX[i],self.meanY[i]
+          #print (x,y)
           pixmap[int(x),int(y)] = (0,200,0)
        return image
 
@@ -243,9 +254,10 @@ class faceAlign(object):
        for i in range(width*height):
            (x,y) = (inp[i,0], inp[i,1])
            (x_, y_) = (indices[i,0], indices[i,1])
-           if x > 0 and y > 0:
-               if x < width and y < height:
-                   pixmapT[x_, y_] = pixmap[x,y]
+           if width > x > 0 and height > y > 0:
+              pixmapT[x_, y_] = pixmap[x,y]
+              #if (pixmap[x,y]==(200, 0, 0)):
+                # print x_, y_, 'for', x, y
              
        return imgT           
 
@@ -277,13 +289,15 @@ class faceAlign(object):
        bbox = dataset.get_bbox(index)
        if bbox == None:
           bbox = self.get_keypoints_based_bbox(dataset, index)
+          #print 'bbox using keypoints:', bbox
        else:
           bbox = bbox[0]
+
        width = bbox[2]-bbox[0]
        height = bbox[3]-bbox[1]
        #new bounding box with margin
        x0, y0 = (bbox[0] - self.margin * width, 
-                     bbox[1] - self.margin * height)
+                 bbox[1] - self.margin * height)
        keypoint_dictionary = self.keypoint_dictionary
 
        for key in keypoint_dictionary:
@@ -296,13 +310,27 @@ class faceAlign(object):
        return keypoints
 
 
-   def apply_gcn(self, image):
-       image = image.convert('RGB')
-       npImg = numpy.array(pic.getdata()).reshape(image.size[0], image.size[1], 3)
-       npUnrolled = npImg[:]
-       mean = numpy.mean(npUnrolled)
-       std = numpy.std(npUnrolled)
-       npImage = ((npUnrolled - mean)/std).reshape(image.size[0], image.size[1],3)
+   def apply_gcn(self, image, mode = 'L'):
+       image = image.convert(mode)
+       if mode == 'L':
+          channels = 1
+          npImg = numpy.array(image.getdata()).reshape((image.size[0], image.size[1]))
+          npUnrolled = npImg[:]
+          mean = numpy.mean(npUnrolled)
+          std = numpy.std(npUnrolled)
+          npImage = ((npUnrolled - mean)/std).reshape((image.size[0], image.size[1]))
+          #print npImage.min(), npImage.max()
+          #im = Image.fromarray((npImage + npImage.min()) * 255/(npImage.max() - npImage.min()))
+          #im.show()
+       else:
+          channels = 3
+          npImg = numpy.array(image.getdata()).reshape((image.size[0], image.size[1], channels))
+          npUnrolled = npImg[:]
+          mean = numpy.mean(npUnrolled)
+          std = numpy.std(npUnrolled)
+          npImage = ((npUnrolled - mean)/std).reshape((image.size[0], image.size[1],channels))
+          
+       
        return npImage
       
    
@@ -334,7 +362,7 @@ class faceAlign(object):
        imagePath = dataset.get_original_image_path(index)
        if imagePath == None:
           image = dataset.get_original_image(index)
-          print image
+          #print image
           image = Image.fromarray(image)
           image = image.convert('RGB')
        else:
@@ -355,12 +383,11 @@ class faceAlign(object):
                int(bbox[1] - margin * height), 
                int(bbox[2] + margin * width), 
                int(bbox[3] + margin * height))
-
+       
        face_crop = image.crop(bbox)
        
        #return resized face_image
        return face_crop.resize(self.face_size)
-
 
 def dummy_test():
     import pickle
@@ -379,12 +406,14 @@ def dummy_test():
 
     
     datasetObjs = []
-    datasetObjs = pickle.load(open("datasetObjs.pkl","r"))
-    alignObj = pickle.load(open( "AlignObj.pkl", "r" ))
+    datasetObjs = pickle.load(open("/Tmp/aggarwal/datasetObjs.pkl","r"))
+    alignObj = pickle.load(open( "/Tmp/aggarwal/AlignObj.pkl", "r" ))
     paths = []
+
     '''
-    datasetObjs.append(TorontoFaceDataset())
-    print 'added TorrontoFaceDatset'
+    #datasetObjs.append(TorontoFaceDataset())
+    #print 'added TorrontoFaceDatset'
+    
     datasetObjs.append(MultiPie())
     print 'added Multipie'
     Afew2 = AFEW2ImageSequenceDataset()
@@ -392,20 +421,20 @@ def dummy_test():
        print 'sequence:', i
        datasetObjs.append(Afew2.get_sequence(i))
     print 'added AFEW2'
-
-    pickle.dump( datasetObjs, open( "datasetObjs.pkl", "wb" ))
-    return 
+    
+    pickle.dump( datasetObjs, open( "/Tmp/aggarwal/datasetObjs.pkl", "wb" ))
     
     keys = {}
     index = 0 
     for key in keypoints_names:
         keys[key] = index
         index += 1
-        
-    alignObj = faceAlign(datasetObjects = datasetObjs, keypoint_dictionary = keys, face_size = (48, 48), margin = 0.3)
-    pickle.dump( alignObj, open( "AlignObj.pkl", "wb" ))
-
-    '''
+   
+    alignObj = faceAlign(datasetObjects = datasetObjs, keypoint_dictionary = keys, face_size = (96, 96), margin = 0.2)
+    pickle.dump( alignObj, open( "/Tmp/aggarwal/AlignObj.pkl", "wb" ))
+    return
+    
+    #print datasetObjs[0].get_keypoints_location(0)
 
     keysp1 = datasetObjs[0].get_keypoints_location(46)
     keysp2 = datasetObjs[1].get_keypoints_location(0)
@@ -439,12 +468,32 @@ def dummy_test():
 
     img.show()
     
+    '''
+  #  return
     
-    return
+    datasetIndex = 0
+    numberOfSamples = len(datasetObjs[datasetIndex])
+    print 'numOfSamples', numberOfSamples
+    features = 96*96
+    dsX = numpy.memmap('/Tmp/aggarwal/multipie_dist_4_X.npy', dtype='float32', mode='w+', shape=(numberOfSamples,features))
+    dsY = numpy.memmap('/Tmp/aggarwal/multipie_dist_4_y.npy', dtype='uint8', mode='w+', shape=(numberOfSamples))
+    flipX = numpy.memmap('/Tmp/aggarwal/multipie_dist_4_flip_X.npy', dtype='float32', mode='w+', shape=(numberOfSamples,features))
+    flipY = numpy.memmap('/Tmp/aggarwal/multipie_dist_4_flip_y.npy', dtype='uint8', mode='w+', shape=(numberOfSamples))
     
+    for i in xrange(len(datasetObjs[datasetIndex])):
+       print 'sample number:', i
+       img = alignObj.apply(datasetObjs[datasetIndex], i, perturb=True, flip = False)
+       fImg = img.transpose(Image.FLIP_LEFT_RIGHT)
+       npImg = alignObj.apply_gcn(img, mode = 'L')
+       fNpImg = alignObj.apply_gcn(fImg, mode = 'L')
+       emotion = datasetObjs[datasetIndex].get_7emotion_index(i)
+       dsY[i] = emotion
+       dsX[i, :] = npImg.reshape((1, 96*96))
+       flipY[i] = emotion
+       flipX[i,:] = fNpImg.reshape((1, 96*96))
 
-    alignObj.draw_template(alignObj.apply(datasetObjs[0], 10, perturb=True)).show('perturbed')
-    alignObj.draw_template(alignObj.apply(datasetObjs[1], 10, perturb = False)).show()
+
+  #  alignObj.draw_template(alignObj.apply(datasetObjs[1], 10, perturb = False)).show()
 
     #alignObj.apply(datasetObjs[639], 10, True, True)[1].show('perturbed')
     #alignObj.apply(datasetObjs[639], 10)[1].show()
