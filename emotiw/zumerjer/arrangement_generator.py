@@ -17,8 +17,10 @@ class EmotiwArrangerIter(object):
                  targets=True,
                  rng=_default_seed):
 
+        self.num_selected = [0]*len(inst.datasets)
+
         self.inst = inst
-        self.n_face_per_batch = [int(batch_size * self.inst.weights[i]) for i in xrange(len(self.inst.weights))]
+        self.n_face_per_batch = [round(batch_size * self.inst.weights[i]) for i in xrange(len(self.inst.weights))]
         self.batch_size = batch_size
 
         self.rng = numpy.random.RandomState(rng)
@@ -49,7 +51,7 @@ class EmotiwArrangerIter(object):
         return face_imgs, face_tgts
 
     def _pick_idx_given_rnd(self, rnd, weights, num_left):
-        cumul_sum = [sum(weights[0:i+1]) * int(bool(num_left[i])) for i in xrange(len(weights))]
+        cumul_sum = [sum(weights[0:i+1]) * int(num_left[i] != 0) for i in xrange(len(weights))]
         #0 if none left, cumulative sum otherwise.
 
         #return the index if:
@@ -71,7 +73,10 @@ class EmotiwArrangerIter(object):
 
         for idx, tsum in enumerate(cumul_sum):
             if tsum > elem_idx:
-                return (idx, cumul_sum[max(0, idx-1)])
+                s = 0
+                if idx != 0:
+                    s = cumul_sum[idx - 1]
+                return (idx, s)
 
     def next(self):
         images, targets = [], []
@@ -86,6 +91,7 @@ class EmotiwArrangerIter(object):
                     numpy.asarray(self.n_face_per_batch) - numpy.asarray(batch_idx))
             batch_idx[pick_from] += 1
             self.img_idx[pick_from] += 1
+            self.num_selected[pick_from] += 1
 
             dset = self.inst.datasets[pick_from]
             elem_idx = self.img_idx[pick_from] % len(dset)
@@ -106,21 +112,19 @@ class EmotiwArrangerIter(object):
                         the_img.append(sequence.get_original_image(i).tostring())
                     for i in xrange(missing_frames):
                         the_img.append(the_img[-1])
-                else:
 
-                    the_img = [Image.fromstring("RGB",
-                                                cv.GetSize(sequence.get_original_image(i)),
-                                                sequence.get_original_image(i).tostring())#XXX
-                                                for i in (img_idx-1, img_idx, img_idx+1)]
-                    the_img = [x.resize((96,96), Image.ANTIALIAS).tostring() for x in the_img]
+                else:
+                    the_img = [sequence.get_original_image(i).tostring()
+                                for i in (img_idx-1, img_idx, img_idx+1)]
 
                 the_vals = ([], sequence.get_7emotion_index(0))
+
                 for x in the_img:
                     the_vals[0].append([ord(y) for y in x])
 
             else:
-                the_str = [ord(y) for y in dset.get_original_image(elem_idx).tostring()]
-                the_vals = ([the_str for x in range(3)], dset.get_7emotion_index(pick_from))
+                the_str = [ord(y) for y in sequence.get_original_image(elem_idx).tostring()]
+                the_vals = ([the_str]*3, dset.get_7emotion_index(pick_from))
 
             images.append(the_vals[0])
             targets.append(the_vals[1])
@@ -139,13 +143,15 @@ class ArrangementGenerator(object):
     """
     def __init__(self,
                  datasets,
-                 weights):
+                 weights,
+                 size=(48,48),
+                 n_chan=3):
 
         assert len(weights) == len(datasets)
 
         self.datasets = datasets
         total_weight = float(sum(weights))
-        self.weights = [w/total_weight for w in weights]
+        self.weights = [float(w)/total_weight for w in weights]
         self.ex_per_dset = []
         self.total_n_exs = 0
 
@@ -162,6 +168,8 @@ class ArrangementGenerator(object):
                 self.ex_per_dset.append(len(dset))
 
         self.total_n_exs = sum(self.ex_per_dset)
+        self.img_res = size
+        self.num_channels = n_chan
 
     def iterator(self,
                  mode='sequential',
@@ -172,7 +180,7 @@ class ArrangementGenerator(object):
         Method inherited from the Dataset.
         """
         if batch_size is None and mode == 'sequential':
-            batch_size = 1
+            batch_size = 100 #Has to be big enough or we'll never pick anything.
 
         self.batch_size = batch_size
         self.mode = resolve_iterator_class(mode)
@@ -186,13 +194,23 @@ class ArrangementGenerator(object):
                                   self.subset_iterator,
                                   batch_size=batch_size)
 
-    def dump_to(self, path):
-        out_X = numpy.memmap(path + '_x.npy', mode='w+', dtype=numpy.uint8, shape=(self.total_n_exs, 3, 96, 96, 3))
+    def dump_to(self, path, batch_size=100):
+        out_X = numpy.memmap(path + '_x.npy', mode='w+', dtype=numpy.uint8, shape=(self.total_n_exs, 3, self.img_res[0], self.img_res[1], self.num_channels))
         out_y = numpy.memmap(path + '_y.npy', mode='w+', dtype=numpy.uint8, shape=(self.total_n_exs, 1))
+        it = self.iterator(batch_size=batch_size)
 
-        for idx, item in enumerate(self.iterator()):
-            out_X[idx, :] = [numpy.asarray(x).reshape(96, 96, 3) for x in item[0][0]]
-            out_y[idx, :] = item[1]
+        for idx, item in enumerate(it):
+            if idx % 10 == 0:
+                print it.num_selected
 
+            arr = []
+            for x in item[0]:
+                arr.append([y.reshape(self.img_res[0], self.img_res[1], self.num_channels) for y in x])
+
+            out_X[batch_size*idx:batch_size*idx+batch_size,:] = arr
+            for i in xrange(batch_size):
+                out_y[batch_size*idx+i] = item[1][i]
+                #for some reason, not possible to batch this operation:
+                #ValueError: output operand requires a reduction, but reduction is not enabled
         del out_X
         del out_y
