@@ -22,7 +22,8 @@ from emotiw.wardefar.crf_theano import forward_theano as crf
 class FrameMax(Model):
     """Frame based classifier, then elementwise max on top of representaions,
     and final classifier on top"""
-    def __init__(self, mlp, final_layer, n_classes = None, input_source='features', input_space=None):
+    def __init__(self, mlp, final_layer, n_classes = None, input_source='features', input_space=None,
+            scale = False):
         """
         Parameters
         ----------
@@ -43,6 +44,7 @@ class FrameMax(Model):
         else:
             self.n_classes = n_classes
 
+        self.scale = scale
         self.mlp = mlp
         self.final_layer = final_layer
         self.input_source = input_source
@@ -57,6 +59,8 @@ class FrameMax(Model):
 
         # format inputs
         inputs = self.input_space.format_as(inputs, self.mlp.input_space)
+        if self.scale:
+            inputs = inputs / 255.
         rval = self.mlp.fprop(inputs)
         rval = tensor.max(rval, axis=0)
         rval = rval.dimshuffle('x', 0)
@@ -64,12 +68,14 @@ class FrameMax(Model):
 
         return rval
 
-    def dropout_fprop(self, state_below, default_input_include_prob=0.5,
+    def dropout_fprop(self, inputs, default_input_include_prob=0.5,
                     input_include_probs=None, default_input_scale=2.,
                     input_scales=None, per_example=True):
 
-        state_below = self.input_space.format_as(state_below, self.mlp.input_space)
-        rval = self.mlp.dropout_fprop(state_below, default_input_include_prob,
+        inputs = self.input_space.format_as(inputs, self.mlp.input_space)
+        if self.scale:
+            inputs = inputs / 255.
+        rval = self.mlp.dropout_fprop(inputs, default_input_include_prob,
                     input_include_probs, default_input_scale,
                     input_scales, per_example)
         rval = tensor.max(rval, axis=0)
@@ -142,7 +148,7 @@ class FrameCRF(Model):
     /lisa_emotiw/emotiw/wardefar/structured_output.lyx
     """
 
-    def __init__(self, mlp, n_classes = None, input_source='features', input_space=None):
+    def __init__(self, mlp, n_classes = None, input_source='features', input_space=None, scale = False):
         """
         Parameters
         ----------
@@ -161,6 +167,7 @@ class FrameCRF(Model):
         else:
             self.n_classes = n_classes
 
+        self.scale = scale
         self.mlp = mlp
         self.input_source = input_source
         assert isinstance(input_space, FaceTubeSpace)
@@ -179,17 +186,21 @@ class FrameCRF(Model):
 
         # format inputs
         inputs = self.input_space.format_as(inputs, self.mlp.input_space)
+        if self.scale:
+            inputs = inputs / 255.
         rval = self.mlp.fprop(inputs)
         rval = self.crf_fprop(rval)
 
         return rval
 
-    def dropout_fprop(self, state_below, default_input_include_prob=0.5,
+    def dropout_fprop(self, inputs, default_input_include_prob=0.5,
                     input_include_probs=None, default_input_scale=2.,
                     input_scales=None, per_example=True):
 
-        state_below = self.input_space.format_as(state_below, self.mlp.input_space)
-        rval = self.mlp.dropout_fprop(state_below, default_input_include_prob,
+        inputs = self.input_space.format_as(inputs, self.mlp.input_space)
+        if self.scale:
+            inputs = inputs / 255.
+        rval = self.mlp.dropout_fprop(inputs, default_input_include_prob,
                     input_include_probs, default_input_scale,
                     input_scales, per_example)
         rval = self.crf_fprop(rval)
@@ -214,6 +225,17 @@ class FrameCRF(Model):
         z = z - z.max(axis=1).dimshuffle(0, 'x')
         log_prob = z - tensor.log(tensor.exp(z).sum(axis=1).dimshuffle(0, 'x'))
         return crf(-log_prob, self.W)
+
+    def censor_updates(self, updates):
+        """
+        Transition matrix should be non-negative
+        """
+
+        if self.W in updates:
+            updated_W = updates[self.W]
+            desired_W = tensor.where(updated_W < 0, self.W, updated_W)
+            updates[self.W] = desired_W
+
 
     def get_params(self):
         return self.mlp.get_params() + [self.W]
