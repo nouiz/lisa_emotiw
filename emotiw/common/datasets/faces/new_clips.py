@@ -43,7 +43,7 @@ class NewClipsImageSequenceDataset(afew2.AFEW2ImageSequenceDataset):
     # Since there was no room at LISA for the data to be in the usual datapath,
     # there is a symlink instead.
     base_dir = "faces/new_clips/ExtractedFrames"
-    picasa_boxes_base_dir = base_dir
+    picasa_boxes_base_dir = "faces/new_clips/BoundingBox"
     face_tubes_base_dir = base_dir
 
     def __init__(self, preload_facetubes=False, preproc=[], size=(96, 96)):
@@ -58,8 +58,8 @@ class NewClipsImageSequenceDataset(afew2.AFEW2ImageSequenceDataset):
         super(afew.AFEWImageSequenceDataset, self).__init__("NewClips")
 
         self.absolute_base_directory = locate_data_path(self.base_dir)
-        #self.absolute_picasa_boxes_base_directory = locate_data_path(
-        #        self.picasa_boxes_base_dir)
+        self.absolute_picasa_boxes_base_directory = locate_data_path(
+                self.picasa_boxes_base_dir)
         #self.face_tubes_base_directory = locate_data_path(
         #        self.face_tubes_base_dir)
 
@@ -93,9 +93,10 @@ class NewClipsImageSequenceDataset(afew2.AFEW2ImageSequenceDataset):
                 '*.png',
                 self.emotionNames[target])
 
-            #im_seq.set_picasa_path_substitutions(
-            #    #???
-            #    )
+            im_seq.set_picasa_path_substitutions(
+                {self.base_dir: self.picasa_boxes_base_dir,
+                 '.png': '.txt'},
+                csv_delimiter=',')
 
             #im_seq.set_ramanan_path_substitutions(
             #    # ???
