@@ -13,7 +13,7 @@ from pylearn2.space import CompositeSpace, VectorSpace
 from pylearn2.termination_criteria import EpochCounter
 from pylearn2.train import Train
 from pylearn2.training_algorithms.sgd import SGD
-
+from pylearn2.utils import block_gradient
 from emotiw.common.datasets.faces.afew2_facetubes import AFEW2FaceTubes
 from emotiw.common.datasets.faces.facetubes import FaceTubeSpace
 from emotiw.wardefar.crf_theano import forward_theano as crf
@@ -22,8 +22,8 @@ from emotiw.wardefar.crf_theano import forward_theano as crf
 class FrameMax(Model):
     """Frame based classifier, then elementwise max on top of representaions,
     and final classifier on top"""
-    def __init__(self, mlp, final_layer, n_classes = None, input_source='features', input_space=None,
-            scale = False):
+    def __init__(self, mlp, final_layer, n_classes = None, input_source='features',
+            input_space=None, pooling_mode=0, scale=False):
         """
         Parameters
         ----------
@@ -32,6 +32,8 @@ class FrameMax(Model):
 
         final_layer: Pylearn2 MLP class
             Sequence based classifier
+        pooling_mode: If 1: max_pooling
+                      If 2: top_N pooling
         """
 
         if n_classes is None:
@@ -43,8 +45,10 @@ class FrameMax(Model):
                 raise ValueError("n_classes was not provided and couldn't be infered from the mlp's last layer")
         else:
             self.n_classes = n_classes
-
+        self.probs = np.asarray([1.2, 1., 0.8], dtype=theano.config.floatX)
+        self.probs = self.probs.reshape(3, 1)
         self.scale = scale
+        self.pooling_mode = pooling_mode
         self.mlp = mlp
         self.final_layer = final_layer
         self.input_source = input_source
@@ -59,10 +63,15 @@ class FrameMax(Model):
 
         # format inputs
         inputs = self.input_space.format_as(inputs, self.mlp.input_space)
-        if self.scale:
-            inputs = inputs / 255.
         rval = self.mlp.fprop(inputs)
-        rval = tensor.max(rval, axis=0)
+        if self.pooling_mode == 0:
+            rval = tensor.max(rval, axis=0)
+        elif self.pooling_mode == 1:
+            rval = block_gradient(tensor.sort(rval, axis=0))[-3:][::-1]
+            rval = tensor.sum(rval * self.probs, axis=0) / 3
+            #rval = tensor.mean(rval, axis=0)
+        else:
+            raise Exception("Others are not implemented yet!")
         rval = rval.dimshuffle('x', 0)
         rval = self.final_layer.fprop(rval)
 
@@ -78,7 +87,25 @@ class FrameMax(Model):
         rval = self.mlp.dropout_fprop(inputs, default_input_include_prob,
                     input_include_probs, default_input_scale,
                     input_scales, per_example)
-        rval = tensor.max(rval, axis=0)
+
+        if self.pooling_mode == 0:
+            rval = tensor.max(rval, axis=0)
+        elif self.pooling_mode == 1:
+            top_ids = block_gradient(tensor.sort(rval, axis=0))[-3:][::-1]
+            top_vals = rval[top_ids]
+            rval = T.mean(top_vals)
+        elif self.pooling_mode == 2:
+            #import ipdb; ipdb.set_trace()
+            #collapsed_rval = tensor.sum(rval, axis=1)
+            top_ids = block_gradient(tensor.argsort(rval, axis=0))[::-1]
+            top_vals_sum = rval[top_ids[0], tensor.arange(rval.shape[1])] * self.probs[0]
+                    #+\
+                    #rval[top_ids[1], tensor.arange(rval.shape[1])] * self.probs[1]
+                    #+\
+                    #rval[top_ids[2], tensor.arange(rval.shape[1])] * self.probs[2]
+            rval = top_vals_sum / 2
+        else:
+            raise Exception("Others are not implemented yet!")
         rval = rval.dimshuffle('x', 0)
 
         # TODO if you set input prob, the final layer doesn't recognize h0
@@ -99,10 +126,6 @@ class FrameMax(Model):
         rval.update(self.final_layer.get_lr_scalers())
         return rval
 
-    def censor_updates(self, updates):
-        self.mlp.censor_updates(updates)
-        self.final_layer.censor_updates(updates)
-
     def get_input_source(self):
         return self.input_source
 
@@ -115,6 +138,7 @@ class FrameMax(Model):
         source = (self.get_input_source(), self.get_target_source())
         return (space, source)
 
+
     def get_monitoring_channels(self, data):
 
         X, Y = data
@@ -124,26 +148,6 @@ class FrameMax(Model):
         X = X.dimshuffle('x', 0)
         return self.final_layer.get_monitoring_channels((X, Y))
 
-    # TODO make the monitos work for main mlp
-    #def get_monitoring_channels(self, data):
-
-        #X, Y = data
-        #X = self.input_space.format_as(X, self.mlp.input_space)
-
-        ##first mlp monitors
-        #ch = self.mlp.get_monitoring_channels((X, Y))
-
-        ## get final mlp monitors
-        #X = self.mlp.fprop(X)
-        #X = tensor.max(X, axis=0)
-        #X = X.dimshuffle('x', 0)
-        #second_ch = self.final_layer.get_monitoring_channels((X, Y))
-
-        #for key in second_ch:
-            #ch[key] = second_ch[key]
-
-        #return ch
-
     def cost(self, Y, Y_hat):
         return self.final_layer.cost(Y, Y_hat)
 
@@ -152,7 +156,7 @@ class FrameCRF(Model):
     /lisa_emotiw/emotiw/wardefar/structured_output.lyx
     """
 
-    def __init__(self, mlp, n_classes = None, input_source='features', input_space=None, scale = False):
+    def __init__(self, mlp, n_classes = None, input_source='features', input_space=None, scale=False):
         """
         Parameters
         ----------
@@ -171,8 +175,8 @@ class FrameCRF(Model):
         else:
             self.n_classes = n_classes
 
-        self.scale = scale
         self.mlp = mlp
+        self.scale = scale
         self.input_source = input_source
         assert isinstance(input_space, FaceTubeSpace)
         self.input_space = input_space
@@ -190,8 +194,6 @@ class FrameCRF(Model):
 
         # format inputs
         inputs = self.input_space.format_as(inputs, self.mlp.input_space)
-        if self.scale:
-            inputs = inputs / 255.
         rval = self.mlp.fprop(inputs)
         rval = self.crf_fprop(rval)
 
@@ -230,18 +232,6 @@ class FrameCRF(Model):
         log_prob = z - tensor.log(tensor.exp(z).sum(axis=1).dimshuffle(0, 'x'))
         return crf(-log_prob, self.W)
 
-    def censor_updates(self, updates):
-        """
-        Transition matrix should be non-negative
-        """
-
-        if self.W in updates:
-            updated_W = updates[self.W]
-            desired_W = tensor.where(updated_W < 0, self.W, updated_W)
-            updates[self.W] = desired_W
-
-        self.mlp.censor_updates(updates)
-
     def get_params(self):
         return self.mlp.get_params() + [self.W]
 
@@ -263,15 +253,14 @@ class FrameCRF(Model):
     def get_monitoring_channels(self, data):
 
         X, Y = data
-        y_hat = self.fprop(X)
+        state = self.fprop(X)
         rval = OrderedDict()
         #X = self.input_space.format_as(X, self.mlp.input_space)
         #rval = self.mlp.get_monitoring_channels((X, Y))
 
         if Y is not None:
             # batch size is always one, so this is OK
-            rval['y_nll'] = self.cost(Y, y_hat)
-            y_hat = tensor.argmax(y_hat.dimshuffle('x', 0), axis=1)
+            y_hat = tensor.argmax(state.dimshuffle('x', 0), axis=1)
             y = tensor.argmax(Y, axis=1)
             misclass = tensor.neq(y, y_hat).mean()
             misclass = tensor.cast(misclass, config.floatX)
@@ -281,5 +270,6 @@ class FrameCRF(Model):
 
     def cost(self, Y, Y_hat):
         return (Y * Y_hat).sum(axis=1).mean()
+
 
 

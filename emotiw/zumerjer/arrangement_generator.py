@@ -2,6 +2,7 @@ import numpy
 from pylearn2.utils.iteration import resolve_iterator_class
 import Image, cv
 
+hack = True
 
 class EmotiwArrangerIter(object):
     """
@@ -107,6 +108,7 @@ class EmotiwArrangerIter(object):
                 sequence = dset.get_sequence(seq_idx)
                 missing_frames = 3 - (len(sequence)-img_idx)
                 the_img = []
+
                 if missing_frames > 0:
                     for i in xrange(img_idx, len(sequence)):
                         the_img.append(sequence.get_original_image(i).tostring())
@@ -120,11 +122,14 @@ class EmotiwArrangerIter(object):
                 the_vals = ([], sequence.get_7emotion_index(0))
 
                 for x in the_img:
-                    the_vals[0].append([ord(y) for y in x])
+                    the_vals[0].append(numpy.fromstring(x, dtype=numpy.uint8))
 
             else:
-                the_str = [ord(y) for y in sequence.get_original_image(elem_idx).tostring()]
-                the_vals = ([the_str]*3, dset.get_7emotion_index(pick_from))
+                the_str = numpy.fromstring(sequence.get_original_image(elem_idx).tostring(), numpy.uint8)
+                the_vals = ([the_str]*3, sequence.get_7emotion_index(0))
+
+            if hack:
+                the_vals = ([numpy.fromstring(Image.frombuffer(data=x, size=(1024, 576), mode='RGB').resize((48, 48)).tostring(), dtype=numpy.uint8) for x in the_vals[0]], the_vals[1])
 
             images.append(the_vals[0])
             targets.append(the_vals[1])
@@ -195,22 +200,38 @@ class ArrangementGenerator(object):
                                   batch_size=batch_size)
 
     def dump_to(self, path, batch_size=100):
-        out_X = numpy.memmap(path + '_x.npy', mode='w+', dtype=numpy.uint8, shape=(self.total_n_exs, 3, self.img_res[0], self.img_res[1], self.num_channels))
-        out_y = numpy.memmap(path + '_y.npy', mode='w+', dtype=numpy.uint8, shape=(self.total_n_exs, 1))
+        size = self.total_n_exs
+        if hack:
+            size = 3*batch_size
+        out_X = numpy.memmap(path + '_x.npy', mode='w+', dtype=numpy.uint8, shape=(size, 3, self.img_res[0], self.img_res[1], self.num_channels))
+        out_y = numpy.memmap(path + '_y.npy', mode='w+', dtype=numpy.uint8, shape=(size, 1))
         it = self.iterator(batch_size=batch_size)
 
-        for idx, item in enumerate(it):
-            if idx % 10 == 0:
-                print it.num_selected
+        if not hack:
+            for idx, item in enumerate(it):
+                if idx % 10 == 0:
+                    print it.num_selected
 
-            arr = []
-            for x in item[0]:
-                arr.append([y.reshape(self.img_res[0], self.img_res[1], self.num_channels) for y in x])
+                arr = []
+                for x in item[0]:
+                    arr.append([y.reshape(self.img_res[0], self.img_res[1], self.num_channels) for y in x])
 
-            out_X[batch_size*idx:batch_size*idx+batch_size,:] = arr
-            for i in xrange(batch_size):
-                out_y[batch_size*idx+i] = item[1][i]
-                #for some reason, not possible to batch this operation:
-                #ValueError: output operand requires a reduction, but reduction is not enabled
+                out_X[batch_size*idx:batch_size*idx+batch_size,:] = arr
+
+                for i in xrange(batch_size):
+                    out_y[batch_size*idx+i] = item[1][i]
+                    #for some reason, not possible to batch this operation:
+                    #ValueError: output operand requires a reduction, but reduction is not enabled
+        else:
+            for idx in xrange(3):
+                item = it.next()
+                arr = []
+                for x in item[0]:
+                    arr.append([y.reshape(self.img_res[0], self.img_res[1], self.num_channels) for y in x])
+
+                out_X[batch_size*idx:batch_size*idx+batch_size,:] = arr
+                for i in xrange(batch_size):
+                    out_y[batch_size*idx+i] = item[1][i]
+
         del out_X
         del out_y

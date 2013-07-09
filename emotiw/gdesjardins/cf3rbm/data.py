@@ -4,6 +4,7 @@ from PIL import Image
 from theano import config
 from pylearn2.datasets import dense_design_matrix
 from pylearn2.utils.serial import load
+import sys
 
 BASEDIR = '/data/lisa/data/faces/EmotiW/Aligned_Images/alignedAvgd/'
 LABELS = ['Angry', 'Disgust', 'Fear', 'Happy', 'Neutral', 'Sad', 'Surprise']
@@ -149,3 +150,46 @@ class EmotiwFaces(dense_design_matrix.DenseDesignMatrix):
             by[k] = self.y[abs_frame1_idx]
 
         return (bX, by)
+
+    def get_frame_pairs_by_clip(self, n_pairs=100):
+        """
+        getting n_pairs of frame pairs from each clip from each emotion
+
+        returns:
+        x: each row is a frame pairs
+        y: first column is the emotion category, second column is the clip
+           index inside this category.
+        """
+        x = []
+        emotion_label = []
+        clip_id = []
+        for emotion in LABELS:
+            clips = self.meta[emotion].clips
+            print '\nGenerating frame pairs for %d clips in emotion %s'%(
+                len(clips), emotion)
+            for k, clip in enumerate(clips):
+                # extract n_pairs from each clip in this emotion
+                print '\r\tExtracting %d frames pairs from %d frames of clip %d'%(n_pairs, len(clip.frames_index), k)
+                for pair in range(n_pairs):
+                    rel_frame1_idx = self.rng.random_integers(low=0,
+                                                          high=clip.num_frames-2, size=1)
+                    rel_frame2_idx = self.rng.random_integers(low=rel_frame1_idx,
+                                                          high=clip.num_frames-1, size=1)
+                    abs_frame1_idx = clip.frames_index[rel_frame1_idx]
+                    abs_frame2_idx = clip.frames_index[rel_frame2_idx]
+                    x.append(numpy.hstack((self.X[abs_frame1_idx],
+                                           self.X[abs_frame2_idx])))
+                    emotion_label.append(self.y[abs_frame1_idx])
+                    clip_id.append(k)
+            
+        assert len(x) == len(emotion_label)
+        assert len(x) == len(clip_id)
+        x = numpy.array(x)
+        emotions = numpy.argmax(numpy.asarray(emotion_label), axis=1)
+        ids = numpy.asarray(clip_id)
+        y = numpy.zeros((x.shape[0], 2))
+        y[:,0] = emotions
+        y[:,1] = ids
+        
+        return x, y
+                    
