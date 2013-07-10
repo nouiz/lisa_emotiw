@@ -29,6 +29,8 @@
 import pdb
 
 import os
+import os.path
+import glob
 import sys
 import cv
 import Image
@@ -353,25 +355,57 @@ class FaceImagesDataset(object):
         """Defines how to transform an image filepath into the corresponding filepath containing ramanan precomputed keypoints"""
         self.ramanan_search_replace = search_replace
 
-    def get_ramanan_path_from_image_path(self, imagepath):
+    def get_ramanan_paths_from_image_path(self, imagepath):
         """Transforms an (absolute) imagepath into the path to the file containing keypoints precomputed by Ramanan's algorithm
         Default version simply performs all substitutions in property ramanan_search_replace, if it exists. Reuturns None otherwise.
-        """
+        """        
+        if imagepath is None:
+            return []
+
+        basepath = imagepath
         if hasattr(self, 'ramanan_search_replace'):
-            return search_replace(imagepath, self.ramanan_search_replace)
-        return None
+            newpath = search_replace(imagepath, self.ramanan_search_replace)
+            if os.path.exists(os.path.dirname(newpath)):
+                basepath = newpath
+
+        basepath, ext = os.path.splitext(basepath)        
+        ramananpaths = glob.glob(basepath+"_ramanan_face??.mat")
+        ramananpaths.sort()
+        if os.path.exists(basepath+"_ramanan.mat"): # possible path for single face obtained from ramanan on whole image
+            ramananpaths.append(basepath+"_ramanan.mat")
+        if len(ramananpaths)==0 and os.path.exists(basepath+".mat"): # possible old path for single face obtained from ramanan on whole image 
+            ramananpaths.append(basepath+".mat")
+
+        return ramananpaths
 
     def get_ramanan_keypoints_location(self, i):
-        """Returns a dictionary of keypoints precomputed by Ramanan's algorithm
-        Default version calls get_ramanan_path_from_image_path to locate the file containing this info.
+        """Returns a list of dictionaries of keypoints precomputed by Ramanan's algorithm. List contains one dictionary per detected face.
+        Default version calls get_ramanan_paths_from_image_path to locate the file(s) containing this info.
         """        
         imagepath = self.get_original_image_path(i)
-        # pdb.set_trace()
-        ramananpath = self.get_ramanan_path_from_image_path(imagepath)
-        if ramananpath is not None and os.path.exists(ramananpath):
+        # pdb.set_trace()        
+        ramananpaths = self.get_ramanan_paths_from_image_path(imagepath)
+
+        if len(ramananpaths) == 0:
+            return None
+
+        keypoint_dicts = []
+        for ramananpath in ramananpaths:
             matfile = sio.loadmat(ramananpath)
             xs = matfile['xs'][0]
             ys = matfile['ys'][0]
+
+            # Look for offsets to apply to coordinates
+            basename,ext = os.path.splitext(ramananpath)
+            bbox_filepath = basename+"_bbox.txt"
+            if os.path.exists(bbox_filepath):
+                with open(bbox_filepath, 'r') as infile:
+                    x1,y1,x2,y2 = infile.readline().split()
+                    xoffset = float(x1)
+                    yoffset = float(y1)            
+                    xs += xoffset
+                    ys += yoffset
+
             # pdb.set_trace()
 
             pts_idx_dict_68 = {0: 'nostrils_center', 1: 'right_nostril_inner_end', 2: 'right_nostril', 3: 'left_nostril_inner_end', 4: 'left_nostril', 5: 'nose_tip', 6: 'nose_ridge_bottom', 7: 'nose_ridge_top', 8: 'nose_center_top', 9: 'right_eye_inner_corner', 10: 'right_eye_bottom_inner_midpoint', 11: 'right_eye_bottom_outer_midpoint', 12: 'right_eye_top_inner_midpoint', 13: 'right_eye_top_outer_midpoint', 14: 'right_eye_outer_corner', 15: 'right_eyebrow_outer_end', 16: 'right_eyebrow_outer_midpoint', 17: 'right_eyebrow_center', 18: 'right_eyebrow_inner_midpoint', 19: 'right_eyebrow_inner_end', 20: 'left_eye_inner_corner', 21: 'left_eye_bottom_inner_midpoint', 22: 'left_eye_bottom_outer_midpoint', 23: 'left_eye_top_inner_midpoint', 24: 'left_eye_top_outer_midpoint', 25: 'left_eye_outer_corner', 26: 'left_eyebrow_outer_end', 27: 'left_eyebrow_outer_midpoint', 28: 'left_eyebrow_center', 29: 'left_eyebrow_inner_midpoint', 30: 'left_eyebrow_inner_end', 31: 'mouth_top_lip', 32: 'top_lip_top_right_center', 33: 'top_lip_top_right_midpoint', 34: 'mouth_right_corner', 35: 'top_lip_bottom_right_midpoint', 36: 'top_lip_bottom_right_center', 37: 'top_lip_bottom_center', 38: 'top_lip_top_left_center', 39: 'top_lip_top_left_midpoint', 40: 'mouth_left_corner', 41: 'top_lip_bottom_left_midpoint', 42: 'top_lip_bottom_left_center', 43: 'bottom_lip_bottom_left_midpoint', 44: 'bottom_lip_top_left_midpoint' , 45: 'bottom_lip_bottom_left_center', 46: 'bottom_lip_top_left_center', 47: 'bottom_lip_bottom_right_center', 48: 'bottom_lip_top_right_center', 49: 'bottom_lip_bottom_left_midpoint', 50: 'mouth_bottom_lip', 51: 'chin_center', 52: 'chin_left', 53: 'left_jaw_1', 54: 'left_jaw_0', 55: 'left_cheek_1', 56: 'left_cheek_0', 57: 'left_ear_bottom', 58: 'left_ear_center', 59: 'left_ear_top', 60: 'chin_right', 61: 'right_jaw_1', 62: 'right_jaw_0', 63: 'right_cheek_1', 64: 'right_cheek_0', 65: 'right_ear_bottom', 66: 'right_ear_center', 67: 'right_ear_top'}
@@ -383,7 +417,9 @@ class FaceImagesDataset(object):
             if len(xs) == 39:
                 translation_dict = pts_idx_dict_39
 
-            return dict([ (translation_dict[pos], coord) for pos,coord in enumerate(zip(xs,ys)) ])
+                
+            keypoint_dict = dict([ (translation_dict[pos], coord) for pos,coord in enumerate(zip(xs,ys)) ]) 
+            keypoint_dicts.append(keypoint_dict)
 
             # The following correspondances were taken from the code in MultiPie, but apparently they do not correctly match those returned by Ramanan's procedure
             # pts_idx_dict_68 = {0: 'right_ear_top', 1: 'right_ear_center', 2: 'right_ear_bottom', 7: 'chin_right', 8: 'chin_center', 9: 'chin_left', 14: 'left_ear_bottom', 
@@ -407,7 +443,7 @@ class FaceImagesDataset(object):
 
             # return keypoint_dict
 
-        return None                    
+        return keypoint_dicts
 
     def get_n_subjects(self):
         """
