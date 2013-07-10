@@ -1,8 +1,9 @@
 import numpy
 from pylearn2.utils.iteration import resolve_iterator_class
-import Image, cv
+import Image
 
-hack = True
+hack = False
+
 
 class EmotiwArrangerIter(object):
     """
@@ -70,7 +71,12 @@ class EmotiwArrangerIter(object):
 
     def _get_sequence_idx(self, dset, elem_idx):
         len_lst = [max(1, len(dset.get_sequence(seq))-2) for seq in xrange(len(dset))]
-        cumul_sum = [sum(len_lst[:i+1]) for i in xrange(len(len_lst))]
+        cumul_sum = [0]*len(len_lst)
+        for idx, l in enumerate(len_lst):
+            if idx == 0:
+                cumul_sum[0] = l
+            else:
+                cumul_sum[idx] = cumul_sum[idx-1] + l
 
         for idx, tsum in enumerate(cumul_sum):
             if tsum > elem_idx:
@@ -111,22 +117,18 @@ class EmotiwArrangerIter(object):
 
                 if missing_frames > 0:
                     for i in xrange(img_idx, len(sequence)):
-                        the_img.append(sequence.get_original_image(i).tostring())
+                        the_img.append(sequence.get_original_image(i))
                     for i in xrange(missing_frames):
                         the_img.append(the_img[-1])
 
                 else:
-                    the_img = [sequence.get_original_image(i).tostring()
+                    the_img = [sequence.get_original_image(i)
                                 for i in (img_idx-1, img_idx, img_idx+1)]
 
-                the_vals = ([], sequence.get_7emotion_index(0))
-
-                for x in the_img:
-                    the_vals[0].append(numpy.fromstring(x, dtype=numpy.uint8))
+                the_vals = (the_img, sequence.get_7emotion_index(0))
 
             else:
-                the_str = numpy.fromstring(sequence.get_original_image(elem_idx).tostring(), numpy.uint8)
-                the_vals = ([the_str]*3, sequence.get_7emotion_index(0))
+                the_vals = ([sequence.get_original_image(elem_idx)]*3, sequence.get_7emotion_index(0))
 
             if hack:
                 the_vals = ([numpy.fromstring(Image.frombuffer(data=x, size=(1024, 576), mode='RGB').resize((48, 48)).tostring(), dtype=numpy.uint8) for x in the_vals[0]], the_vals[1])
@@ -144,7 +146,7 @@ class EmotiwArrangerIter(object):
 
 class ArrangementGenerator(object):
     """
-    This generator takes N dataset objects, and combines them offline.
+    This generator takes N dataset objects, and combines them offline. Expects get_original_image to return an ndarray-type object
     """
     def __init__(self,
                  datasets,
@@ -203,14 +205,14 @@ class ArrangementGenerator(object):
         size = self.total_n_exs
         if hack:
             size = 3*batch_size
-        out_X = numpy.memmap(path + '_x.npy', mode='w+', dtype=numpy.uint8, shape=(size, 3, self.img_res[0], self.img_res[1], self.num_channels))
-        out_y = numpy.memmap(path + '_y.npy', mode='w+', dtype=numpy.uint8, shape=(size, 1))
+        out_X = numpy.memmap(path + '_x.npy', mode='w+', dtype=numpy.float32, shape=(size, 3, self.img_res[0], self.img_res[1], self.num_channels))
+        out_y = numpy.memmap(path + '_y.npy', mode='w+', dtype=numpy.float32, shape=(size, 1))
         it = self.iterator(batch_size=batch_size)
 
         if not hack:
             for idx, item in enumerate(it):
                 if idx % 10 == 0:
-                    print it.num_selected
+                    print idx, ':', it.num_selected
 
                 arr = []
                 for x in item[0]:

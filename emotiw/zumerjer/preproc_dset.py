@@ -1,11 +1,12 @@
 from emotiw.common.datasets.faces.imageseq import ImageSequenceDataset
-from emotiw.common.datasets.faces.faceimages import FaceImagesDataset
+from emotiw.common.datasets.faces.faceimages import FaceImagesDataset, basic_7emotion_names
 import numpy
 import os
+import glob
 
 
 class EmotiwPreprocSeq(FaceImagesDataset):
-    def __init__(self, images, emotion):
+    def __init__(self, images, emotion, size, num_channels):
         self.images = images
         self.emotion = emotion
 
@@ -24,21 +25,33 @@ class EmotiwPreprocSeq(FaceImagesDataset):
 
 class EmotiwPreprocDataset(ImageSequenceDataset):
     def __init__(self, emotion, size = (48, 48), num_channels = 3, img_per_seq = 3):
-        abs_path = '/data/lisatmp2/emotiw/dataset'
-        image_path = os.path.join(abs_path, emotion + '_x.npy')
-        emote_path = os.path.join(abs_path, emotion + '_y.npy')
+        if isinstance(emotion, str):
+            self.emotion = basic_7emotion_names.index(emotion)
+            emotion = emotion[0].upper() + emotion[1:]
+        else:
+            self.emotion = emotion
+            emotion = basic_7emotion_names[emotion]
 
-        self.emotions = numpy.memmap(emote_path, mode='c', dtype=numpy.uint8)
-        self.images = numpy.memmap(image_path, mode='c', dtype=numpy.uint8)
-        self.images = self.images.view()
-        self.images.shape = (len(self.emotions), -1, size[0], size[0], num_channels)
+        files = glob.glob('/data/lisa/data/faces/EmotiW/preproc/seq/*/'+emotion+'/*.npy')
+        files.sort()
+
+        self.seq = []
+        self.lgts = []
+        for f in files:
+            seq = numpy.memmap(f, mode='r', dtype='float32')
+            lgt = (len(seq)/(size[0]*size[1]*num_channels))
+            seq.shape = (lgt, size[0], size[1], num_channels)
+            self.seq.append(seq)
+
         self.ips = img_per_seq
+        self.size = size
+        self.num_channels = num_channels
 
     def get_sequence(self, i):
-        return EmotiwPreprocSeq(self.images[i], self.emotions[i])
+        return EmotiwPreprocSeq(self.seq[i], self.emotion, self.size, self.num_channels)
 
     def get_7emotion_index(self, i):
-        return self.emotions[i]
+        return self.emotion
 
     def __len__(self):
-        return len(self.images)
+        return len(self.seq)
