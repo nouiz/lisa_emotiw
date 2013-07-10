@@ -10,15 +10,15 @@ each labeled with the label for the full clip.
 from pylearn2.space import CompositeSpace, VectorSpace
 
 # Current project
-from emotiw.common.datasets.faces.afew2 import AFEW2ImageSequenceDataset
+from emotiw.common.datasets.faces.new_clips import NewClipsImageSequenceDataset
 from emotiw.common.datasets.faces.faceimages import basic_7emotion_names
-from emotiw.common.datasets.faces.facetubes import FaceTubeDataset, FaceTubeSpace
 from pylearn2.datasets.dense_design_matrix import DenseDesignMatrix
 import numpy
 import cv, cv2
+import sys
 import warnings
 
-class AFEW2FaceTubes(DenseDesignMatrix):
+class NewClipsFaceTubes(DenseDesignMatrix):
     def __init__(self, which_set, sequence_length = 3, preload_facetubes=True,
                  batch_size = None, preproc=[], size=(96, 96),
                  greyscale = False):
@@ -41,6 +41,7 @@ class AFEW2FaceTubes(DenseDesignMatrix):
                                                size=size)
 
         self.dataset = dataset
+        dataset.get_bbox_coords(0)
 
         train_idx, val_idx = dataset.get_standard_train_test_splits()[0]
         if which_set == 'Train':
@@ -56,6 +57,9 @@ class AFEW2FaceTubes(DenseDesignMatrix):
             _targets = []
 
             for idx in data_idx:
+                sys.stdout.write('\r%2d%%' %
+                           int(idx / float(len(data_idx)) * 100 + 0.5))
+                sys.stdout.flush()
                 fts = dataset.get_facetubes(idx)
                 tgt = basic_7emotion_names.index(dataset.get_label(idx))
                 for ft in fts:
@@ -97,26 +101,33 @@ class AFEW2FaceTubes(DenseDesignMatrix):
             one_hot[i, targets[i]] = 1.
         targets = one_hot
 
+        '''
         if batch_size is not None and self.n_samples % batch_size != 0:
             warnings.warn("since batch size is forced adding some duplicate data, be carefull when comparing results. fixed batch size is needed usually for convolution networks")
             self.n_samples = self.n_samples - (self.n_samples % batch_size)
             features = features[:self.n_samples]
             targets = targets[:self.n_samples]
+        '''
 
         #view_converter = dense_design_matrix.DefaultViewConverter((sequence_length, 96, 96, 3), axes = ('b', 't', 0, 1, 'c'))
-        super(AFEW2FaceTubes, self).__init__(X = features, y = targets, axes = ('b', 'c', 0, 1))
+        super(NewClipsFaceTubes, self).__init__(X = features, y = targets, axes = ('b', 'c', 0, 1))
 
 if __name__ == '__main__':
-    # Load the unprocessed train face tubes dataset.
-    #train = AFEW2FaceTubes('train', sequence_length = 1)
-    #mehdi_bbox_coords = train.dataset.get_bbox_coords(0)
+    print '... loading the unprocessed NewClips train face tubes'
+    # Load the unprocessed train face tubes dataset. We want the facetubes in
+    # greyscale.
+    train = NewClipsFaceTubes('train', sequence_length = 1, size=(48, 48),
+        preproc=['remove_background_faces'], greyscale=True)
 
-    # Load the smoothed train and valid face tubes of size 48 x 48 and remove
-    # background faces as many as possible.
-    print '... loading smooth face tubes'
-    smooth_train = AFEW2FaceTubes('train', sequence_length = 1, size=(48, 48),
-        preproc=['smooth', 'remove_background_faces'], greyscale=False)
-    raul_bbox_coords = smooth_train.dataset.get_bbox_coords(0)
+    print 'train shape: ', train.X.shape
+
+    print
+
+    # Load the smoothed train face tubes of size 48 x 48 and remove
+    # background faces as many as possible. We want the facetubes in greyscale.
+    print '... loading NewClips smooth train face tubes'
+    smooth_train = NewClipsFaceTubes('train', sequence_length = 1, size=(96, 96),
+            preproc=['smooth'], greyscale=True)
 
     print 'smooth train shape: ', smooth_train.X.shape
     import pdb; pdb.set_trace()

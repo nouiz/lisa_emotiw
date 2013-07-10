@@ -20,7 +20,7 @@ import warnings
 
 class AFEW2FaceTubes(DenseDesignMatrix):
     def __init__(self, which_set, sequence_length = 3, preload_facetubes=True,
-                 batch_size = None, preproc=[], size=(96, 96), 
+                 batch_size = None, preproc=[], size=(96, 96),
                  greyscale = False):
 
         if which_set == 'train':
@@ -36,8 +36,8 @@ class AFEW2FaceTubes(DenseDesignMatrix):
             raise NotImplementedError(
                 "For now, we need to preload all facetubes")
 
-        dataset = AFEW2ImageSequenceDataset(preload_facetubes=False, 
-                                            preproc=preproc, 
+        dataset = AFEW2ImageSequenceDataset(preload_facetubes=False,
+                                            preproc=preproc,
                                             size=size)
 
         self.dataset = dataset
@@ -54,7 +54,7 @@ class AFEW2FaceTubes(DenseDesignMatrix):
             _features = []
             _clip_ids = []
             _targets = []
- 
+
             for idx in data_idx:
                 fts = dataset.get_facetubes(idx)
                 tgt = basic_7emotion_names.index(dataset.get_label(idx))
@@ -97,11 +97,13 @@ class AFEW2FaceTubes(DenseDesignMatrix):
             one_hot[i, targets[i]] = 1.
         targets = one_hot
 
+        '''
         if batch_size is not None and self.n_samples % batch_size != 0:
             warnings.warn("since batch size is forced adding some duplicate data, be carefull when comparing results. fixed batch size is needed usually for convolution networks")
             self.n_samples = self.n_samples - (self.n_samples % batch_size)
             features = features[:self.n_samples]
             targets = targets[:self.n_samples]
+        '''
 
         #view_converter = dense_design_matrix.DefaultViewConverter((sequence_length, 96, 96, 3), axes = ('b', 't', 0, 1, 'c'))
         super(AFEW2FaceTubes, self).__init__(X = features, y = targets, axes = ('b', 'c', 0, 1))
@@ -119,6 +121,6 @@ if __name__ == '__main__':
     print '... loading smooth train face tubes'
     smooth_train = AFEW2FaceTubes('train', sequence_length = 1, size=(48, 48),
         preproc=['smooth', 'remove_background_faces'], greyscale=False)
-    
+
     print 'smooth train shape: ', smooth_train.X.shape
     import pdb; pdb.set_trace()
