@@ -126,6 +126,12 @@ class NewClipsImageSequenceDataset(afew2.AFEW2ImageSequenceDataset):
 
         idx = 0
         for clip_name, target in clips_and_targets:
+            if clip_name in self.seq_info:
+                # Due to a mistake, some clips have been labeled twice,
+                # so the same clip_name appears more than once in the list.
+                # The simplest solution is to only use the first instance.
+                continue
+
             #abs_img_dir = os.path.join(self.absolute_base_directory,
             #                           clip_name)
             rel_img_dir = os.path.join(self.base_dir,
