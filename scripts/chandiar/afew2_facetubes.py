@@ -107,15 +107,18 @@ class AFEW2FaceTubes(DenseDesignMatrix):
         super(AFEW2FaceTubes, self).__init__(X = features, y = targets, axes = ('b', 'c', 0, 1))
 
 if __name__ == '__main__':
+    print '... loading the unprocessed valid face tubes'
     # Load the unprocessed train face tubes dataset.
-    #train = AFEW2FaceTubes('train', sequence_length = 1)
-    #mehdi_bbox_coords = train.dataset.get_bbox_coords(0)
+    valid = AFEW2FaceTubes('valid', sequence_length = 1, size=(48, 48),
+    	preproc=['remove_background_faces'], greyscale=True)
+
+    print 'valid shape: ', valid.X.shape
 
     # Load the smoothed train and valid face tubes of size 48 x 48 and remove
     # background faces as many as possible.
-    print '... loading smooth face tubes'
+    print '... loading smooth train face tubes'
     smooth_train = AFEW2FaceTubes('train', sequence_length = 1, size=(48, 48),
         preproc=['smooth', 'remove_background_faces'], greyscale=False)
-    raul_bbox_coords = smooth_train.dataset.get_bbox_coords(0)
     
+    print 'smooth train shape: ', smooth_train.X.shape
     import pdb; pdb.set_trace()

@@ -47,7 +47,7 @@ class AFEW2TestImageSequenceDataset(afew2.AFEW2ImageSequenceDataset):
     # there is a symlink instead.
     base_dir = "faces/EmotiWTest/Test_Vid_Distr/ExtractedFrame"
     picasa_boxes_base_dir = "faces/EmotiWTest/Test_Vid_Distr/BoundBoxData"
-    face_tubes_base_dir = "faces/EmotiWTest/Test_Vid_Distr/facetube_96_96"
+    face_tubes_base_dir = "faces/EmotiWTest/Test_Vid_Distr/facetube_%s_%s"
     face_tubes_boxes_base_dir = "faces/EmotiWTest/Test_Vid_Distr/picasa_tubes_pickles"
 
     def __init__(self, preload_facetubes=False, preproc=[], size=(96, 96)):
@@ -55,6 +55,7 @@ class AFEW2TestImageSequenceDataset(afew2.AFEW2ImageSequenceDataset):
         If preload_facetubes is True, all facetubes will be loaded
         when the dataset is built.
         """
+        self.face_tubes_base_dir = self.face_tubes_base_dir%(size[0], size[1])
         self.facetubes_to_filter = None
         for opt in preproc:
             if opt == "smooth":

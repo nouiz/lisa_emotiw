@@ -92,10 +92,21 @@ class AFEW2FaceTubes(DenseDesignMatrix):
         #view_converter = dense_design_matrix.DefaultViewConverter((sequence_length, 96, 96, 3), axes = ('b', 't', 0, 1, 'c'))
         super(AFEW2FaceTubes, self).__init__(X = features, axes = ('b', 'c', 0, 1))
 
-if __name__ == '__main__':
-    # Load the smoothed train face tubes of size 48 x 48
-    print '... loading smooth face tubes'
-    smooth_train = AFEW2FaceTubes('train', sequence_length = 1, size=(48, 48),
-        preproc=['smooth'], greyscale=True)
 
+if __name__ == '__main__':
+    print '... loading the unprocessed test face tubes'
+    # Load the unprocessed valid face tubes of size 48x48.
+    test = AFEW2FaceTubes('train', sequence_length = 1, size=(48,48),
+     	preproc=['remove_background_faces'])
+    print 'test shape: ', test.X.shape
+
+    # Load the smoothed test face tubes of size 48 x 48 with facetubes in
+    # grescale (set greyscale to True if you want in facetubes in RGB).
+    # Also, we remove the background faces as many as possible with  the option
+    # 'remove_background_faces' given to the preproc list argument.
+    print '... loading smooth test face tubes'
+    smooth_test = AFEW2FaceTubes('train', sequence_length = 1, size=(48, 48),
+        preproc=['smooth', 'remove_background_faces'], greyscale=True)
+
+    print 'smooth test shape: ', smooth_test.X.shape
     import pdb; pdb.set_trace()

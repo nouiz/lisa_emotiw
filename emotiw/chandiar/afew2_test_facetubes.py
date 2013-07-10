@@ -94,18 +94,19 @@ class AFEW2FaceTubes(DenseDesignMatrix):
 
 
 if __name__ == '__main__':
-    # Load the unprocessed train face tubes of size 96x96.
-    #train = AFEW2FaceTubes('train', sequence_length = 1, 
-    # 	preproc=['remove_background_faces'])
-    #print 'train shape: ', train.X.shape
+    print '... loading the unprocessed test face tubes'
+    # Load the unprocessed valid face tubes of size 48x48.
+    test = AFEW2FaceTubes('train', sequence_length = 1, size=(48,48),
+     	preproc=['remove_background_faces'])
+    print 'test shape: ', test.X.shape
 
-    # Load the smoothed train face tubes of size 48 x 48 with facetubes in
+    # Load the smoothed test face tubes of size 48 x 48 with facetubes in
     # grescale (set greyscale to True if you want in facetubes in RGB).
     # Also, we remove the background faces as many as possible with  the option
     # 'remove_background_faces' given to the preproc list argument.
-    print '... loading smooth face tubes'
-    smooth_train = AFEW2FaceTubes('train', sequence_length = 1, size=(48, 48),
+    print '... loading smooth test face tubes'
+    smooth_test = AFEW2FaceTubes('train', sequence_length = 1, size=(48, 48),
         preproc=['smooth', 'remove_background_faces'], greyscale=True)
 
-    print 'smooth train shape: ', smooth_train.X.shape
+    print 'smooth test shape: ', smooth_test.X.shape
     import pdb; pdb.set_trace()
