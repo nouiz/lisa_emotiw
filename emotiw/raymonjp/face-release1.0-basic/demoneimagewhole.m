@@ -4,10 +4,17 @@ if nargin == 3
     model_no = 3;
 end
 
-imagedir=dir(fullfile([folder_todo '/*.png']));
-path=[folder_todo imagedir(1).name];
-path_res=[folder_result imagedir(1).name];
-path_done=[folder_done imagedir(1).name];
+imagedir=dir(folder_todo);
+
+% find first file (not a directory)
+i = 1;
+while imagedir(i).isdir
+    i = i + 1;
+end
+
+path=[folder_todo imagedir(i).name];
+path_res=[folder_result imagedir(i).name];
+path_done=[folder_done imagedir(i).name];
 
 % load and visualize model
 switch model_no
