@@ -55,3 +55,6 @@ nosetests.xml
 #Don't track the image files:
 *.png
 *.jpg
+
+#core
+core.*

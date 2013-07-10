@@ -20,7 +20,7 @@ import warnings
 
 class AFEW2FaceTubes(DenseDesignMatrix):
     def __init__(self, which_set, sequence_length = 3, preload_facetubes=True,
-                 batch_size = None, preproc=[], size=(96, 96), 
+                 batch_size = None, preproc=[], size=(96, 96),
                  greyscale = False):
 
         if which_set == 'train':
@@ -36,9 +36,9 @@ class AFEW2FaceTubes(DenseDesignMatrix):
             raise NotImplementedError(
                 "For now, we need to preload all facetubes")
 
-        dataset = AFEW2ImageSequenceDataset(preload_facetubes=False, 
-                                            preproc=preproc, 
-                                            size=size)
+        dataset = NewClipsImageSequenceDataset(preload_facetubes=False,
+                                               preproc=preproc,
+                                               size=size)
 
         self.dataset = dataset
 
@@ -54,7 +54,7 @@ class AFEW2FaceTubes(DenseDesignMatrix):
             _features = []
             _clip_ids = []
             _targets = []
- 
+
             for idx in data_idx:
                 fts = dataset.get_facetubes(idx)
                 tgt = basic_7emotion_names.index(dataset.get_label(idx))
@@ -107,18 +107,16 @@ class AFEW2FaceTubes(DenseDesignMatrix):
         super(AFEW2FaceTubes, self).__init__(X = features, y = targets, axes = ('b', 'c', 0, 1))
 
 if __name__ == '__main__':
-    print '... loading the unprocessed valid face tubes'
     # Load the unprocessed train face tubes dataset.
-    valid = AFEW2FaceTubes('valid', sequence_length = 1, size=(48, 48),
-    	preproc=['remove_background_faces'], greyscale=True)
-
-    print 'valid shape: ', valid.X.shape
+    #train = AFEW2FaceTubes('train', sequence_length = 1)
+    #mehdi_bbox_coords = train.dataset.get_bbox_coords(0)
 
     # Load the smoothed train and valid face tubes of size 48 x 48 and remove
     # background faces as many as possible.
-    print '... loading smooth train face tubes'
+    print '... loading smooth face tubes'
     smooth_train = AFEW2FaceTubes('train', sequence_length = 1, size=(48, 48),
         preproc=['smooth', 'remove_background_faces'], greyscale=False)
-    
+    raul_bbox_coords = smooth_train.dataset.get_bbox_coords(0)
+
     print 'smooth train shape: ', smooth_train.X.shape
     import pdb; pdb.set_trace()

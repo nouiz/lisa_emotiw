@@ -30,8 +30,11 @@
 """
 AFEW2Test contains the test data distributed with the EmotiW challenge.
 """
+import cPickle
 import glob
 import os
+
+import numpy as np
 
 from emotiw.common.utils.pathutils import locate_data_path
 import afew
@@ -44,45 +47,37 @@ class AFEW2TestImageSequenceDataset(afew2.AFEW2ImageSequenceDataset):
     # there is a symlink instead.
     base_dir = "faces/EmotiWTest/Test_Vid_Distr/ExtractedFrame"
     picasa_boxes_base_dir = "faces/EmotiWTest/Test_Vid_Distr/BoundBoxData"
-    face_tubes_base_dir = base_dir # "faces/EmotiWTest/Test_Vid_Distr/FaceTube"
+    face_tubes_base_dir = "faces/EmotiWTest/Test_Vid_Distr/facetube_%s_%s"
+    face_tubes_boxes_base_dir = "faces/EmotiWTest/Test_Vid_Distr/picasa_tubes_pickles"
 
     def __init__(self, preload_facetubes=False, preproc=[], size=(96, 96)):
         """
         If preload_facetubes is True, all facetubes will be loaded
         when the dataset is built.
         """
+        self.face_tubes_base_dir = self.face_tubes_base_dir%(size[0], size[1])
         self.facetubes_to_filter = None
         for opt in preproc:
-            # TODO: fix paths
-            raise NotImplementedError()
             if opt == "smooth":
                 # Use the bounding-boxes smoothed version of the face tubes.
-                self.face_tubes_base_dir = ("faces/EmotiW/smooth_picasa_face_tubes_%s_%s"
-                                            "/numpy_arr/concatenate")%(size[0], size[1])
-                # TODO: return the correct bounding boxes coordinates
-                # corresponding to the smoothed face tubes.  For the
-                # moment, we are using the default picasa boxes coordinates.
-                self.picasa_boxes_base_dir = "faces/EmotiW/picasa_boxes"
+                self.face_tubes_base_dir = ("faces/EmotiWTest/smooth_picasa_face_tubes_%s_%s"
+                                            "/v2/numpy_arr_concatenated")%(size[0], size[1])
+                self.face_tubes_boxes_base_dir = ("faces/EmotiWTest/smooth_picasa_face_tubes_%s_%s"
+                                                  "/picasa_tubes_pickles")%(size[0], size[1])
 
             if opt == "remove_background_faces":
                 # Remove background faces as many as possible from the dataset.
-                # NOTE: for the moment, only the smoothed version of face tubes
-                # is supported.
                 # Path to the dictionary giving for each dataset, the list of
                 # face tubes corresponding to background faces/objects.
-                abs_dir = locate_data_path("faces/EmotiW")
-                filename = os.path.join(abs_dir, "background_faces_info.pkl")
+                abs_dir = locate_data_path("faces/EmotiWTest")
+                filename = os.path.join(abs_dir, "test_background_info.txt")
                 try:
-                    f = open(filename, 'rb')
-                    background_faces_info = cPickle.load(f)
+                    f = open(filename)
+                    lines = f.readlines()
                     f.close()
-                    # Retrieve the list of background faces (clip_id, facetube_id)
-                    # for the given dataset that will be filtered out.
-                    if self.face_tubes_base_dir in background_faces_info:
-                        self.facetubes_to_filter = background_faces_info[self.face_tubes_base_dir]
-                    else:
-                        print ("The option %s doesn't support the dataset %s"
-                               %(opt, self.face_tubes_base_dir))
+                    self.facetubes_to_filter = []
+                    for line in lines:
+                        self.facetubes_to_filter.append(line.strip())
                 except IOError as e:
                     print e
 
@@ -93,6 +88,8 @@ class AFEW2TestImageSequenceDataset(afew2.AFEW2ImageSequenceDataset):
                 self.picasa_boxes_base_dir)
         self.face_tubes_base_directory = locate_data_path(
                 self.face_tubes_base_dir)
+        self.face_tubes_boxes_base_directory = locate_data_path(
+                self.face_tubes_boxes_base_dir)
 
         self.preload_facetubes = preload_facetubes
         self.preproc = preproc
@@ -145,6 +142,34 @@ class AFEW2TestImageSequenceDataset(afew2.AFEW2ImageSequenceDataset):
 
             idx += 1
 
+    def get_bbox_coords(self, i):
+        """
+        Get a list of dictionary containing all facetubes' bounding boxes
+        coordinates of clip i.  These bounding box coordinates are relative
+        to the original picasa image (uncropped version).
+
+        The dictionary gives the bounding boxes for all frames in a facetube.
+        The key is the frame number and we associate it a list of 4 numbers
+        representing the bounding box coordinates of that frame.
+
+        Each 4-tuple is x1,y1,x2,y2 giving the coordinates of the top left
+        corner and bottom right corner of a bounding box.  Coordinate system
+        has its origin in the upper left corner of the image
+        (horizontal_offset_in_pixels, vertical_offset_in_pixels).
+        """
+        rval = []
+        seq_id = self.seq_info[i].split("/")[-1]
+        path = os.path.join(self.face_tubes_boxes_base_directory, "%s.pkl"%seq_id)
+        try:
+            f = open(path, 'rb')
+            bbox_coords = cPickle.load(f)
+            f.close()
+            if seq_id in bbox_coords:
+                rval = bbox_coords[seq_id]
+        except IOError:
+            pass
+        return rval
+
     def get_facetubes(self, i):
         if self.preload_facetubes:
             return self.facetubes[i]
@@ -152,5 +177,28 @@ class AFEW2TestImageSequenceDataset(afew2.AFEW2ImageSequenceDataset):
             return self.load_facetubes(self.seq_info[i])
 
     def load_facetubes(self, clip_name):
-        # Not available yet
-        return None
+        seq_id = clip_name.split("/")[-1]
+        npy_dir = self.face_tubes_base_directory
+        #print 'npy_dir:', npy_dir
+        #print 'seq_id:', seq_id
+        npy_glob = os.path.join(npy_dir, '{0}-*.npy'.format(seq_id))
+        #print 'npy_glob:', npy_glob
+        npy_files = glob.glob(npy_glob)
+        # sort the filenames of tubes
+        npy_files.sort()
+        # Filter out the background faces filenames if required.
+        if self.facetubes_to_filter:
+            npy_files_to_be_kept = []
+            for npy_file in npy_files:
+                # Get only the seq_id and the (clip_id, facetube_id) (=key)
+                npy_basename = os.path.basename(npy_file)
+                key = os.path.splitext(npy_basename)[0]
+                if not key in self.facetubes_to_filter:
+                    # Not a background face thus it will be kept.
+                    npy_files_to_be_kept.append(npy_file)
+            npy_files = npy_files_to_be_kept
+        #print 'npy_files:', npy_files
+        rval = []
+        for f in npy_files:
+            rval.append(np.load(f))
+        return tuple(rval)

@@ -18,7 +18,8 @@ from .facetubes import FaceTubeDataset, FaceTubeSpace
 
 class AFEW2FaceTubes(FaceTubeDataset):
     def __init__(self, which_set, preload_facetubes=True, one_hot=False,
-                    shuffle_rng=None, preproc=[], size=(96,96)):
+                    shuffle_rng=None, preproc=[], size=(96,96), min_seq_length = 1,
+                    forced_seq_size = None):
         if which_set == 'train':
             which_set = 'Train'
         elif which_set == 'valid':
@@ -60,10 +61,31 @@ class AFEW2FaceTubes(FaceTubeDataset):
                     clip_ids.append(idx)
                     targets.append(tgt)
 
+            # disregard short sequences
+            if min_seq_length > 1:
+                _features = []
+                _clip_ids = []
+                _targets = []
+                for feat, id, target in zip(features, clip_ids, targets):
+                    if feat.shape[0] >= min_seq_length:
+                        _features.append(feat)
+                        _clip_ids.append(id)
+                        _targets.append(target)
+                features = _features
+                clip_ids = _clip_ids
+                targets = _targets
+
+            if forced_seq_size is not None:
+                for feat in features:
+                    if feat.shape[0] % forced_seq_size != 0:
+                        new_size = feat.shape[0] - (feat.shape[0] * forced_seq_size)
+                        feat = feat[:new_size]
+
             permutation = shuffle_rng.permutation(len(features))
             self.features = [features[i] for i in permutation]
             self.clip_ids = np.asarray(clip_ids)[permutation]
             self.targets = np.asarray(targets)[permutation][:, np.newaxis]
+
             self.one_hot = one_hot
             if one_hot:
                 one_hot = np.zeros((self.targets.shape[0], 7), dtype='float32')
