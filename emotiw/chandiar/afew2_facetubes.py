@@ -118,5 +118,5 @@ if __name__ == '__main__':
         preproc=['smooth', 'remove_background_faces'], greyscale=False)
     raul_bbox_coords = smooth_train.dataset.get_bbox_coords(0)
     
-
+    print 'smooth train shape: ', smooth_train.X.shape
     import pdb; pdb.set_trace()
