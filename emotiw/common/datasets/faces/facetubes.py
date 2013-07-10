@@ -20,7 +20,7 @@ from pylearn2.utils.data_specs import is_flat_specs
 from pylearn2.utils.iteration import (FiniteDatasetIterator,
                                       resolve_iterator_class)
 from pylearn2.space import CompositeSpace, Space, VectorSpace, Conv2DSpace
-
+from emotiw.scripts.mirzamom.conv3d.space import Conv3DSpace
 # Current project
 
 
@@ -237,6 +237,27 @@ class FaceTubeSpace(Space):
                 batch = batch.reshape(shape)
                 batch = batch.transpose(*[space.default_axes.index(ax) for ax in space.axes])
             return batch
+
+        if isinstance(space, Conv3DSpace):
+            if self.axes[0] != 'b' or self.axes[1] != 't':
+                new_axes = ['b', 't'] + [axis for axis in self.axes if axis not in ['b', 't']]
+                batch = batch.transpose(*[self.axes.index(axis)
+                                        for axis in new_axes])
+
+            if batch.shape[1] % space.sequence_length !=0:
+                raise ValueError("Whole sequence length {} should be divisible by time steps {}".format(batch.shape[1], space.sequence_length))
+            dims = {'b' : batch.shape[1] / space.sequence_length,
+                    't': space.sequence_length,
+                    'c' : space.num_channels,
+                    0 : space.shape[0],
+                    1 : space.shape[1]}
+            if space.axes != space.default_axes:
+                shape = [dims[ax] for ax in space.default_axes]
+                batch = batch.reshape(shape)
+                batch = batch.transpose(*[space.default_axes.index(ax) for ax in space.axes])
+            return batch
+
+
 
         raise NotImplementedError("%s doesn't know how to format as %s"
                                   % (str(type(self)), str(type(space))))

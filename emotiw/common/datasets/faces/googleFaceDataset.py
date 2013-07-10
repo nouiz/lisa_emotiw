@@ -38,14 +38,16 @@ from faceimages import FaceImagesDataset
 
 # Subclasses of FaceImagesDataset
 class GoogleFaceDataset(FaceImagesDataset):
-    
+
     def __init__(self):
         super(GoogleFaceDataset,self).__init__("GFD", "faces/GoogleDataset/")
-        
+
         # Load the dataset's pickle file
         data = cPickle.load(open(self.absolute_base_directory+"Clean/latest.pkl","rb"))
+        import ipdb
+        ipdb.set_trace()
         data = data[1:]
-        
+
         # print data
         self.labels = data[0]
         self.ids = data[2]
@@ -63,16 +65,16 @@ class GoogleFaceDataset(FaceImagesDataset):
              '.jpg':'.txt',
              }
             , csv_delimiter=',')
-    
+
     def get_name(self):
         return "GoogleFaceDataset"
-        
+
     def __len__(self):
         return len(self.labels)
 
     def get_original_image_path_relative_to_base_directory(self, i):
         return "images/" + str(self.queryIds[i]) + "/" + str(self.ids[i]) + ".png"
-        
+
     def get_index_from_image_filename(self, imgFileName):
         filename = imgFileName.split("/")[-1]
         imageId = int(filename[:-4])
@@ -112,6 +114,10 @@ class GoogleFaceDataset(FaceImagesDataset):
 
     def get_7emotion_index(self, i):
         return self.labels[i].argmax()
-        
+
     def get_detailed_emotion_label(self, i):
         return self.tagNames[self.tags[i].argmax()]
+
+
+if __name__ == "__main__":
+    GoogleFaceDataset()
