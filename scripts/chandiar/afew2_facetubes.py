@@ -40,6 +40,8 @@ class AFEW2FaceTubes(DenseDesignMatrix):
                                             preproc=preproc, 
                                             size=size)
 
+        self.dataset = dataset
+
         train_idx, val_idx = dataset.get_standard_train_test_splits()[0]
         if which_set == 'Train':
             data_idx = train_idx
@@ -52,14 +54,17 @@ class AFEW2FaceTubes(DenseDesignMatrix):
             _features = []
             _clip_ids = []
             _targets = []
-
+ 
             for idx in data_idx:
                 fts = dataset.get_facetubes(idx)
                 tgt = basic_7emotion_names.index(dataset.get_label(idx))
                 for ft in fts:
                     temp = []
                     for frame in ft:
-                        temp.append(cv2.cvtColor(frame, cv.CV_BGR2GRAY))
+                        if greyscale:
+                            temp.append(cv2.cvtColor(frame, cv.CV_BGR2GRAY))
+                        else:
+                            temp.append(frame)
                     ft = numpy.array(temp)
                     _features.append(ft)
                     _clip_ids.append(idx)
@@ -85,7 +90,7 @@ class AFEW2FaceTubes(DenseDesignMatrix):
             self.n_samples = count
             feat_shape = features[0].shape
             features = numpy.concatenate(features)
-            features = features.reshape((self.n_samples, sequence_length * feat_shape[1] * feat_shape[2]))
+            features = features.reshape((self.n_samples, sequence_length * numpy.product(feat_shape[1:])))
 
         one_hot = numpy.zeros((self.n_samples, 7), dtype = 'float32')
         for i in xrange(self.n_samples):
@@ -102,28 +107,18 @@ class AFEW2FaceTubes(DenseDesignMatrix):
         super(AFEW2FaceTubes, self).__init__(X = features, y = targets, axes = ('b', 'c', 0, 1))
 
 if __name__ == '__main__':
+    print '... loading the unprocessed valid face tubes'
+    # Load the unprocessed train face tubes dataset.
+    valid = AFEW2FaceTubes('valid', sequence_length = 1, size=(48, 48),
+    	preproc=['remove_background_faces'], greyscale=True)
+
+    print 'valid shape: ', valid.X.shape
+
     # Load the smoothed train and valid face tubes of size 48 x 48 and remove
     # background faces as many as possible.
-    print '... loading smooth face tubes'
-    smooth_train = AFEW2FaceTubes('train', sequence_length = 4, size=(48, 48),
-        preproc=['smooth', 'remove_background_faces'], greyscale=True)
-    print 'shape of smooth train dataset: ', smooth_train.X.shape
-
-    smooth_valid = AFEW2FaceTubes('valid', sequence_length = 4, size=(48, 48),
-        preproc=['smooth', 'remove_background_faces'], greyscale=True)
-    print 'shape of smooth valid dataset: ', smooth_valid.X.shape
+    print '... loading smooth train face tubes'
+    smooth_train = AFEW2FaceTubes('train', sequence_length = 1, size=(48, 48),
+        preproc=['smooth', 'remove_background_faces'], greyscale=False)
+    
+    print 'smooth train shape: ', smooth_train.X.shape
     import pdb; pdb.set_trace()
-
-   
-    '''
-    # Load the original train and valid face tubes (no preprocessing) of size
-    # 96 x 96 where each training example consists of 3 frames from the same
-    # facetube.
-    print '... loading original face tubes'
-    train = AFEW2FaceTubes('train', sequence_length = 3)
-    print 'shape of train dataset: ', train.X.shape
-
-    train = AFEW2FaceTubes('valid', sequence_length = 3)
-    print 'shape of valid dataset: ', train.X.shape
-    import pdb; pdb.set_trace()
-    '''

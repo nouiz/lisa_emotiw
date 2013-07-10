@@ -45,14 +45,15 @@ class AFEW2ImageSequenceDataset(afew.AFEWImageSequenceDataset):
     # These directories are relative to the data path.
     base_dir = "faces/EmotiW/images"
     picasa_boxes_base_dir = "faces/EmotiW/picasa_boxes"
-    face_tubes_base_dir = "faces/EmotiW/picasa_face_tubes_96_96"
-    face_tubes_boxes_base_dir = "faces/EmotiW/picasa_tubes_pickles"
+    face_tubes_base_dir = "faces/EmotiW/picasa_face_tubes_%s_%s"
+    face_tubes_boxes_base_dir = "faces/EmotiW/picasa_tubes_pickles/v1"
 
     def __init__(self, preload_facetubes=False, preproc=[], size=(96, 96)):
         """
         If preload_facetubes is True, all facetubes will be loaded
         when the dataset is built, which takes around 1.2 GB.
         """
+        self.face_tubes_base_dir = self.face_tubes_base_dir%(size[0], size[1])
         self.facetubes_to_filter = None
         for opt in preproc:
             if opt == "smooth":
@@ -65,23 +66,17 @@ class AFEW2ImageSequenceDataset(afew.AFEWImageSequenceDataset):
 
             if opt == "remove_background_faces":
                 # Remove background faces as many as possible from the dataset.
-                # NOTE: for the moment, only the smoothed version of face tubes
-                # is supported.
                 # Path to the dictionary giving for each dataset, the list of
                 # face tubes corresponding to background faces/objects.
                 abs_dir = locate_data_path("faces/EmotiW")
-                filename = os.path.join(abs_dir, "background_faces_info.pkl")
+                filename = os.path.join(abs_dir, "background_faces_info_v2.pkl")
                 try:
-                    f = open(filename, 'rb')
-                    background_faces_info = cPickle.load(f)
-                    f.close()
                     # Retrieve the list of background faces (clip_id, facetube_id)
                     # for the given dataset that will be filtered out.
-                    if self.face_tubes_base_dir in background_faces_info:
-                        self.facetubes_to_filter = background_faces_info[self.face_tubes_base_dir]
-                    else:
-                        print ("The option %s doesn't support the dataset %s"
-                               %(opt, self.face_tubes_base_dir))
+                    f = open(filename, 'rb')
+                    info = cPickle.load(f)
+                    f.close()
+                    self.facetubes_to_filter = info
                 except IOError as e:
                     print e
 
