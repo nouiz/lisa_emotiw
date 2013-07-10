@@ -3,14 +3,16 @@ Created on 2013-07-09
 
 @author: "JP Raymond (raymonjp@iro)
 
+Processes images using Ramanan's code ("Face Detection, Pose Estimation, and
+Landmark Localization in the Wild, Zhu X. and Ramanan D., 2012", available at
+http://www.ics.uci.edu/~xzhu/paper/face-cvpr12.pdf).
+
 Requires the mlabwrap library (http://mlabwrap.sourceforge.net/). Also,
 Ramanan's MATLAB code (in folder face-release1.0-basic) must be included in
 MATLAB search path.
-
-Based on "Face Detection, Pose Estimation, and Landmark Localization in the
-Wild, Zhu X. and Ramanan D., 2012", available at
-http://www.ics.uci.edu/~xzhu/paper/face-cvpr12.pdf.
 '''
+
+from mlabwrap import mlab
 
 def process_first_file(folder_todo, folder_results, folder_done, model_no=3):
     '''
@@ -26,5 +28,4 @@ def process_first_file(folder_todo, folder_results, folder_done, model_no=3):
             localization, but very slow.
         "
     '''
-    from mlabwrap import mlab
     mlab.demoneimagewhole(folder_todo, folder_results, folder_done, model_no)
