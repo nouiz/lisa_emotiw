@@ -74,6 +74,77 @@ class faceAlign(object):
       self.cost = theano.function(inputs=[A_t_, pi_t, z_t, oneCol],
                                   outputs=[cost_, A_t_grad_])
 
+
+
+   def apply_clip(self, seqDataset, facetubes, window, perturb = False):
+      numFacetubes = len(facetubes)
+      #print 'number Of Facetubes:', numFacetubes
+      result = []
+      for i in xrange(numFacetubes):
+         org_Ats = {}
+         mean = 0
+         meanNum = 0
+         facetube = facetubes[i]
+         #print facetube
+         for frame in facetube:
+            bbox = facetube[frame] 
+            At = self.apply(seqDataset, frame, returnA_t=True, bbox = bbox)
+            if At == None:
+               continue
+            else:
+               org_Ats[frame] = At
+            mean += org_Ats[frame]
+            meanNum += 1
+         if meanNum < 3:
+            continue
+         mean = mean/meanNum
+         
+         #calculate the mean A_t per frame given the window size and magic number
+         transMats = {}
+         magicNum = {}
+         for frame in org_Ats:
+            transMat = 0
+            num = 0
+            for i in range(frame - window, frame+window+1):
+               if i in org_Ats:
+                  transMat += org_Ats[i]
+                  num += 1
+            transMats[frame] = transMat/num
+            magicNum[frame] = numpy.sqrt(numpy.sum(numpy.square(transMats[frame] - mean))/9.0)
+
+         #calculate weighted mean A_t given the window size
+         transMats_final = {}
+         images = []
+
+         if perturb:
+            pMat = self.get_perturb_Mat(5,5,True)
+
+         for frame in org_Ats:
+            matrx = 0
+            sumWeights = 0
+            for i in range(frame - window, frame+window+1):
+               if i in org_Ats:
+                  weight = magicNum[frame]/numpy.sqrt(numpy.sum(numpy.square(transMats[frame] - org_Ats[i]))/9.0)
+                  sumWeights += weight
+                  matrx += weight * org_Ats[i]
+
+            if perturb:
+               b4BasePertrb = matrx/sumWeights
+               aftrBasePertrb = numpy.dot(pMat, b4BasePertrb)
+               frmPMat = self.get_perturb_Mat()
+               transMats_final[frame] = numpy.dot(frmPMat, aftrBasePertrb)
+            else:
+               transMats_final[frame] = matrx/sumWeights
+
+            face_org = self.get_face_pil_image(seqDataset, frame)  
+            image = self.get_transformed_image(face_org, transMats_final[frame])
+            images.append(image)
+            #self.nums += 1
+            #image.save('./resultImages/'+str(self.nums)+'.png')
+         result.append(images)
+
+      return result            
+
    def apply_sequence(self, dataset, window = 2, returnA_t = False, perturb = False, flip=False):
       numFrame = len(dataset)
       mats = []
@@ -168,7 +239,9 @@ class faceAlign(object):
       return perturbMat
 
 
-   def apply(self, dataset, index, returnA_t = False,  perturb = False, flip = False):
+               
+
+   def apply(self, dataset, index, returnA_t = False,  perturb = False, flip = False, bbox = None):
        oneCol = numpy.ones((self.numKeypoints, 1))
        temp = numpy.random.random((9))
        temp[6:9] = [0,0,1]
@@ -180,7 +253,10 @@ class faceAlign(object):
            return [cost, A_t_grad.reshape((9))]
 
        #getting keypoints
-       keypoints = self.get_keypoints(dataset, index)
+       keypoints = self.get_keypoints(dataset, index, bbox = bbox)
+
+       if keypoints == None:
+          return None
        #print keypoints
        z_t = numpy.zeros((2*self.numKeypoints,1))
        pi_t = numpy.zeros((2*self.numKeypoints,1))
@@ -279,19 +355,64 @@ class faceAlign(object):
                y1 = y
        return [x0, y0, x1, y1]
 
-   def get_keypoints(self, dataset, index):
+
+   def validate_bbox(self, keypoints, bbox):
+      if keypoints == None:
+         return False
+      else:
+         numValid = 0
+         total = 0
+         x0 = 10000
+         x1 = 0
+         y0 = 10000
+         y1 = 0
+         for key in keypoints:
+            total += 1
+            (x,y) = keypoints[key]
+            if bbox[0]<=x<=bbox[2] and bbox[1]<=y<=bbox[3]:
+               numValid += 1
+               if ( x < x0):
+                  x0 = x
+               if ( y < y0):
+                  y0 = y
+               if ( x > x1):
+                  x1 = x
+               if ( y > y1):
+                  y1 = y
+         #print float(numValid)/float(total)
+         if float(numValid)/float(total) > 0.9 or (total - numValid) < 4  :
+            #print 'criterion1:', float(x1-x0)/float(bbox[2]-bbox[0]), float(y1-y0)/float(bbox[3]-bbox[1])
+            if float(x1-x0)/float(bbox[2]-bbox[0]) > 0.5 and float(y1-y0)/float(bbox[3]-bbox[1]) > 0.5:
+               return True
+            else:
+               return False
+         else:
+            return False
+   
+
+   def get_keypoints(self, dataset, index, bbox = None):
        keypoints = dataset.get_keypoints_location(index)
-       if keypoints == None:
+       #print keypoints
+       if keypoints == None or len(keypoints) == 0:
           return None
        else:
           keypoints = keypoints.copy()
 
-       bbox = dataset.get_bbox(index)
        if bbox == None:
-          bbox = self.get_keypoints_based_bbox(dataset, index)
+          bbox = dataset.get_bbox(index)
+          if bbox == None:
+             #print 'getting keypoint based bbox'
+             bbox = self.get_keypoints_based_bbox(dataset, index)
+             #print bbox
           #print 'bbox using keypoints:', bbox
+          else:
+             bbox = bbox[0]
+       
+       if self.validate_bbox(keypoints, bbox) == False:
+          print 'validation failed'
+          return None
        else:
-          bbox = bbox[0]
+          print 'validation passed!'
 
        width = bbox[2]-bbox[0]
        height = bbox[3]-bbox[1]
@@ -399,6 +520,7 @@ def dummy_test():
 
     #Static Datasets
     from emotiw.common.datasets.faces.multipie import MultiPie
+    from emotiw.common.datasets.faces.tfd import ArFace
         
     #without keypoints
     from emotiw.common.datasets.faces.tfd import TorontoFaceDataset
@@ -406,7 +528,7 @@ def dummy_test():
 
     
     datasetObjs = []
-    datasetObjs = pickle.load(open("/Tmp/aggarwal/datasetObjs.pkl","r"))
+    #datasetObjs = pickle.load(open("/Tmp/aggarwal/datasetObjs.pkl","r"))
     alignObj = pickle.load(open( "/Tmp/aggarwal/AlignObj.pkl", "r" ))
     paths = []
 
@@ -415,13 +537,57 @@ def dummy_test():
     #print 'added TorrontoFaceDatset'
     
     datasetObjs.append(MultiPie())
+   
     print 'added Multipie'
-    Afew2 = AFEW2ImageSequenceDataset()
+    '''
+
+    '''
+    alignObj.nums = 0
+    Afew2 = AFEW2ImageSequenceDataset(preproc =['smooth'])
+    #Afew2 = AFEW2ImageSequenceDataset()
+    print 'total number of sequences:', len(Afew2)
     for i in xrange(len(Afew2)):
        print 'sequence:', i
-       datasetObjs.append(Afew2.get_sequence(i))
+       dataset = Afew2.get_sequence(i)
+       facetubes =  Afew2.get_bbox_coords(i)
+       split_name, emo_name, seq_id = Afew2.seq_info[i]
+       if emo_name not in ['Surprise']:
+          continue
+       else:
+          print 'surprise'
+          
+       lis = ['org', '1', '2', '3', '4']
+       for copy in lis:
+          if copy == 'org':
+             perturb = False
+          else:
+             perturb  = True
+          print copy
+          print len(dataset)
+          result = alignObj.apply_clip(dataset, facetubes, window=2, perturb = perturb)
+          features = 96*96
+          print len(result)
+          for j in xrange(len(result)):
+             numberOfSamples = len(result[j])             
+             print numberOfSamples
+             dsX = numpy.memmap('/Tmp/aggarwal/afew2_'+copy+'_'+emo_name+'_'+str(seq_id)+'_'+str(j)+'_X.npy', dtype='float32', mode='w+', shape=(numberOfSamples,features))
+             flipX = numpy.memmap('/Tmp/aggarwal/afew2_'+copy+'_'+emo_name+'_'+str(seq_id)+'_'+str(j)+'_flip_X.npy', dtype='float32', mode='w+', shape=(numberOfSamples,features))
+             for k in xrange(len(result[j])):
+                img = result[j][k]
+             #img.save('./resultImages/'+str(i)+'_'+str(j)+'_'+str(k)+'.png')
+                fImg = result[j][k].transpose(Image.FLIP_LEFT_RIGHT)
+                npImg = alignObj.apply_gcn(img, mode = 'L')
+                fNpImg = alignObj.apply_gcn(fImg, mode = 'L')
+                dsX[k, :] = npImg.reshape((1, features))
+                flipX[k,:] = fNpImg.reshape((1, features))
+             
+
     print 'added AFEW2'
-    
+    return
+    '''
+
+    '''
+
     pickle.dump( datasetObjs, open( "/Tmp/aggarwal/datasetObjs.pkl", "wb" ))
     
     keys = {}
@@ -471,27 +637,54 @@ def dummy_test():
     '''
   #  return
     
-    datasetIndex = 0
-    numberOfSamples = len(datasetObjs[datasetIndex])
-    print 'numOfSamples', numberOfSamples
-    features = 96*96
-    dsX = numpy.memmap('/Tmp/aggarwal/multipie_dist_4_X.npy', dtype='float32', mode='w+', shape=(numberOfSamples,features))
-    dsY = numpy.memmap('/Tmp/aggarwal/multipie_dist_4_y.npy', dtype='uint8', mode='w+', shape=(numberOfSamples))
-    flipX = numpy.memmap('/Tmp/aggarwal/multipie_dist_4_flip_X.npy', dtype='float32', mode='w+', shape=(numberOfSamples,features))
-    flipY = numpy.memmap('/Tmp/aggarwal/multipie_dist_4_flip_y.npy', dtype='uint8', mode='w+', shape=(numberOfSamples))
     
-    for i in xrange(len(datasetObjs[datasetIndex])):
-       print 'sample number:', i
-       img = alignObj.apply(datasetObjs[datasetIndex], i, perturb=True, flip = False)
-       fImg = img.transpose(Image.FLIP_LEFT_RIGHT)
-       npImg = alignObj.apply_gcn(img, mode = 'L')
-       fNpImg = alignObj.apply_gcn(fImg, mode = 'L')
-       emotion = datasetObjs[datasetIndex].get_7emotion_index(i)
-       dsY[i] = emotion
-       dsX[i, :] = npImg.reshape((1, 96*96))
-       flipY[i] = emotion
-       flipX[i,:] = fNpImg.reshape((1, 96*96))
+    
 
+    # for static dataset
+    lis = ['org', '1', '2', '3', '4']
+#    lis = ['3', '4']
+    #dataset = ArFace()
+    dataset = TorontoFaceDataset()
+    name = 'tfd'
+    numberOfSamples = len(dataset)
+    print 'numOfSamples', numberOfSamples
+    features = 48*48
+    for copy in lis:
+       dsX = numpy.memmap('/Tmp/aggarwal/'+name+'_dist_'+copy+'_X.npy', dtype='float32', mode='w+', shape=(numberOfSamples,features))
+       dsY = numpy.memmap('/Tmp/aggarwal/'+name+'_dist_'+copy+'_y.npy', dtype='uint8', mode='w+', shape=(numberOfSamples))
+       flipX = numpy.memmap('/Tmp/aggarwal/'+name+'_dist_'+copy+'_flip_X.npy', dtype='float32', mode='w+', shape=(numberOfSamples,features))
+       flipY = numpy.memmap('/Tmp/aggarwal/'+name+'_dist_'+copy+'_flip_y.npy', dtype='uint8', mode='w+', shape=(numberOfSamples))
+       print copy
+       if copy == 'org':
+          perturb = False
+       else:
+          perturb = True
+       
+       for i in xrange(numberOfSamples):
+          print 'sample number:', i
+          #img = alignObj.apply(dataset, i, perturb=perturb, flip = False)
+          emotion = dataset.get_7emotion_index(i)
+          if emotion == None:
+             print 'found no emotion'
+             continue
+          img = alignObj.get_face_pil_image(dataset, i)
+          img = img.resize((48,48), Image.ANTIALIAS)
+          if perturb:
+             pertmat = alignObj.get_perturb_Mat(5,5,True)
+             img = alignObj.get_transformed_image(img, pertmat)
+
+          if img == None:
+             print 'found no image'
+             continue
+
+          fImg = img.transpose(Image.FLIP_LEFT_RIGHT)
+          npImg = alignObj.apply_gcn(img, mode = 'L')
+          fNpImg = alignObj.apply_gcn(fImg, mode = 'L')
+          
+          dsY[i] = emotion
+          dsX[i, :] = npImg.reshape((1, features))
+          flipY[i] = emotion
+          flipX[i,:] = fNpImg.reshape((1, features))
 
   #  alignObj.draw_template(alignObj.apply(datasetObjs[1], 10, perturb = False)).show()
 
