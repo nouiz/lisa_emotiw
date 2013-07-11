@@ -2,7 +2,7 @@
 
     dataset: &train !obj:emotiw.bouthilx.transform.TransformerDataset {
         raw: &raw !obj:emotiw.bouthilx.datasets.AFEWDataset {
-             base_path: '/data/afew/facetubes',
+             base_path: '/data/afew/facetubes/p10',
              which_set: 'train',
              preprocessor : &prepro !obj:pylearn2.datasets.preprocessing.Standardize {},
              fit_preprocessor: True,
@@ -18,18 +18,18 @@
 
                 # If the new image is smaller, the empty space is black.
                 !obj:emotiw.bouthilx.transform.Scaling {
-                     p: 0.9,
+                     p: 1.0,
                      fct_settings: {
                          loc: 1.0,
-                         scale: 0.15
+                         scale: 0.2
                      },
                 },
 
                 !obj:emotiw.bouthilx.transform.Rotation {
-                    p: 0.8,
+                    p: 1.0,
                      fct_settings: {
                         loc: 0.0,
-                        scale: 15  
+                        scale: 20  
                      }
                 },
                 !obj:emotiw.bouthilx.transform.Translation {
@@ -113,7 +113,7 @@
         monitoring_dataset:
             {
                 'trainsub' : !obj:emotiw.bouthilx.datasets.AFEWDataset {
-                    base_path: '/data/afew/facetubes',
+                    base_path: '/data/afew/facetubes/p10',
                     which_set: 'train',
                     start: 0,
                     stop: 2000,
@@ -122,23 +122,22 @@
                 },
 
                 'valid' : !obj:emotiw.bouthilx.datasets.AFEWDataset {
-                    base_path: '/data/afew/facetubes',
+                    base_path: '/data/afew/facetubes/p10',
                     which_set: 'valid',
                     start: 0,
-                    stop: 2000,
+                    stop: 1000,
                     preprocessor: *prepro
                 }
             },
             
-#        cost: !obj:pylearn2.costs.cost.SumOfCosts { costs: [
-#            !obj:pylearn2.costs.cost.MethodCost {
-#                method: 'cost_from_X',
-#                supervised: 1
-#            }, !obj:pylearn2.costs.mlp.dropout.Dropout {
-#                 default_input_include_prob: 0.8,
-#                 default_input_scale: 1.25
-#            }],
-#        },
+        cost: !obj:pylearn2.costs.cost.SumOfCosts { costs: [
+            !obj:pylearn2.costs.cost.MethodCost {
+                method: 'cost_from_X',
+                supervised: 1
+            }, !obj:pylearn2.models.mlp.WeightDecay {
+                coeffs: [ 0.1, 0.1, 0.1, 0.1, 0.1, 0.1 ]
+            }],
+        },
  
         termination_criterion: !obj:pylearn2.termination_criteria.MonitorBased {
             channel_name: "valid_y_misclass",
