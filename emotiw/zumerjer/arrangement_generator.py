@@ -206,7 +206,7 @@ class ArrangementGenerator(object):
         if hack:
             size = 3*batch_size
         out_X = numpy.memmap(path + '_x.npy', mode='w+', dtype=numpy.float32, shape=(size, 3, self.img_res[0], self.img_res[1], self.num_channels))
-        out_y = numpy.memmap(path + '_y.npy', mode='w+', dtype=numpy.float32, shape=(size, 1))
+        out_y = numpy.memmap(path + '_y.npy', mode='w+', dtype=numpy.uint8, shape=(size, 1))
         it = self.iterator(batch_size=batch_size)
 
         if not hack:
@@ -218,12 +218,11 @@ class ArrangementGenerator(object):
                 for x in item[0]:
                     arr.append([y.reshape(self.img_res[0], self.img_res[1], self.num_channels) for y in x])
 
-                out_X[batch_size*idx:batch_size*idx+batch_size,:] = arr
+                    item[1].shape = (len(item[1]), 1)
 
-                for i in xrange(batch_size):
-                    out_y[batch_size*idx+i] = item[1][i]
-                    #for some reason, not possible to batch this operation:
-                    #ValueError: output operand requires a reduction, but reduction is not enabled
+                out_X[batch_size*idx:batch_size*(idx+1),:] = arr
+                out_y[batch_size*idx:batch_size*(idx+1),:] = item[1]
+
         else:
             for idx in xrange(3):
                 item = it.next()
