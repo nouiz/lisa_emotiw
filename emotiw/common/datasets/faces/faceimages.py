@@ -284,6 +284,9 @@ class FaceImagesDataset(object):
     def get_keypoints_location(self, i):
         """
         Returns a dictionary of keypoint_names -> (x,y) image coordinates (or None if not available).
+        This should ideally return (hand) labeled keypoints from the (original) dataset.
+        Default version however calls self.get_ramanan_keypoints_location(i) (which returns keypoints precomputed with ramanan's algo)
+
         Coordinate system has its origin in the upper left corner of the image
             (horizontal_offset_in_pixels, vertical_offset_in_pixels).
 
@@ -346,7 +349,8 @@ class FaceImagesDataset(object):
             emotiw/keypoints_desc/keypoints_desc)
 
         """
-        return None
+        return self.get_ramanan_keypoints_location(i)
+
 
 
     ## Access to Ramanan precomputed keypoints
@@ -368,7 +372,8 @@ class FaceImagesDataset(object):
             if os.path.exists(os.path.dirname(newpath)):
                 basepath = newpath
 
-        basepath, ext = os.path.splitext(basepath)        
+        basepath, ext = os.path.splitext(basepath)
+        # print "Ramanan searching for "+basepath+"_ramanan_face??.mat"
         ramananpaths = glob.glob(basepath+"_ramanan_face??.mat")
         ramananpaths.sort()
         if os.path.exists(basepath+"_ramanan.mat"): # possible path for single face obtained from ramanan on whole image
@@ -390,6 +395,8 @@ class FaceImagesDataset(object):
             return None
 
         xs_and_ys = []
+
+        # print "ramananpaths:", ramananpaths
         
         for ramananpath in ramananpaths:
             matfile = sio.loadmat(ramananpath)
@@ -407,19 +414,20 @@ class FaceImagesDataset(object):
                                 
             first_xs = matfile['xs'][0]
             first_ys = matfile['ys'][0]
-            # print "Ramanan xs",xs
+            # print "Ramanan first_xs", first_xs
             xs_and_ys.append((first_xs+xoffset, first_ys+yoffset))
 
-            bs = matfile['bs']
-            bs_n, bs_m = bs.shape
-            for i in range(bs_m):
-                bs_xy = bs[0,i]['xy']
-                # print "Ramanan bs_xy",bs_xy
-                xs = 0.5*(bs_xy[:,0]+bs_xy[:,2])
-                ys = 0.5*(bs_xy[:,1]+bs_xy[:,3])
+            if ramananpath[-18:-6]!='ramanan_face':
+                bs = matfile['bs']
+                bs_n, bs_m = bs.shape
+                for i in range(bs_m):
+                    bs_xy = bs[0,i]['xy']
+                    # print "Ramanan bs_xy",bs_xy
+                    xs = 0.5*(bs_xy[:,0]+bs_xy[:,2])
+                    ys = 0.5*(bs_xy[:,1]+bs_xy[:,3])
 
-                if len(xs)!=len(first_xs) or (numpy.abs(first_xs-xs)).max()>0.1: # don't append if it's same as first
-                    xs_and_ys.append((xs+xoffset, ys+yoffset))
+                    if len(xs)!=len(first_xs) or (numpy.abs(first_xs-xs)).max()>0.1: # don't append if it's same as first
+                        xs_and_ys.append((xs+xoffset, ys+yoffset))
 
 
             # bs_i = matfile['bs'][i]
