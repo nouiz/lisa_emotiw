@@ -23,11 +23,12 @@ class FeaturesDataset(DenseDesignMatrix):
     def __init__(self,features_paths,targets_path,
                       base_path="",
                       normalize=True,
+                      seed=193847,
                       shuffle=True):
         X = []
         for f in features_paths:
             X.append(np.load(os.path.join(base_path,f)))
-
+        np.random.seed(seed)
         X = np.concatenate(X,axis=1)
 
         if normalize:
@@ -72,7 +73,7 @@ class AFEWStatsDataset(DenseDesignMatrix):
 
 class AFEWDataset(DenseDesignMatrix):
 
-    def __init__(self,which_set,base_path, 
+    def __init__(self,which_set,base_path,
             start = None,
             stop = None,
             preprocessor = None,
@@ -118,7 +119,7 @@ def build_face_datasets(url,p=1.0):
             onehot[classes.index(target)] = 1.0
             targets[info[0]] += [onehot]*facetube.shape[0]
             faces[info[0]] += list(facetube)
-            
+
 #        print i, len(targets[info[0]]), target
         t.print_update(1)
     t.over()
@@ -139,7 +140,7 @@ def build_face_datasets(url,p=1.0):
 
 def process_stats(X):
     """
-        mean saturation 
+        mean saturation
         mean illumination
         mean red
         mean green
@@ -154,7 +155,7 @@ def process_stats(X):
     C = M-m
     Cmsk = C!=0
 
-    I = M 
+    I = M
     S = np.zeros(X.T[0].shape)
     S[Cmsk] = ((255*C)/I)[Cmsk]
 
