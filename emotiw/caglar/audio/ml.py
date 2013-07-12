@@ -781,15 +781,24 @@ class NeuralNetworkLayer(object):
     """
     A Neural Network layer with that takes the activation function as parameter.
     """
-    def __init__(self, x, n_in, n_out, activation, sparse_initialize=False, W=None, b=None):
+    def __init__(self, x, n_in, n_out, activation, sparse_initialize=False, seed=None, rng=None, W=None, b=None):
+        assert seed is not None
+        np_rng = numpy.random.RandomState(seed)
+        self.np_rng = np_rng
+
+        self.rng = rng
         self.n_in = n_in
         self.n_out = n_out
         self.input = x
         self.activation = activation
-        W_values = numpy.asarray( numpy.random.uniform(
+
+        W_values = numpy.asarray( np_rng.uniform(
             low  = - numpy.sqrt(6./(n_in+n_out)),
             high =   numpy.sqrt(6./(n_in+n_out)),
             size = (n_in, n_out)), dtype = theano.config.floatX)
+
+        #if activation == T.nnet.sigmoid:
+        #    W_values = 4 * W_values
 
         if W == None:
             self.W = theano.shared(W_values, name = 'W%dx%d' % (n_in, n_out))
@@ -810,12 +819,12 @@ class NeuralNetworkLayer(object):
         Reset the weights to suitable random values.
         """
         if self.activation == T.tanh:
-            W_values = numpy.asarray( numpy.random.uniform(
+            W_values = numpy.asarray( self.np_rng.uniform(
                 low  = - numpy.sqrt(6./(self.n_in+self.n_out)),
                 high =   numpy.sqrt(6./(self.n_in+self.n_out)),
                 size = (self.n_in, self.n_out)), dtype = theano.config.floatX)
         else:
-            W_values = numpy.asarray( numpy.random.uniform(
+            W_values = numpy.asarray( self.np_rng.uniform(
                 low  = -4*numpy.sqrt(6./(self.n_in+self.n_out)),
                 high =  4*numpy.sqrt(6./(self.n_in+self.n_out)),
                 size = (self.n_in, self.n_out)), dtype = theano.config.floatX)
@@ -825,8 +834,8 @@ class NeuralNetworkLayer(object):
 
 
 class LogisticLayer(NeuralNetworkLayer):
-    def __init__(self, x, n_in, n_out, **kwargs):
-        super(LogisticLayer, self).__init__(x, n_in, n_out, T.nnet.sigmoid, **kwargs)
+    def __init__(self, x, n_in, n_out, rng=None, **kwargs):
+        super(LogisticLayer, self).__init__(x, n_in, n_out, T.nnet.sigmoid, rng=rng, **kwargs)
 
 
 class RectifierLayer(NeuralNetworkLayer):
@@ -867,16 +876,20 @@ class NeuralNetworkTrainer(object):
     """
     Train the given layers of a neural network with the given loss function.
     """
-    def __init__(self, inputs, cost, layers, max_col_norm=None,
+    def __init__(self, inputs, cost,
+            layers, max_col_norm=None,
+            loss_based_pooling=False,
+            pooling_loss=None,
             learning_rate=0.01, momentum=None, rmsprop=True,
-            center_grads=False, rho=0.93, epsilon=1e-10,
-            use_nesterov=True, **kw):
+            center_grads=False, rho=0.96, epsilon=1e-10,
+            use_nesterov=True, seed=None, rng=None, constants= None, **kw):
 
+        self.loss_based_pooling = loss_based_pooling
+        self.rng = rng
         params = [layer.W for layer in layers] + [layer.b for layer in layers]
         self.learning_rate = theano.shared(numpy.asarray(learning_rate, dtype=theano.config.floatX))
         self.layers = layers
         self.max_col_norm = max_col_norm
-
         #Initialize parameters for rmsprop:
         accumulators = OrderedDict({})
         accumulators_mgrad = OrderedDict({})
@@ -890,18 +903,18 @@ class NeuralNetworkTrainer(object):
         gparams = []
         for param in params:
             eps_p = numpy.zeros_like(param.get_value())
-            eps_p2 = numpy.zeros_like(param.get_value())
 
             accumulators[param] = theano.shared(value=as_floatX(eps_p), name="acc_%s" % param.name)
-            accumulators_mgrad[param] = theano.shared(value=as_floatX(eps_p2), name="acc_%s" % param.name)
+            accumulators_mgrad[param] = theano.shared(value=as_floatX(eps_p), name="acc_mgrad%s" % param.name)
 
             e0s[param] = as_floatX(learning_rate)
-            gparam  = T.grad(cost, param)
+            gparam  = T.grad(cost, param, consider_constant=constants)
             gparams.append(gparam)
 
         updates = OrderedDict({})
 
         i = 0
+
         for param, gparam in zip(params, gparams):
             if rmsprop:
                 acc = accumulators[param]
@@ -948,6 +961,7 @@ class NeuralNetworkTrainer(object):
 
         self.updates = updates
         self._train = theano.function(inputs, outputs=cost, updates=updates)
+        self._constrain_inputs = theano.function(inputs, outputs=T.argsort(pooling_loss, axis=0))
 
     def constrain_weights(self, layers, updates, max_col_norm, epsilon=1e-8):
         for layer in layers:
@@ -958,21 +972,38 @@ class NeuralNetworkTrainer(object):
         return updates
 
     def train(self, *args):
-        if self.max_col_norm:
-            self.constrain_weights(self.layers, self.updates, self.max_col_norm)
-        return self._train(*args)
+        if self.loss_based_pooling:
+            sorted_frames = self._constrain_inputs(*args)
+            X = args[0][sorted_frames[:3]]
+            y = args[1][:3]
+            loss1=self._train(X[0].reshape(1, X[0].shape[0]), numpy.array([y[0]]))
+            loss2=self._train(X[1].reshape(1, X[1].shape[0]), numpy.array([y[1]]))
+            loss3=self._train(X[2].reshape(1, X[1].shape[0]), numpy.array([y[2]]))
+            ave_loss = (loss1 + loss2 + loss3) /3
+            return ave_loss
+        else:
+            return self._train(*args)
 
 
 class MLP(object):
+    """
+    MLP audio.
+    """
     def __init__(self,
             n_in,
             layers,
             hidden_dropout=0.5,
             max_col_norm=1.7236,
+            rho=0.96,
             rmsprop=False,
             center_grads=False,
             use_nesterov=False,
+            mean_pooling=False,
+            loss_based_pooling=False,
+            topN_pooling=1,
+            enable_standardization=False,
             l2=None,
+            seed = 1985,
             **kwargs):
 
         x = T.matrix('x', dtype=theano.config.floatX)
@@ -989,10 +1020,11 @@ class MLP(object):
         }
 
         self.max_col_norm = max_col_norm
-
-        self.rng = RandomStreams(numpy.random.randint(2**30))
+        self.rng = RandomStreams(seed)
 
         self.layers = []
+        #from pylearn2.utils import block_gradient
+        constants = []
         # Create hidden layers
         for i, layer in enumerate(layers):
             layer_type = layer[0]
@@ -1006,8 +1038,32 @@ class MLP(object):
                 layer_n_in = self.layers[-1].n_out
 
             if i == len(layers) - 1:
-                #Perform the temporal max-pooling:
-                layer_input = T.max(layer_input, axis=0)
+
+                if enable_standardization:
+                    from utils import stddev_bias
+                    EPS = 1e-18
+                    std_val = stddev_bias(layer_input, EPS)
+                    mu = T.mean(layer_input, axis=0)
+                    z_val = (layer_input - mu) / std_val
+                    layer_input = z_val
+
+                #from pylearn2.utils import block_gradient
+
+                if loss_based_pooling:
+                    pass
+                elif topN_pooling == 1:
+                    print "Using topN_pooling for training"
+                    max1_indx = T.argmax(layer_input, axis=0)
+                    layer_input1 = T.max(layer_input, axis=0)
+                    t1 = T.arange(layer_input.shape[1])
+                    masked_in = layer_input * T.neq(layer_input, layer_input[max1_indx, t1])
+                    layer_input2 = T.max(masked_in, axis=0)
+                    layer_input = (1.3 * layer_input1 + 0.7 * layer_input2) / 2
+                elif mean_pooling:
+                    layer_input = T.mean(layer_input, axis=0)
+                else:
+                    layer_input = T.max(layer_input, axis=0)
+
                 layer_input = layer_input * self.rng.binomial(n=1, p=hidden_dropout,
                     dtype=theano.config.floatX) / hidden_dropout
 
@@ -1019,11 +1075,14 @@ class MLP(object):
             layer = type_map[layer_type](layer_input,
                                          layer_n_in,
                                          layer_size,
+                                         seed = seed,
+                                         rng=self.rng,
                                          **xargs)
 
             self.layers.append(layer)
 
         self.clean_layers = []
+
         for i, layer in enumerate(layers):
             layer_type = layer[0]
             layer_size = layer[1]
@@ -1036,7 +1095,27 @@ class MLP(object):
                 layer_n_in = self.clean_layers[-1].n_out
 
             if i == len(layers) - 1:
-                layer_input = T.max(layer_input, axis=0)
+                if enable_standardization:
+                    from utils import stddev_bias
+                    EPS = 1e-18
+                    std_val = stddev_bias(layer_input, EPS)
+                    mu = T.mean(layer_input, axis=0)
+                    z_val = (layer_input - mu) / std_val #T.maximum(std_val, EPS)
+                    layer_input = z_val
+
+                feature_out = layer_input
+                #Perform the temporal max-pooling:
+                if topN_pooling == 1:
+                    print "Using topN_pooling for testing."
+                    collapsed_val = T.sum(layer_input, axis=0)
+                    top_ids = T.argsort(layer_input, axis=0)[-3:][::-1]
+                    top_vals = layer_input[top_ids, T.arange(layer_input.shape[1])]
+                    top_mean = (1.2 * top_vals[0] + 1.0 * top_vals[1] + 0.8 * top_vals[2]) / 3
+                    layer_input = top_mean
+                elif mean_pooling:
+                    layer_input = T.mean(layer_input, axis=0)
+                else:
+                    layer_input = T.max(layer_input, axis=0)
 
             xargs = {}
 
@@ -1046,6 +1125,7 @@ class MLP(object):
             layer = type_map[layer_type](layer_input,
                                          layer_n_in,
                                          layer_size,
+                                         seed=seed,
                                          W=self.layers[i].W,
                                          b=self.layers[i].b,
                                          **xargs)
@@ -1053,217 +1133,38 @@ class MLP(object):
             self.clean_layers.append(layer)
 
         self._output = theano.function([x], T.argmax(self.clean_layers[-1].output, axis=1))
+        self._feature_output = theano.function([x], feature_out)
 
         self.transform = theano.function([x], T.mean(self.clean_layers[-2].output, axis=0))
 
         loss = -T.mean(T.log(self.layers[-1].output)[T.arange(y.shape[0]), y])
+        pooling_loss = -T.log(self.layers[-1].output)[T.arange(y.shape[0]), y]
 
         if l2 != None:
             loss += l2 * sum([(l.W**2).sum(dtype=theano.config.floatX) for l in self.layers])
 
-        self.trainer = NeuralNetworkTrainer([x, y], loss, self.layers, self.max_col_norm,
-                rmsprop=rmsprop, center_grads=center_grads, use_nesterov=use_nesterov, **kwargs)
+        self.trainer = NeuralNetworkTrainer([x, y], loss, self.layers,
+                                            self.max_col_norm, rmsprop=rmsprop,
+                                            rho=rho, center_grads=center_grads,
+                                            use_nesterov=use_nesterov,
+                                            loss_based_pooling=loss_based_pooling,
+                                            pooling_loss=pooling_loss,
+                                            constants=constants,
+                                            rng=self.rng,
+                                            **kwargs)
 
-
-    def train(self, *args):
-        return self.trainer.train(*args)
-
-
-    def output(self, x, batch_size=None):
+    def output_features(self, x, batch_size=None):
         if batch_size:
             out = []
             n_batches = int(numpy.ceil(x.shape[0] / float(batch_size)))
             for n in range(n_batches):
-                out.append(self._output(x[n * batch_size : (n+1) * batch_size ]))
+                out.append(self._feature_output(x[n * batch_size : (n+1) * batch_size ]))
             return numpy.concatenate(out)
         else:
-            return self._output(x)
-
-    def save(self):
-        for i, layer in enumerate(self.layers):
-            numpy.save("W_%d.npy" % i, layer.W.get_value())
-            numpy.save("b_%d.npy" % i, layer.b.get_value())
-
-
-    def load(self):
-        for i, layer in enumerate(self.layers):
-            layer.W.set_value(numpy.load("W_%d.npy" % i))
-            layer.b.set_value(numpy.load("b_%d.npy" % i))
-
-
-    def reset(self):
-        for layer in self.layers:
-            layer.reset()
-
-
-class RNN(object):
-    def __init__(self, n_in, n_hiddens, n_out, learning_rate):
-        self.x = T.matrix()
-        self.y = T.matrix()
-        self.h0 = theano.shared(numpy.zeros(n_hiddens,
-            dtype=theano.config.floatX), name='h0')
-        self.W = theano.shared(numpy.asarray(numpy.random.uniform(
-            low  = - numpy.sqrt(6./(n_in+n_hiddens)),
-            high =   numpy.sqrt(6./(n_in+n_hiddens)),
-            size = (n_in, n_hiddens)), dtype = theano.config.floatX), name='W')
-        self.U = theano.shared(numpy.asarray(numpy.random.uniform(
-            low  = - numpy.sqrt(6./(n_hiddens+n_hiddens)),
-            high =   numpy.sqrt(6./(n_hiddens+n_hiddens)),
-            size = (n_hiddens, n_hiddens)), dtype = theano.config.floatX), name='U')
-        self.V = theano.shared(numpy.asarray(numpy.random.uniform(
-            low  = - numpy.sqrt(6./(n_hiddens+n_out)),
-            high =   numpy.sqrt(6./(n_hiddens+n_out)),
-            size = (n_hiddens, n_out)), dtype = theano.config.floatX), name='V')
-        self.b = theano.shared(numpy.zeros((n_hiddens,),
-            dtype=theano.config.floatX), name = 'b')
-        self.c = theano.shared(numpy.zeros((n_out,),
-            dtype=theano.config.floatX), name = 'c')
-        self.params = [self.W, self.U, self.V, self.b, self.c]
-
-        def step(x_t, h_tm1, W, U, V, b, c):
-            h_t = T.tanh(T.dot(x_t, W) + T.dot(h_tm1, U) + b)
-            y_t = T.nnet.sigmoid(T.dot(h_t, V) + c)
-            return h_t, y_t
-
-        [h, output], _ = theano.scan(step,
-                                sequences=self.x,
-                                outputs_info=[self.h0, None],
-                                non_sequences=[self.W, self.U, self.V, self.b,
-                                    self.c])
-        cost = -(self.y*T.log(output) + (1.-self.y)*T.log(1.-output)).sum(axis=1,
-                dtype=theano.config.floatX).mean()
-
-        gparams = T.grad(cost, self.params)
-        self.learning_rate = theano.shared(numpy.asarray(learning_rate,
-            dtype=theano.config.floatX))
-
-        updates = []
-        for param, gparam in zip(self.params, gparams):
-            updates.append((param, param
-                - self.learning_rate * T.maximum(-15, T.minimum(gparam, 15.))))
-        self.train = theano.function([self.x, self.y], outputs=cost,
-            updates=updates)
-        self.output = theano.function([self.x], outputs=T.argmax(output.mean(0)))
-        self.transform = theano.function([self.x], outputs=h.mean(0))
-
-    def save(self):
-        numpy.save("W.npy", self.W.get_value())
-        numpy.save("U.npy", self.U.get_value())
-        numpy.save("V.npy", self.V.get_value())
-        numpy.save("b.npy", self.b.get_value())
-        numpy.save("c.npy", self.c.get_value())
-
-
-class AttrMLP(object):
-    def __init__(self, n_in, layers, hidden_dropout=0.5, l2=None, **kwargs):
-        x = T.fmatrix('x')
-        y = T.lvector('y')
-
-        type_map = {
-            'L' : LogisticLayer,
-            'R' : RectifierLayer,
-            'S' : SoftmaxLayer,
-            'Sp' : SoftplusLayer,
-            'T' : TanhLayer,
-            'Li' : LinearLayer,
-            'Sq' : SquaredLayer,
-        }
-
-        self.rng = RandomStreams(numpy.random.randint(2**30))
-
-        self.layers = []
-        # Create hidden layers
-        for i, layer in enumerate(layers):
-            layer_type = layer[0]
-            layer_size = layer[1]
-
-            if i == 0:
-                layer_input = x
-                layer_n_in = n_in
-            else:
-                layer_input = self.layers[-1].output
-                layer_n_in = self.layers[-1].n_out
-
-            if i == len(layers) - 1:
-                layer_input = T.max(layer_input, axis=0)
-                layer_input = layer_input * self.rng.binomial(n=1, p=hidden_dropout,
-                    dtype=theano.config.floatX) / hidden_dropout
-
-            xargs = {}
-
-            if layer_type == 'R' and layer == layers[-1]:
-                xargs['mask'] = False
-
-            layer = type_map[layer_type](layer_input,
-                                         layer_n_in,
-                                         layer_size,
-                                         **xargs)
-
-            self.layers.append(layer)
-
-        self.clean_layers = []
-        # Create hidden layers
-        for i, layer in enumerate(layers):
-            layer_type = layer[0]
-            layer_size = layer[1]
-
-            if i == 0:
-                layer_input = x
-                layer_n_in = n_in
-            else:
-                layer_input = self.clean_layers[-1].output
-                layer_n_in = self.clean_layers[-1].n_out
-
-            if i == len(layers) - 1:
-                layer_input = T.max(layer_input, axis=0)
-
-            xargs = {}
-
-            if layer_type == 'R' and layer == layers[-1]:
-                xargs['mask'] = False
-
-            layer = type_map[layer_type](layer_input,
-                                         layer_n_in,
-                                         layer_size,
-                                         W=self.layers[i].W,
-                                         b=self.layers[i].b,
-                                         **xargs)
-
-            self.clean_layers.append(layer)
-
-        self._output = theano.function([x], T.argmax(self.clean_layers[-1].output, axis=1))
-
-        self.transform = theano.function([x], T.max(self.clean_layers[-2].output, axis=0))
-
-        age = T.fmatrix('age')
-        dialect = T.lvector('dialect')
-        sex = T.lvector('dialect')
-        self.age_layer = LinearLayer(self.layers[-1].input,
-            self.layers[-1].n_in, 1)
-        self.dialect_layer = SoftmaxLayer(self.layers[-1].input,
-            self.layers[-1].n_in, 8)
-        self.sex_layer = SoftmaxLayer(self.layers[-1].input,
-            self.layers[-1].n_in, 2)
-
-        loss = -T.mean(T.log(self.layers[-1].output)[T.arange(y.shape[0]), y])
-        #loss += ((self.age_layer.output - age)**2).mean()
-        loss += -T.mean(T.log(self.dialect_layer.output)[T.arange(
-            dialect.shape[0]), dialect])
-        loss += -T.mean(T.log(self.sex_layer.output)[T.arange(
-            sex.shape[0]), sex])
-
-        if l2 != None:
-            loss += l2 * sum([(l.W**2).sum(dtype=theano.config.floatX) for l in self.layers],
-                    dtype=theano.config.floatX)
-
-        self.trainer = NeuralNetworkTrainer([x, y, dialect, sex], loss,
-            self.layers + [self.sex_layer, self.dialect_layer],
-            **kwargs)
-
+            return self._feature_output(x)
 
     def train(self, *args):
         return self.trainer.train(*args)
-
 
     def output(self, x, batch_size=None):
         if batch_size:

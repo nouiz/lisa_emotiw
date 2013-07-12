@@ -10,6 +10,18 @@ image from a set of samples or weights.
 import numpy
 import theano
 
+import theano
+from theano import tensor as T
+
+def stddev_bias(x, eps, axis=0):
+    mu = T.mean(x + eps, axis=axis)
+    mu.name = "std_mean"
+    var = T.mean((x - mu)**2 + eps)
+    var.name = "std_variance"
+    stddev = T.sqrt(var)
+    return stddev
+
+
 def as_floatX(variable):
     """
        This code is taken from pylearn2:
