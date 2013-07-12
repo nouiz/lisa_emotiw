@@ -409,10 +409,10 @@ class faceAlign(object):
              bbox = bbox[0]
        
        if self.validate_bbox(keypoints, bbox) == False:
-          print 'validation failed'
+          #print 'validation failed'
           return None
-       else:
-          print 'validation passed!'
+       #else:
+          #print 'validation passed!'
 
        width = bbox[2]-bbox[0]
        height = bbox[3]-bbox[1]
@@ -517,7 +517,8 @@ def dummy_test():
 
     #sequence Datasets
     from emotiw.common.datasets.faces.afew2 import AFEW2ImageSequenceDataset
-
+    from emotiw.common.datasets.faces.afew2_test import AFEW2TestImageSequenceDataset
+    
     #Static Datasets
     from emotiw.common.datasets.faces.multipie import MultiPie
     from emotiw.common.datasets.faces.tfd import ArFace
@@ -537,45 +538,41 @@ def dummy_test():
     #print 'added TorrontoFaceDatset'
     
     datasetObjs.append(MultiPie())
-   
-    print 'added Multipie'
+       print 'added Multipie'
     '''
-
+    
     '''
     alignObj.nums = 0
-    Afew2 = AFEW2ImageSequenceDataset(preproc =['smooth'])
-    #Afew2 = AFEW2ImageSequenceDataset()
+    #Afew2 = AFEW2ImageSequenceDataset(preproc =['smooth'])
+    Afew2 = AFEW2TestImageSequenceDataset(preproc=['smooth'])
+    name = 'afew2_test_'
+    features = 48*48
     print 'total number of sequences:', len(Afew2)
     for i in xrange(len(Afew2)):
        print 'sequence:', i
        dataset = Afew2.get_sequence(i)
        facetubes =  Afew2.get_bbox_coords(i)
-       split_name, emo_name, seq_id = Afew2.seq_info[i]
-       if emo_name not in ['Surprise']:
-          continue
-       else:
-          print 'surprise'
-          
+       #split_name, emo_name, seq_id = Afew2.seq_info[i]
+       seq_id = int(os.path.split(Afew2.seq_info[i])[-1])
+       emo_name = 'test'
        lis = ['org', '1', '2', '3', '4']
        for copy in lis:
           if copy == 'org':
              perturb = False
           else:
              perturb  = True
-          print copy
-          print len(dataset)
           result = alignObj.apply_clip(dataset, facetubes, window=2, perturb = perturb)
-          features = 96*96
-          print len(result)
           for j in xrange(len(result)):
              numberOfSamples = len(result[j])             
-             print numberOfSamples
-             dsX = numpy.memmap('/Tmp/aggarwal/afew2_'+copy+'_'+emo_name+'_'+str(seq_id)+'_'+str(j)+'_X.npy', dtype='float32', mode='w+', shape=(numberOfSamples,features))
-             flipX = numpy.memmap('/Tmp/aggarwal/afew2_'+copy+'_'+emo_name+'_'+str(seq_id)+'_'+str(j)+'_flip_X.npy', dtype='float32', mode='w+', shape=(numberOfSamples,features))
+             #print numberOfSamples
+             dsX = numpy.memmap('/Tmp/aggarwal/'+name+copy+'_'+emo_name+'_'+str(seq_id)+'_'+str(j)+'_X.npy', dtype='float32', mode='write', shape=(numberOfSamples,features))
+             flipX = numpy.memmap('/Tmp/aggarwal/'+name+copy+'_'+emo_name+'_'+str(seq_id)+'_'+str(j)+'_flip_X.npy', dtype='float32', mode='write', shape=(numberOfSamples,features))
              for k in xrange(len(result[j])):
                 img = result[j][k]
-             #img.save('./resultImages/'+str(i)+'_'+str(j)+'_'+str(k)+'.png')
-                fImg = result[j][k].transpose(Image.FLIP_LEFT_RIGHT)
+                img = img.crop((28,24, 96-28, 96-16))
+                img = img.resize((48,48), Image.ANTIALIAS)
+                img.save('./resultImages/'+str(i)+'_'+str(j)+'_'+str(k)+'.png')
+                fImg = img.transpose(Image.FLIP_LEFT_RIGHT)
                 npImg = alignObj.apply_gcn(img, mode = 'L')
                 fNpImg = alignObj.apply_gcn(fImg, mode = 'L')
                 dsX[k, :] = npImg.reshape((1, features))
@@ -642,10 +639,10 @@ def dummy_test():
 
     # for static dataset
     lis = ['org', '1', '2', '3', '4']
-#    lis = ['3', '4']
     #dataset = ArFace()
-    dataset = TorontoFaceDataset()
-    name = 'tfd'
+    dataset = MultiPie()
+    #dataset = TorontoFaceDataset()
+    name = 'multipie'
     numberOfSamples = len(dataset)
     print 'numOfSamples', numberOfSamples
     features = 48*48
@@ -662,20 +659,25 @@ def dummy_test():
        
        for i in xrange(numberOfSamples):
           print 'sample number:', i
-          #img = alignObj.apply(dataset, i, perturb=perturb, flip = False)
+          
           emotion = dataset.get_7emotion_index(i)
           if emotion == None:
              print 'found no emotion'
              continue
-          img = alignObj.get_face_pil_image(dataset, i)
-          img = img.resize((48,48), Image.ANTIALIAS)
-          if perturb:
-             pertmat = alignObj.get_perturb_Mat(5,5,True)
-             img = alignObj.get_transformed_image(img, pertmat)
-
+          if(name != 'tfd'):
+             img = alignObj.apply(dataset, i, perturb=perturb, flip = False)
+          else:
+             img = alignObj.get_face_pil_image(dataset, i)
+             if perturb:
+                pertmat = alignObj.get_perturb_Mat(5,5,True)
+                img = alignObj.get_transformed_image(img, pertmat)
+          
           if img == None:
              print 'found no image'
              continue
+
+          img = img.crop((28,24, 96-28, 96-16))
+          img = img.resize((48,48), Image.ANTIALIAS)
 
           fImg = img.transpose(Image.FLIP_LEFT_RIGHT)
           npImg = alignObj.apply_gcn(img, mode = 'L')
