@@ -125,10 +125,10 @@ class EmotiwArrangerIter(object):
                     the_img = [sequence.get_original_image(i)
                                 for i in (img_idx-1, img_idx, img_idx+1)]
 
-                the_vals = (the_img, sequence.get_7emotion_index(0))
+                the_vals = (the_img, [sequence.get_7emotion_index(0)]*3)
 
             else:
-                the_vals = ([sequence.get_original_image(elem_idx)]*3, sequence.get_7emotion_index(0))
+                the_vals = ([sequence.get_original_image(elem_idx)]*3, [sequence.get_7emotion_index(0)]*3)
 
             if hack:
                 the_vals = ([numpy.fromstring(Image.frombuffer(data=x, size=(1024, 576), mode='RGB').resize((48, 48)).tostring(), dtype=numpy.uint8) for x in the_vals[0]], the_vals[1])
@@ -206,7 +206,7 @@ class ArrangementGenerator(object):
         if hack:
             size = 3*batch_size
         out_X = numpy.memmap(path + '_x.npy', mode='w+', dtype=numpy.float32, shape=(size, 3, self.img_res[0], self.img_res[1], self.num_channels))
-        out_y = numpy.memmap(path + '_y.npy', mode='w+', dtype=numpy.float32, shape=(size, 1))
+        out_y = numpy.memmap(path + '_y.npy', mode='w+', dtype=numpy.uint8, shape=(size, 3, 1))
         it = self.iterator(batch_size=batch_size)
 
         if not hack:
@@ -218,12 +218,11 @@ class ArrangementGenerator(object):
                 for x in item[0]:
                     arr.append([y.reshape(self.img_res[0], self.img_res[1], self.num_channels) for y in x])
 
-                out_X[batch_size*idx:batch_size*idx+batch_size,:] = arr
+                item[1].shape = (len(item[1]), 3, 1)
 
-                for i in xrange(batch_size):
-                    out_y[batch_size*idx+i] = item[1][i]
-                    #for some reason, not possible to batch this operation:
-                    #ValueError: output operand requires a reduction, but reduction is not enabled
+                out_X[batch_size*idx:batch_size*(idx+1),:] = arr
+                out_y[batch_size*idx:batch_size*(idx+1),:] = item[1]
+
         else:
             for idx in xrange(3):
                 item = it.next()

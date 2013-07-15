@@ -7,9 +7,13 @@ Processes images using Ramanan's code ("Face Detection, Pose Estimation, and
 Landmark Localization in the Wild, Zhu X. and Ramanan D., 2012", available at
 http://www.ics.uci.edu/~xzhu/paper/face-cvpr12.pdf).
 
-Requires the mlabwrap library (http://mlabwrap.sourceforge.net/). Also,
-Ramanan's MATLAB code (in folder face-release1.0-basic) must be included in
-MATLAB search path.
+Requires the mlabwrap library (http://mlabwrap.sourceforge.net/).
+
+Also, Ramanan's MATLAB code (in folder face-release1.0-basic) must be included
+in MATLAB search path. One way of doing this is to add the following line in
+your .bashrc file :
+
+    'export MATLABPATH=$MATLABPATH:/path/to/repo/lisa_emotiw/emotiw/raymonjp/face-release1.0-basic/'
 '''
 
 from mlabwrap import mlab

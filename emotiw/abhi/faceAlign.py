@@ -307,6 +307,7 @@ class faceAlign(object):
 
 
    def get_transformed_image(self, pil_image, A_t):
+       pil_image = pil_image.convert('RGB')
        pixmap = pil_image.load()
        imgT = Image.new('RGB', pil_image.size, 'black')
        pixmapT = imgT.load()
@@ -331,9 +332,7 @@ class faceAlign(object):
            (x,y) = (inp[i,0], inp[i,1])
            (x_, y_) = (indices[i,0], indices[i,1])
            if width > x > 0 and height > y > 0:
-              pixmapT[x_, y_] = pixmap[x,y]
-              #if (pixmap[x,y]==(200, 0, 0)):
-                # print x_, y_, 'for', x, y
+                pixmapT[x_, y_]= pixmap[x,y]
              
        return imgT           
 
@@ -396,7 +395,10 @@ class faceAlign(object):
        if keypoints == None or len(keypoints) == 0:
           return None
        else:
-          keypoints = keypoints.copy()
+          if isinstance(keypoints, list):
+             keypoints = keypoints[0].copy()
+          else:
+             keypoints = keypoints.copy()
 
        if bbox == None:
           bbox = dataset.get_bbox(index)
@@ -510,38 +512,61 @@ class faceAlign(object):
        #return resized face_image
        return face_crop.resize(self.face_size)
 
-def dummy_test():
-    import pickle
+def create_static_dataset(name, dataset, alignObj, lis = ['org', '1', '2', '3', '4'], tfd = False):
+    # for static dataset
+    numberOfSamples = len(dataset)
+    print 'numOfSamples', numberOfSamples
+    features = 48*48
+    for copy in lis:
+       dsX = numpy.memmap('/Tmp/aggarwal/'+name+'_dist_'+copy+'_X.npy', dtype='float32', mode='w+', shape=(numberOfSamples,features))
+       dsY = numpy.memmap('/Tmp/aggarwal/'+name+'_dist_'+copy+'_y.npy', dtype='uint8', mode='w+', shape=(numberOfSamples))
+       flipX = numpy.memmap('/Tmp/aggarwal/'+name+'_dist_'+copy+'_flip_X.npy', dtype='float32', mode='w+', shape=(numberOfSamples,features))
+       flipY = numpy.memmap('/Tmp/aggarwal/'+name+'_dist_'+copy+'_flip_y.npy', dtype='uint8', mode='w+', shape=(numberOfSamples))
+       print copy
+       if copy == 'org':
+          perturb = False
+       else:
+          perturb = True
+       
+       for i in xrange(numberOfSamples):
+          print 'sample number:', i
+          
+          emotion = dataset.get_7emotion_index(i)
+          if emotion == None:
+             print 'found no emotion'
+             continue
 
-    from emotiw.common.datasets.faces.faceimages import keypoints_names
+          if(tfd == False):
+             img = alignObj.apply(dataset, i, perturb=perturb, flip = False)
+          else:
+             img = alignObj.get_face_pil_image(dataset, i)
+             if perturb:
+                pertmat = alignObj.get_perturb_Mat(5,5,True)
+                img = alignObj.get_transformed_image(img, pertmat)
+          
+          if img == None:
+             print 'found no image'
+             continue
+          else:
+             doNothing  = 1
+             #img = alignObj.draw_template(img).show()
 
-    #sequence Datasets
-    from emotiw.common.datasets.faces.afew2 import AFEW2ImageSequenceDataset
-    from emotiw.common.datasets.faces.afew2_test import AFEW2TestImageSequenceDataset
-    
-    #Static Datasets
-    from emotiw.common.datasets.faces.multipie import MultiPie
-    from emotiw.common.datasets.faces.tfd import ArFace
-        
-    #without keypoints
-    from emotiw.common.datasets.faces.tfd import TorontoFaceDataset
-    from emotiw.common.datasets.faces.afew import AFEWImageSequence
+          img = img.crop((28,24, 96-28, 96-16))
+          img = img.resize((48,48), Image.ANTIALIAS)
+          #img.show()
 
-    
-    datasetObjs = []
-    #datasetObjs = pickle.load(open("/Tmp/aggarwal/datasetObjs.pkl","r"))
-    alignObj = pickle.load(open( "/Tmp/aggarwal/AlignObj.pkl", "r" ))
-    paths = []
+          fImg = img.transpose(Image.FLIP_LEFT_RIGHT)
+          npImg = alignObj.apply_gcn(img, mode = 'L')
+          fNpImg = alignObj.apply_gcn(fImg, mode = 'L')
+          
+          dsY[i] = emotion
+          dsX[i, :] = npImg.reshape((1, features))
+          flipY[i] = emotion
+          flipX[i,:] = fNpImg.reshape((1, features))
 
-    '''
-    #datasetObjs.append(TorontoFaceDataset())
-    #print 'added TorrontoFaceDatset'
-    
-    datasetObjs.append(MultiPie())
-       print 'added Multipie'
-    '''
-    
-    '''
+
+
+def create_seq_dataset():
     alignObj.nums = 0
     #Afew2 = AFEW2ImageSequenceDataset(preproc =['smooth'])
     Afew2 = AFEW2TestImageSequenceDataset(preproc=['smooth'])
@@ -571,22 +596,50 @@ def dummy_test():
                 img = result[j][k]
                 img = img.crop((28,24, 96-28, 96-16))
                 img = img.resize((48,48), Image.ANTIALIAS)
-                img.save('./resultImages/'+str(i)+'_'+str(j)+'_'+str(k)+'.png')
+                #img.save('./resultImages/'+str(i)+'_'+str(j)+'_'+str(k)+'.png')
                 fImg = img.transpose(Image.FLIP_LEFT_RIGHT)
                 npImg = alignObj.apply_gcn(img, mode = 'L')
                 fNpImg = alignObj.apply_gcn(fImg, mode = 'L')
                 dsX[k, :] = npImg.reshape((1, features))
                 flipX[k,:] = fNpImg.reshape((1, features))
-             
 
-    print 'added AFEW2'
-    return
-    '''
 
-    '''
+def dummy_test():
+    import pickle
 
-    pickle.dump( datasetObjs, open( "/Tmp/aggarwal/datasetObjs.pkl", "wb" ))
+    from emotiw.common.datasets.faces.faceimages import keypoints_names
+
+    #sequence Datasets
+    from emotiw.common.datasets.faces.afew2 import AFEW2ImageSequenceDataset
+    from emotiw.common.datasets.faces.afew2_test import AFEW2TestImageSequenceDataset
     
+    #Static Datasets
+    from emotiw.common.datasets.faces.multipie import MultiPie
+    from emotiw.common.datasets.faces.tfd import ArFace
+    from emotiw.common.datasets.faces.googleFaceDataset import GoogleFaceDataset
+        
+    #without keypoints
+    from emotiw.common.datasets.faces.tfd import TorontoFaceDataset
+    from emotiw.common.datasets.faces.afew import AFEWImageSequence
+
+    
+    datasetObjs = []
+    #datasetObjs = pickle.load(open("/Tmp/aggarwal/datasetObjs.pkl","r"))
+    alignObj = pickle.load(open( "/Tmp/aggarwal/AlignObj.pkl", "r" ))
+    paths = []
+
+    #dataset = GoogleFaceDataset()
+    #create_static_dataset('GFD', dataset, alignObj, lis=['1', '2'])
+    
+    dataset = TorontoFaceDataset()
+    dataset.verify_samples()
+    obj = MultiPie()
+    obj.verify_samples()
+    return
+    create_static_dataset('TFD', dataset, alignObj)
+    
+
+    '''
     keys = {}
     index = 0 
     for key in keypoints_names:
@@ -596,107 +649,9 @@ def dummy_test():
     alignObj = faceAlign(datasetObjects = datasetObjs, keypoint_dictionary = keys, face_size = (96, 96), margin = 0.2)
     pickle.dump( alignObj, open( "/Tmp/aggarwal/AlignObj.pkl", "wb" ))
     return
-    
-    #print datasetObjs[0].get_keypoints_location(0)
-
-    keysp1 = datasetObjs[0].get_keypoints_location(46)
-    keysp2 = datasetObjs[1].get_keypoints_location(0)
-
-    img = Image.new('RGB', (1024, 576), 'black')
-    import ImageDraw
-    draw = ImageDraw.Draw(img)
-    pixmap = img.load()
-   
-    print keysp1
-    print keysp2
-    
-    keys = {}
-    index = 0 
-    for key in keypoints_names:
-        keys[key] = index
-        index += 1
-    
-    
-    for i in keysp1:
-       (x,y) = keysp1[i]
-       pixmap[int(x), int(y)] = (200,0,0)
-       draw.text((int(x), int(y)), str(keys[i]), (0,0,200))
-       
-    for i in keysp2:
-       (x,y) = keysp2[i]
-       pixmap[int(x), int(y)] = (0,200,0)
-       pixmap[int(x), int(y)] = (200,0,0)
-       draw.text((int(x), int(y)), str(keys[i]), (0,0,200))
-
-
-    img.show()
-    
     '''
-  #  return
     
-    
-    
-
-    # for static dataset
-    lis = ['org', '1', '2', '3', '4']
-    #dataset = ArFace()
-    dataset = MultiPie()
-    #dataset = TorontoFaceDataset()
-    name = 'multipie'
-    numberOfSamples = len(dataset)
-    print 'numOfSamples', numberOfSamples
-    features = 48*48
-    for copy in lis:
-       dsX = numpy.memmap('/Tmp/aggarwal/'+name+'_dist_'+copy+'_X.npy', dtype='float32', mode='w+', shape=(numberOfSamples,features))
-       dsY = numpy.memmap('/Tmp/aggarwal/'+name+'_dist_'+copy+'_y.npy', dtype='uint8', mode='w+', shape=(numberOfSamples))
-       flipX = numpy.memmap('/Tmp/aggarwal/'+name+'_dist_'+copy+'_flip_X.npy', dtype='float32', mode='w+', shape=(numberOfSamples,features))
-       flipY = numpy.memmap('/Tmp/aggarwal/'+name+'_dist_'+copy+'_flip_y.npy', dtype='uint8', mode='w+', shape=(numberOfSamples))
-       print copy
-       if copy == 'org':
-          perturb = False
-       else:
-          perturb = True
-       
-       for i in xrange(numberOfSamples):
-          print 'sample number:', i
-          
-          emotion = dataset.get_7emotion_index(i)
-          if emotion == None:
-             print 'found no emotion'
-             continue
-          if(name != 'tfd'):
-             img = alignObj.apply(dataset, i, perturb=perturb, flip = False)
-          else:
-             img = alignObj.get_face_pil_image(dataset, i)
-             if perturb:
-                pertmat = alignObj.get_perturb_Mat(5,5,True)
-                img = alignObj.get_transformed_image(img, pertmat)
-          
-          if img == None:
-             print 'found no image'
-             continue
-
-          img = img.crop((28,24, 96-28, 96-16))
-          img = img.resize((48,48), Image.ANTIALIAS)
-
-          fImg = img.transpose(Image.FLIP_LEFT_RIGHT)
-          npImg = alignObj.apply_gcn(img, mode = 'L')
-          fNpImg = alignObj.apply_gcn(fImg, mode = 'L')
-          
-          dsY[i] = emotion
-          dsX[i, :] = npImg.reshape((1, features))
-          flipY[i] = emotion
-          flipX[i,:] = fNpImg.reshape((1, features))
-
-  #  alignObj.draw_template(alignObj.apply(datasetObjs[1], 10, perturb = False)).show()
-
-    #alignObj.apply(datasetObjs[639], 10, True, True)[1].show('perturbed')
-    #alignObj.apply(datasetObjs[639], 10)[1].show()
-
-  #  alignObj.apply_sequence(datasetObjs[485], window = 2,  perturb=False)
-  #  alignObj.apply_sequence(datasetObjs[485], window = 2,  perturb=True, flip = True)
-#    alignObj.apply(obj, 2500)
-
+   
 
 
 if __name__ == '__main__':

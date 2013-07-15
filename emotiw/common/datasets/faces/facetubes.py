@@ -20,7 +20,6 @@ from pylearn2.utils.data_specs import is_flat_specs
 from pylearn2.utils.iteration import (FiniteDatasetIterator,
                                       resolve_iterator_class)
 from pylearn2.space import CompositeSpace, Space, VectorSpace, Conv2DSpace
-from emotiw.scripts.mirzamom.conv3d.space import Conv3DSpace
 # Current project
 
 
