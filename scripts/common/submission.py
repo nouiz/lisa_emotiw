@@ -28,8 +28,6 @@ def main():
             f = open(os.path.join(d,p_id+'.txt'),'w')
             f.write(p_win)
             f.close()
-            print p_id
-            print prediction
 
         zipf = zipfile.ZipFile(options.out,'w')
 
