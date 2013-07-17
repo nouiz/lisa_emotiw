@@ -5,16 +5,14 @@ import functools
 from pylearn2.space import CompositeSpace, VectorSpace, Conv2DSpace
 from pylearn2.datasets.dataset import Dataset
 from pylearn2.utils.iteration import resolve_iterator_class
-from emotiw.common.datasets.faces.faceimages import basic_7emotion_names
-
-import os
+import theano
 
 
 class EmotiwFrameIterator(object):
     def __init__(self, dset, mode, data_specs, return_tuple, convert_fns, rng=None):
         self.dset = dset
-	self.stochastic = False
-	self.num_examples = dset.x.shape[0]
+        self.stochastic = False
+        self.num_examples = dset.x.shape[0]
         self.mode =mode
         self.rng = rng
         self.return_tuple = return_tuple
@@ -22,7 +20,7 @@ class EmotiwFrameIterator(object):
         space, source = data_specs
         assert source == ('features', 'targets')
         self.convert_fns = convert_fns
-    
+
     def __len__(self):
         return self.dset.n_samples
 
@@ -39,8 +37,8 @@ class EmotiwFrameIterator(object):
         target = self.dset.y[next_idx]
 
         if self.dset.one_hot:
-            one_hot = np.zeros((len(target),7,), dtype=np.float32)
-            one_hot[target] = 1.
+            one_hot = np.zeros((len(target),7), dtype=np.float32)
+            one_hot[np.asarray(range(len(one_hot))), target] = 1.
             target = one_hot
 
         return (feature, target)
@@ -55,8 +53,8 @@ class EmotiwFrameDataset(Dataset):
                  path=None):
 
         if path is None:
-            #path = '/data/lisa/data/faces/EmotiW/preproc/arranged_data'
-            path = '/Tmp/aggarwal/arranged_data'
+            #path = '/data/lisa/data/faces/EmotiW/preproc/all'
+            path = '/Tmp/zumerjer/all'
 
         self.x = np.memmap(path + '_x.npy', mode='r', dtype='float32')
         self.y = np.memmap(path + '_y.npy', mode='r', dtype='uint8')
@@ -65,7 +63,6 @@ class EmotiwFrameDataset(Dataset):
 
         self.x = self.x.view()
         self.x.shape = (len(self.y), size[0], size[1], num_channels)
-        
 
         numSamples = self.x.shape[0]
         if which_set =='train':
@@ -74,10 +71,10 @@ class EmotiwFrameDataset(Dataset):
         elif which_set == 'val':
             start =  int(numSamples*splitRatio)
             stop = numSamples
-            
+
         self.x = self.x[start:stop]
         self.y =self.y[start:stop]
-        
+
         if shuffle_rng is None:
             shuffle_rng = np.random.RandomState((2013, 06, 11))
         elif not isinstance(shuffle_rng, np.random.RandomState):
@@ -98,7 +95,7 @@ class EmotiwFrameDataset(Dataset):
 
     @functools.wraps(Dataset.iterator)
     def iterator(self, mode=None, batch_size=None, num_batches=None, data_specs=None, return_tuple=True, rng=None):
-	if mode is None:
+        if mode is None:
             if hasattr(self, '_iter_subset_class'):
                 mode = self._iter_subset_class
             raise ValueError('iteration mode not provided and no default '
@@ -124,7 +121,7 @@ class EmotiwFrameDataset(Dataset):
             if isinstance(batch, list):
                 assert len(batch) == 1
                 batch = batch[0]
-            batch = batch.astype(config.floatX)
+            batch = batch.astype(theano.config.floatX)
             batch /= 255.
             return batch[np.newaxis]
 
@@ -137,8 +134,8 @@ class EmotiwFrameDataset(Dataset):
                 convert_fns.append(None)
 
         return EmotiwFrameIterator(self,  mode(self.n_samples, batch_size, num_batches, rng),
-					data_specs = data_specs, return_tuple=return_tuple,
-					convert_fns=convert_fns)
+                    data_specs = data_specs, return_tuple=return_tuple,
+                    convert_fns=convert_fns)
 
     def get_data_specs(self):
         return self.data_specs

@@ -15,7 +15,7 @@ save_best_path = 'best.pkl'
 save_freq= 10
 num_chan = 1
 splitRatio = 0.7
-batch_size = 1000
+batch_size = 100
 
 train_ds = EmotiwFrameDataset(which_set= 'train',
                          one_hot= 1,
