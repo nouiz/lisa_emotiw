@@ -829,12 +829,21 @@ class FaceImagesSubset(FaceImagesDataset):
     
     def get_bbox(self, i):
         return self.img_dataset.get_bbox(self.indices[i])
+
+    def get_picasa_bbox(self, i):
+        return self.img_dataset.get_picasa_bbox(self.indices[i])
+    
+    def get_pyvision_bbox(self, i):
+        return self.img_dataset.get_pyvision_bbox(self.indices[i])
     
     def get_eyes_location(self, i):
         return self.img_dataset.get_eyes_location(self.indices[i])
     
     def get_keypoints_location(self, i):
         return self.img_dataset.get_keypoints_location(self.indices[i])    
+
+    def get_ramanan_keypoints_location(self, i):
+        return self.img_dataset.get_ramanan_keypoints_location(self.indices[i])    
     
     def get_subject_id_of_ith_face(self, i):
         return self.img_dataset.get_subject_id_of_ith_face(self.indices[i])
