@@ -71,6 +71,8 @@ class FaceImagesDataset(object):
         if relative_base_directory is not None:
             self.relative_base_directory = relative_base_directory
             self.absolute_base_directory = locate_data_path(relative_base_directory)
+            self.cache_directory = os.path.join(self.absolute_base_directory,"cache_dir")
+            
 
     def get_name(self):
         return self.dataset_name
@@ -238,6 +240,57 @@ class FaceImagesDataset(object):
             if bbox is None:
                 bbox = self.get_opencv_bbox(i)
         return bbox
+
+    def get_pyvision_bbox(self, i):
+        if not hasattr(self, "pyvision_bbox_start_indexes"):
+            if not hasattr(self, "cache_directory"):
+                self.pyvision_bbox_start_indexes = None
+                self.pyvision_bbox_list = None
+            else:
+                indexfile = os.path.join(self.cache_directory, "pyvision_bboxes_start_indexes.npy")
+                bboxfile = os.path.join(self.cache_directory, "pyvision_bboxes_list.npy")
+
+                if os.path.exists(indexfile):
+                    self.pyvision_bbox_start_indexes = numpy.load(indexfile)
+                    self.pyvision_bbox_list = numpy.load(bboxfile)
+                else:
+                    print "*** Precomputing pyvision_bbox ***"
+                    from emotiw.common.utils.pyvisionutils import pyvision_detect_faces_bboxes
+                    prev_umask = os.umask(0002)
+                    if not os.path.exists(self.cache_directory):
+                        os.makedirs(self.cache_directory)
+                    n = len(self)
+                    bbox_start_indexes = numpy.zeros((n+1), numpy.uint32)
+                    bbox_list = numpy.zeros((10,4), numpy.uint16)
+                    bbox_num = 0
+                    for image_num in xrange(n):
+                        print "Image #%d (/%d)" % (image_num,n)
+                        bbox_start_indexes[image_num] = bbox_num
+                        bboxes = pyvision_detect_faces_bboxes(self.get_original_image(image_num))
+                        print "    pyvision detected %d faces" % len(bboxes)
+                        for bbox in bboxes:
+                            if bbox_num>=len(bbox_list):
+                                bbox_list = numpy.resize(bbox_list, (len(bbox_list)+n, 4) )
+                            bbox_list[bbox_num] = bbox
+                            bbox_num += 1
+                    bbox_start_indexes[n] = bbox_num
+                    bbox_list = numpy.resize(bbox_list, (bbox_num,4) )
+
+                    print "Saving precomputed pyvision bboxes in cache files:",
+                    print "  -> ",indexfile
+                    numpy.save(indexfile,bbox_start_indexes) 
+                    print "  -> ",bboxfile
+                    numpy.save(bboxfile,bbox_list)
+                    os.umask(prev_umask)
+                    self.pyvision_bbox_start_indexes = bbox_start_indexes
+                    self.pyvision_bbox_list = bbox_list
+
+        if self.pyvision_bbox_start_indexes is None:
+            return None
+        
+        startpos = self.pyvision_bbox_start_indexes[i]
+        endpos = self.pyvision_bbox_start_indexes[i+1]
+        return self.pyvision_bbox_list[startpos:endpos,:]
     
     def get_opencv_bbox(self, i):
         return None
@@ -282,6 +335,17 @@ class FaceImagesDataset(object):
             return bboxes
 
         return None
+
+    def n_picasa_faces(self):
+        """Returns the total number of picasa detected faces in the dataset"""
+        if not hasattr(self,"_n_picasa_faces"):
+            n = 0
+            for i in xrange(len(self)):
+                bboxes = self.get_picasa_bbox(i)
+                if bboxes is not None:
+                    n += len(bboxes)
+            self._n_picasa_faces = n
+        return self._n_picasa_faces
     
     def get_eyes_location(self, i):
         """
