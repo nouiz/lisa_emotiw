@@ -1,20 +1,10 @@
 from sys import argv
 from os import system
 import subprocess
-import curses
-import atexit
 
 params = ['lr', 'momentum', 'type', 'units', 'pieces', 'norm_reg']
 
-def cleanup(wnd=None):
-    if wnd is not None:
-        curses.nocbreak()
-        curses.echo()
-        wnd.keypad(0)
-        curses.endwin()
-
 if __name__ == '__main__':
-    atexit.register(cleanup)
     experiment = argv[1]
     default_machine = 'localhost'
 
@@ -88,81 +78,7 @@ if __name__ == '__main__':
                                             stdout=open(exp_out, mode='w'),
                                             stderr=open('/dev/null', mode='w')))
 
-    wnd = curses.initscr()
-    curses.echo()
-    curses.cbreak()
-    wnd.nodelay(True)
-    wnd.keypad(1)
-    height, width = wnd.getmaxyx()
-    scr = curses.newpad(len(exp_pid) + 2, width)
-    scr.nodelay(True)
+        fout = open(os.path.join(os.environ['HOME'], '.cache', 'search_space_exp.pid')
+        for pid in exp_pid:
+            fout.write(str(pid) + '\n')
 
-    curr_pos = 0
-    cmd = ""
-
-    display_status = []
-
-    for idx, popen in enumerate(exp_pid):
-        scr.addstr(idx, 0, '[' + str(popen.pid) + '] Experiment ' + str(idx))
-        display_status.append(False)
-    scr.addstr(len(exp_pid), 0, 'KILL> ')
-    scr.redrawwin()
-    scr.refresh(curr_pos, 0, 0, 0, height, width)
-    wnd.refresh()
-
-    while True:
-
-        height, width = wnd.getmaxyx()
-        scr.refresh(curr_pos, 0, 0, 0, height, width)
-        all_done = reduce(lambda x, y: x and y, [p.returncode is not None for p in exp_pid])
-
-        for idx, popen in enumerate(exp_pid):
-            ret_val = popen.poll()
-
-            if ret_val is not None and display_status[idx] is False:
-                scr.addstr(idx, 0, '[T:'+str(ret_val)+'] ' + 'Experiment ' + str(idx) + '\n')
-                scr.redrawln(idx, 1)
-                display_status[idx] = True
-
-        if all_done:
-            scr.addstr(len(exp_pid), 0, 'DONE!\n')
-            scr.redrawln(len(exp_pid), 1)
-            height, width = wnd.getmaxyx()
-            scr.refresh(curr_pos, 0, 0, 0, height, width)
-
-            ch = wnd.getch()
-            while -1 == ch:
-                ch = wnd.getch()
-
-            cleanup(wnd)
-            break
-
-        ch = wnd.getch()
-        if -1 < ch < 256:
-            if chr(ch) == '\n':
-                if cmd.isdigit() and int(cmd) in xrange(len(exp_pid)) and exp_pid[int(cmd)].poll() is None:
-                    exp_pid[int(cmd)].kill()
-                elif len(cmd) > 0 and cmd[0] == 'q':  #note: startswith does not work: "str object has no attribute startswith()"
-                    for p in exp_pid:
-                        try:
-                            p.kill()
-                        except:
-                            pass
-                    cleanup(wnd)
-                    break
-                cmd = ""
-            else:
-                cmd += chr(ch)
-
-            scr.addstr(len(exp_pid), 0, 'KILL> ' + cmd + '\n') 
-            scr.redrawln(len(exp_pid), 1)
-        elif ch == curses.KEY_UP:
-            curr_pos = min(len(exp_pid), curr_pos+1)
-        elif ch == curses.KEY_DOWN:
-            curr_pos = max(0, curr_pos-1)
-        elif ch == curses.KEY_BACKSPACE:
-            cmd = cmd[:-1]
-            scr.addstr(len(exp_pid), 0, 'KILL> ' + cmd + '\n') 
-            scr.redrawln(len(exp_pid), 1)
-
-        scr.move(len(exp_pid), len('KILL> ' + cmd))
