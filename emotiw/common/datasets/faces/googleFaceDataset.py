@@ -44,8 +44,8 @@ class GoogleFaceDataset(FaceImagesDataset):
 
         # Load the dataset's pickle file
         data = cPickle.load(open(self.absolute_base_directory+"Clean/latest.pkl","rb"))
-        import ipdb
-        ipdb.set_trace()
+        #import ipdb
+        #ipdb.set_trace()
         data = data[1:]
 
         # print data
@@ -65,6 +65,9 @@ class GoogleFaceDataset(FaceImagesDataset):
              '.jpg':'.txt',
              }
             , csv_delimiter=',')
+
+        self.set_ramanan_path_substitutions(
+            {"faces/GoogleDataset/images/":"faces/GoogleDataset/ramanan_keypoints/"})
 
     def get_name(self):
         return "GoogleFaceDataset"
