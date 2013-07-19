@@ -1,0 +1,48 @@
+!obj:pylearn2.train.Train {
+    dataset: &train !obj:emotiw.bouthilx.datasets.FeaturesDataset {
+        features_paths: ["afew2_train_ramanan1_emmanuel_v2_features.npy"],
+        targets_path: "afew2_train_ramanan1_emmanuel_v2_targets.npy",
+        base_path: "/data/lisatmp2/EmotiWTest/features_for_xavierb/"
+    },
+    model: !obj:pylearn2.models.mlp.MLP {
+        layers: [ !obj:pylearn2.models.mlp.Softmax {
+                     layer_name: 'y',
+                     n_classes: 7,
+                     irange: 0.
+                 }
+                ],
+       nvis: 49,
+    },
+    algorithm: !obj:pylearn2.training_algorithms.sgd.SGD {
+        batch_size: 20,
+        learning_rate: %(learning_rate)e,
+        monitoring_dataset:
+            {
+                'train' : *train,
+                'valid' : !obj:emotiw.bouthilx.datasets.FeaturesDataset {
+                    features_paths: ["afew2_valid_ramanan1_emmanuel_v2_features.npy"],
+                    targets_path: "afew2_valid_ramanan1_emmanuel_v2_targets.npy",
+                    base_path: "/data/lisatmp2/EmotiWTest/features_for_xavierb/"
+                },
+            },
+        cost: !obj:pylearn2.costs.cost.SumOfCosts { costs: [
+            !obj:pylearn2.costs.cost.MethodCost {
+                method: 'cost_from_X',
+            }, !obj:pylearn2.models.mlp.WeightDecay {
+                coeffs: [ %(wd1)f ]
+            }
+            ]
+        },
+        termination_criterion: !obj:pylearn2.termination_criteria.MonitorBased {
+            channel_name: "valid_y_misclass",
+            prop_decrease: 0.,
+            N: 50
+        }
+    },
+    extensions: [
+        !obj:pylearn2.train_extensions.best_params.MonitorBasedSaveBest {
+             channel_name: 'valid_y_misclass',
+             save_path: "${PYLEARN2_TRAIN_FILE_FULL_STEM}_best.pkl"
+        },
+    ],
+}
