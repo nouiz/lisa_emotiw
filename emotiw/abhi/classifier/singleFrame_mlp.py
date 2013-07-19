@@ -15,11 +15,14 @@ save_best_path = 'best.pkl'
 save_freq= 10
 num_chan = 1
 splitRatio = 0.7
-batch_size = 100
+batch_size = 3000
+learning_rate = 1.0 #0.000100
+selectFraction = 1.0
 
 train_ds = EmotiwFrameDataset(which_set= 'train',
                          one_hot= 1,
                          splitRatio = splitRatio,
+                         selectFraction = selectFraction,
                          size= [48, 48],
                          num_channels = num_chan)
 
@@ -29,17 +32,19 @@ val_ds = EmotiwFrameDataset(which_set= 'val',
                          one_hot= 1,
                          splitRatio = splitRatio,
                          size= [48, 48],
+                         selectFraction = selectFraction, 
                          num_channels = num_chan)
 
 print 'Val Dataset Loaded'
 last_ndim = 240
 n_classes = 7
 
+import pdb; pdb.set_trace()
 
 
 algorithm= SGD(
         batch_size= batch_size,
-        learning_rate= 0.000100,
+        learning_rate= learning_rate,
         init_momentum= .5,
         monitoring_dataset= {'valid' : val_ds},
         cost= Dropout(input_include_probs= { 'h0' : .8 },
