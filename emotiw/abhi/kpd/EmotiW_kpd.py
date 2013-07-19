@@ -26,6 +26,7 @@ from pylearn2.training_algorithms.sgd import LinearDecayOverEpoch
 import sys
 params = __import__('experiment_' + sys.argv[1] + '_params')
 
+
 # The number of features in the Y vector
 numberOfKeyPoints = 98*2
 
@@ -132,20 +133,16 @@ def main():
 
     #creating layers
         #2 convolutional rectified layers, border mode valid
-    batch_size = 64
+    batch_size = params.batch_size
     lr = params.lr
     finMomentum = params.momentum
     maxout_units  = params.units
     num_pcs = params.pieces
     lay1_reg = lay2_reg = maxout_reg = params.norm_reg
-    save_path = './models/no_maxout/titan_lr_0.1_btch_64_momFinal_0.9_maxout_2000_4.joblib'
-    best_path = './models/no_maxout/titan_bart10_gpu2_best.joblib'
-    #save_path = '../models/titan/titan_lr_1.0_btch_64_momFinal_0.9_maxout_2000_4.joblib'
-    #best_path = './models/titan/titan_eos1_best.joblib'
-    #save_path = './models/lr10/titan_lr_10.0_btch_64_momFinal_0.9_maxout_2000_4.joblib'
-    #best_path = './models/lr10/titan_bart10_gpu0_best.joblib'
-    #save_path = './eos3/eos3Ind_1_lr_0_0001_btch_32_momFinal_0_9_maxout_1500_3.joblib'
-    #best_path = './eos3/eos3Ind_1_best.joblib'
+    #save_path = './models/no_maxout/titan_lr_0.1_btch_64_momFinal_0.9_maxout_2000_4.joblib'
+    #best_path = '/models/no_maxout/titan_bart10_gpu2_best.joblib'
+    save_path = './models/'+params.host+'_'+params.device+'_'+sys.argv[1]+'.joblib'
+    best_path = './models/'+params.host+'_'+params.device+'_'+sys.argv[1]+'best.joblib'
     numBatches = 400000/batch_size
      
     from emotiw.common.datasets.faces.EmotiwKeypoints import EmotiwKeypoints

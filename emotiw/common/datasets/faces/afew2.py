@@ -104,6 +104,7 @@ class AFEW2ImageSequenceDataset(afew.AFEWImageSequenceDataset):
         idx = 0
         splits = (("Train", self.trainIndexes),
                   ("Val", self.validIndexes))
+        seqnum = 0
         for split_name, split_index in splits:
             #print 'processing %s' % split_name
             for emo_name in sorted(self.emotionNames.keys()):
@@ -137,10 +138,13 @@ class AFEW2ImageSequenceDataset(afew.AFEWImageSequenceDataset):
                 for seq in unique_seq:
                     # Load the Image Sequence object
                     # pdb.set_trace()
-                    im_seq = afew.AFEWImageSequence("AFEW2",
+                    im_seq = afew.AFEWImageSequence("AFEW2_%d"%seqnum,
                                                     rel_img_dir,
                                                     "{0}-*.png".format(seq),
                                                     self.emotionNames[emo_name])
+
+                    im_seq.cache_directory = os.path.join(self.absolute_base_directory,"cache_dir/seq_%04d"%seqnum)
+
                     im_seq.set_picasa_path_substitutions(
                         {self.base_dir:self.picasa_boxes_base_dir,
                          '.png':'.txt',
@@ -178,7 +182,8 @@ class AFEW2ImageSequenceDataset(afew.AFEWImageSequenceDataset):
                     split_index.append(idx)
 
                     idx += 1
-
+                    seqnum += 1
+                    
                 #print '  done, idx = %s' % idx
 
             #print 'done, idx = %s' % idx

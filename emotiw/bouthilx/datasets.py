@@ -32,10 +32,22 @@ class FeaturesDataset(DenseDesignMatrix):
         X = np.concatenate(X,axis=1)
 
         if normalize:
-            X -= X.min(0)
-            X /= X.max(0)
+            # set 0s to mean
+            tmp = X[:]
+            tmp -= tmp.min(0)
+            tmp /= (tmp==0) + tmp.max(0)
             # range is [-1,1]
-            X = X*2.0-1.0
+            tmp = tmp*2.0-1.0 
+            tmp = (X.min(0)!=X.max(0))*tmp # set empty dimensions to 0
+            X = tmp
+
+#        print X.mean(0)
+#        print X.min(0)
+#        print X.max(0)
+#        print X.min(0)==X.max(0)
+#        import sys
+#        
+#        sys.exit(0)
 
         y = np.load(os.path.join(base_path,targets_path))
         if len(y.shape)==1:
