@@ -49,6 +49,11 @@ def symbolic(inputs):
 
     return decorator
 
+def NReLU(x, rng=None, bound=6):
+    assert rng is not None
+    stds = T.nnet.sigmoid(x)
+    noisy_x = x + rng.normal(avg=0.0, std=stds)
+    return T.minimum(T.maximum(0, noisy_x), bound)
 
 class BinaryRBM(object):
     """
@@ -71,6 +76,10 @@ class BinaryRBM(object):
                        c=None,
                        b=None,
                        K=1,
+                       nrelu=False,
+                       init_c=0,
+                       init_b=0,
+                       l2=None,
                        epsilon=0.1,
                        n_samples=10,
                        epochs=20):
@@ -98,6 +107,7 @@ class BinaryRBM(object):
         epochs : int, optional
             Number of epochs to perform during learning
         """
+
         self.n_hiddens = n_hiddens
         self._W = theano.shared(numpy.array([[]], dtype=theano.config.floatX)
             if W == None else W)
@@ -105,6 +115,12 @@ class BinaryRBM(object):
             if c == None else c)
         self._b = theano.shared(numpy.array([], dtype=theano.config.floatX)
             if b == None else b)
+
+        self._init_c = init_c
+        self._init_b = init_b
+
+        self.nrelu = nrelu
+        self.l2 = l2
         self.K = K
         self.epsilon = epsilon
         self.n_samples = n_samples
@@ -150,7 +166,10 @@ class BinaryRBM(object):
         -------
         h: array-like, shape (n_samples, n_hiddens)
         """
-        return T.nnet.sigmoid(T.dot(v, self._W) + self._c)
+        if self.nrelu:
+            return NReLU(T.dot(v, self._W) + self._c, rng=self.rng)
+        else:
+            return T.nnet.sigmoid(T.dot(v, self._W) + self._c)
 
     @symbolic([T.matrix('v')])
     def sample_h(self, v):
@@ -181,7 +200,10 @@ class BinaryRBM(object):
         -------
         v: array-like, shape (n_samples, n_visibles)
         """
-        return T.nnet.sigmoid(T.dot(h, self._W.T) + self._b)
+        if self.nrelu:
+            return NReLU(T.dot(v, self._W) + self._c, rng=self.rng)
+        else:
+            return T.nnet.sigmoid(T.dot(h, self._W.T) + self._b)
 
     @symbolic([T.matrix('h')])
     def sample_v(self, h):
@@ -252,6 +274,9 @@ class BinaryRBM(object):
 
         cost = T.mean(self.free_energy(v_pos)) - T.mean(self.free_energy(v_neg))
 
+        if self.l2:
+            cost += self.l2 * T.sum(T.sqr(self._W))
+
         params = [self._W, self._b, self._c]
         gparams = T.grad(cost, params, consider_constant=[v_neg])
 
@@ -288,7 +313,10 @@ class BinaryRBM(object):
 
         updates[bit_i] = (bit_i + 1) % v_pos.shape[1]
 
-        return T.mean(v_pos.shape[1] * T.log(T.nnet.sigmoid(fe_xi_ - fe_xi)))
+        if self.nrelu:
+            return T.mean(v_pos.shape[1] * T.log(NReLU(fe_xi_ - fe_xi, rng=self.rng)))
+        else:
+            return T.mean(v_pos.shape[1] * T.log(T.nnet.sigmoid(fe_xi_ - fe_xi)))
 
     def fit(self, X, verbose=False, callback=None, project=lambda x: x):
         """
@@ -304,8 +332,8 @@ class BinaryRBM(object):
         if self.W.shape[1] == 0:
             self.W = numpy.asarray(numpy.random.normal(0, 0.01,
                 (n_in, self.n_hiddens)), dtype=theano.config.floatX)
-            self.c = numpy.zeros(self.n_hiddens, dtype=theano.config.floatX)
-            self.b = numpy.zeros(n_in, dtype=theano.config.floatX)
+            self.c = numpy.zeros(self.n_hiddens, dtype=theano.config.floatX) + self._init_c
+            self.b = numpy.zeros(n_in, dtype=theano.config.floatX) + self._init_b
             self.h_samples.set_value(numpy.zeros(
                 (self.n_samples, self.n_hiddens), dtype=theano.config.floatX))
 
@@ -336,7 +364,7 @@ class GaussianRBM(object):
     """
     Restricted Boltzmann Machine (RBM)
 
-    A Restricted Boltzmann Machine with binary visible units and
+    A Restricted Boltzmann Machine with gaussian visible units and
     binary hiddens. Parameters are estimated using Stochastic Maximum
     Likelihood (SML).
 
@@ -353,6 +381,10 @@ class GaussianRBM(object):
                        c=None,
                        b=None,
                        K=1,
+                       l2=None,
+                       init_c=0,
+                       init_b=0,
+                       nrelu=False,
                        epsilon=0.1,
                        n_samples=10,
                        epochs=20):
@@ -381,12 +413,18 @@ class GaussianRBM(object):
             Number of epochs to perform during learning
         """
         self.n_hiddens = n_hiddens
+        self.l2 = l2
+        self.nrelu = nrelu
+
         self._W = theano.shared(numpy.array([[]], dtype=theano.config.floatX)
             if W == None else W)
         self._c = theano.shared(numpy.array([], dtype=theano.config.floatX)
             if c == None else c)
         self._b = theano.shared(numpy.array([], dtype=theano.config.floatX)
             if b == None else b)
+
+        self._init_c = init_c
+        self._init_b = init_b
         self.K = K
         self.epsilon = epsilon
         self.n_samples = n_samples
@@ -432,7 +470,10 @@ class GaussianRBM(object):
         -------
         h: array-like, shape (n_samples, n_hiddens)
         """
-        return T.nnet.sigmoid(T.dot(v, self._W) + self._c)
+        if self.nrelu:
+            return NReLU(T.dot(v, self._W) + self._c, rng=self.rng)
+        else:
+            return T.nnet.sigmoid(T.dot(v, self._W) + self._c)
 
     @symbolic([T.matrix('v')])
     def sample_h(self, v):
@@ -447,8 +488,11 @@ class GaussianRBM(object):
         -------
         h: array-like, shape (n_samples, n_hiddens)
         """
-        return self.rng.binomial(n=1, p=self.mean_h(v),
-            dtype=theano.config.floatX)
+        if self.nrelu:
+            return self.mean_h(v)
+        else:
+            return self.rng.binomial(n=1, p=self.mean_h(v),
+                dtype=theano.config.floatX)
 
     @symbolic([T.matrix('h')])
     def mean_v(self, h):
@@ -534,6 +578,9 @@ class GaussianRBM(object):
 
         cost = T.mean(self.free_energy(v_pos)) - T.mean(self.free_energy(v_neg))
 
+        if self.l2 is not None:
+            cost += self.l2 * T.sum(T.sqr(self._W))
+
         params = [self._W, self._b, self._c]
         gparams = T.grad(cost, params, consider_constant=[v_neg])
 
@@ -578,8 +625,8 @@ class GaussianRBM(object):
         if self.W.shape[1] == 0:
             self.W = numpy.asarray(numpy.random.normal(0, 0.01,
                 (n_in, self.n_hiddens)), dtype=theano.config.floatX)
-            self.c = numpy.zeros(self.n_hiddens, dtype=theano.config.floatX)
-            self.b = numpy.zeros(n_in, dtype=theano.config.floatX)
+            self.c = numpy.zeros(self.n_hiddens, dtype=theano.config.floatX) + self._init_c
+            self.b = numpy.zeros(n_in, dtype=theano.config.floatX) + self._init_b
             self.h_samples.set_value(numpy.zeros(
                 (self.n_samples, self.n_hiddens), dtype=theano.config.floatX))
 
@@ -839,7 +886,7 @@ class LogisticLayer(NeuralNetworkLayer):
 
 
 class RectifierLayer(NeuralNetworkLayer):
-    def __init__(self, x, n_in, n_out, mask=True, **kwargs):
+    def __init__(self, x, n_in, n_out, mask=False, **kwargs):
         if mask:
           activation = lambda x: numpy.asarray(numpy.sign(numpy.random.uniform(low=-1, high=1, size=(n_out,))), dtype=theano.config.floatX) * T.maximum(x, 0)
         else:
@@ -880,9 +927,17 @@ class NeuralNetworkTrainer(object):
             layers, max_col_norm=None,
             loss_based_pooling=False,
             pooling_loss=None,
-            learning_rate=0.01, momentum=None, rmsprop=True,
-            center_grads=False, rho=0.96, epsilon=1e-10,
-            use_nesterov=True, seed=None, rng=None, constants= None, **kw):
+            learning_rate=0.01,
+            momentum=None,
+            rmsprop=True,
+            adadelta=False,
+            center_grads=False,
+            rho=0.96,
+            epsilon=1e-8,
+            use_nesterov=True,
+            seed=None,
+            rng=None,
+            constants=None, **kw):
 
         self.loss_based_pooling = loss_based_pooling
         self.rng = rng
@@ -893,7 +948,8 @@ class NeuralNetworkTrainer(object):
         #Initialize parameters for rmsprop:
         accumulators = OrderedDict({})
         accumulators_mgrad = OrderedDict({})
-
+        exp_sqr_grads = OrderedDict({})
+        exp_sqr_ups = OrderedDict({})
         e0s = OrderedDict({})
         learn_rates = []
         from utils import as_floatX
@@ -906,7 +962,8 @@ class NeuralNetworkTrainer(object):
 
             accumulators[param] = theano.shared(value=as_floatX(eps_p), name="acc_%s" % param.name)
             accumulators_mgrad[param] = theano.shared(value=as_floatX(eps_p), name="acc_mgrad%s" % param.name)
-
+            exp_sqr_grads[param] = theano.shared(value=as_floatX(eps_p), name="exp_grad_%s" % param.name)
+            exp_sqr_ups[param] = theano.shared(value=as_floatX(eps_p), name="exp_grad_%s" % param.name)
             e0s[param] = as_floatX(learning_rate)
             gparam  = T.grad(cost, param, consider_constant=constants)
             gparams.append(gparam)
@@ -930,7 +987,6 @@ class NeuralNetworkTrainer(object):
                     mean_grad = rho * acc_mg + (1 - rho) * gparam
                     gparam = gparam - mean_grad
                     updates[acc_mg] = mean_grad
-
                 if momentum and not use_nesterov:
                     memory = theano.shared(param.get_value() * 0.)
                     updates[param] = param - memory
@@ -943,6 +999,14 @@ class NeuralNetworkTrainer(object):
                 else:
                     updates[param] = param - learn_rates[i] * gparam
                 i +=1
+            elif adadelta:
+                exp_sg = exp_sqr_grads[param]
+                exp_su = exp_sqr_ups[param]
+                up_exp_sg = rho * exp_sg + (1 - rho) * T.sqr(gparam)
+                updates[exp_sg] = up_exp_sg
+                step =  -(T.sqrt(exp_su + epsilon) / T.sqrt(up_exp_sg + epsilon)) * gparam
+                updates[exp_su] = rho * exp_su + (1 - rho) * T.sqr(step)
+                updates[param] = param + step
             else:
                 if momentum and not use_nesterov:
                     memory = theano.shared(param.get_value() * 0.)
@@ -973,13 +1037,22 @@ class NeuralNetworkTrainer(object):
 
     def train(self, *args):
         if self.loss_based_pooling:
-            sorted_frames = self._constrain_inputs(*args)
+            y = numpy.repeat(args[1], args[0].shape[0], axis=0)
+            sorted_frames = self._constrain_inputs(args[0], y)
+            X = args[0][sorted_frames[:2],]
+            y = args[1]
+            loss1=self._train(X[0].reshape(1, X[0].shape[0]), y)
+            loss2=self._train(X[1].reshape(1, X[1].shape[0]), y)
+            ave_loss = (loss1 + loss2) / 2
+
+            """
             X = args[0][sorted_frames[:3]]
             y = args[1][:3]
             loss1=self._train(X[0].reshape(1, X[0].shape[0]), numpy.array([y[0]]))
             loss2=self._train(X[1].reshape(1, X[1].shape[0]), numpy.array([y[1]]))
             loss3=self._train(X[2].reshape(1, X[1].shape[0]), numpy.array([y[2]]))
             ave_loss = (loss1 + loss2 + loss3) /3
+            """
             return ave_loss
         else:
             return self._train(*args)
@@ -999,8 +1072,13 @@ class MLP(object):
             center_grads=False,
             use_nesterov=False,
             mean_pooling=False,
+            normalize_acts=False,
+            layer_dropout=True,
+            no_final_dropout=False,
             loss_based_pooling=False,
             topN_pooling=1,
+            adadelta=False,
+            response_normalize=True,
             enable_standardization=False,
             l2=None,
             seed = 1985,
@@ -1018,12 +1096,17 @@ class MLP(object):
             'Li' : LinearLayer,
             'Sq' : SquaredLayer,
         }
+        EPS = 1e-18
 
         self.max_col_norm = max_col_norm
         self.rng = RandomStreams(seed)
 
+        alpha = 0.02
+        beta = 0.75
+        k = 1.5
+
         self.layers = []
-        #from pylearn2.utils import block_gradient
+
         constants = []
         # Create hidden layers
         for i, layer in enumerate(layers):
@@ -1038,16 +1121,24 @@ class MLP(object):
                 layer_n_in = self.layers[-1].n_out
 
             if i == len(layers) - 1:
-
+                if normalize_acts:
+                    layer_input = layer_input / T.sqrt(T.sum(layer_input**2, axis=1,
+                        keepdims=True) + EPS)
+                elif response_normalize:
+                    layer_input = (layer_input - T.min(layer_input,
+                        axis=1, keepdims=True))/T.maximum(T.max(layer_input, axis=1,
+                            keepdims=True)-T.min(layer_input, axis=1, keepdims=True),
+                                EPS)
+                    """
+                    layer_input = layer_input / (k + alpha * T.sum(layer_input**2, axis=1,
+                        keepdims=True))**beta
+                    """
                 if enable_standardization:
                     from utils import stddev_bias
-                    EPS = 1e-18
                     std_val = stddev_bias(layer_input, EPS)
                     mu = T.mean(layer_input, axis=0)
                     z_val = (layer_input - mu) / std_val
                     layer_input = z_val
-
-                #from pylearn2.utils import block_gradient
 
                 if loss_based_pooling:
                     pass
@@ -1058,14 +1149,23 @@ class MLP(object):
                     t1 = T.arange(layer_input.shape[1])
                     masked_in = layer_input * T.neq(layer_input, layer_input[max1_indx, t1])
                     layer_input2 = T.max(masked_in, axis=0)
-                    layer_input = (1.3 * layer_input1 + 0.7 * layer_input2) / 2
+                    layer_input = (1.2 * layer_input1 + 0.8 * layer_input2) / 2
                 elif mean_pooling:
                     layer_input = T.mean(layer_input, axis=0)
                 else:
                     layer_input = T.max(layer_input, axis=0)
 
-                layer_input = layer_input * self.rng.binomial(n=1, p=hidden_dropout,
-                    dtype=theano.config.floatX) / hidden_dropout
+                if layer_dropout and not no_final_dropout:
+                    layer_input = layer_input * self.rng.binomial(n=1, p=0.8,
+                        dtype=theano.config.floatX) / hidden_dropout
+                elif not no_final_dropout:
+                    assert hidden_dropout != 1.
+                    layer_input = layer_input * self.rng.binomial(n=1, p=1-hidden_dropout,
+                        dtype=theano.config.floatX, size=layer_input.shape) / 1 - hidden_dropout
+
+            if hidden_dropout != 1. and i != len(layers) - 1:
+                layer_input = layer_input * self.rng.binomial(n=1, p=1-hidden_dropout,
+                    dtype=theano.config.floatX, size=layer_input.shape) / 1 - hidden_dropout
 
             xargs = {}
 
@@ -1093,11 +1193,24 @@ class MLP(object):
             else:
                 layer_input = self.clean_layers[-1].output
                 layer_n_in = self.clean_layers[-1].n_out
-
             if i == len(layers) - 1:
+                if normalize_acts:
+                    layer_input = layer_input / T.sqrt(T.sum(layer_input**2, axis=1,
+                        keepdims=True)+ EPS)
+                elif response_normalize:
+
+                    layer_input = (layer_input - T.min(layer_input,
+                        axis=1, keepdims=True)) / T.maximum(T.max(layer_input, axis=1,
+                            keepdims=True) - T.min(layer_input, axis=1, keepdims=True),
+                                EPS)
+
+                    #layer_input = T.nnet.sigmoid(layer_input)
+                    """
+                    layer_input = layer_input / (k + alpha * T.sum(layer_input**2, axis=1,
+                        keepdims=True))**beta
+                    """
                 if enable_standardization:
                     from utils import stddev_bias
-                    EPS = 1e-18
                     std_val = stddev_bias(layer_input, EPS)
                     mu = T.mean(layer_input, axis=0)
                     z_val = (layer_input - mu) / std_val #T.maximum(std_val, EPS)
@@ -1110,7 +1223,8 @@ class MLP(object):
                     collapsed_val = T.sum(layer_input, axis=0)
                     top_ids = T.argsort(layer_input, axis=0)[-3:][::-1]
                     top_vals = layer_input[top_ids, T.arange(layer_input.shape[1])]
-                    top_mean = (1.2 * top_vals[0] + 1.0 * top_vals[1] + 0.8 * top_vals[2]) / 3
+                    #top_mean = (1.2 * top_vals[0] + 1.0 * top_vals[1] + 0.8 * top_vals[2]) / 3
+                    top_mean = (1.2 * top_vals[0] + 0.8 * top_vals[1]) / 2
                     layer_input = top_mean
                 elif mean_pooling:
                     layer_input = T.mean(layer_input, axis=0)
@@ -1118,7 +1232,7 @@ class MLP(object):
                     layer_input = T.max(layer_input, axis=0)
 
             xargs = {}
-
+            pooled_output_features = layer_input
             if layer_type == 'R' and layer == layers[-1]:
                 xargs['mask'] = False
 
@@ -1134,6 +1248,7 @@ class MLP(object):
 
         self._output = theano.function([x], T.argmax(self.clean_layers[-1].output, axis=1))
         self._feature_output = theano.function([x], feature_out)
+        self._pooled_output_features = theano.function([x], pooled_output_features)
 
         self.transform = theano.function([x], T.mean(self.clean_layers[-2].output, axis=0))
 
@@ -1148,6 +1263,7 @@ class MLP(object):
                                             rho=rho, center_grads=center_grads,
                                             use_nesterov=use_nesterov,
                                             loss_based_pooling=loss_based_pooling,
+                                            adadelta=adadelta,
                                             pooling_loss=pooling_loss,
                                             constants=constants,
                                             rng=self.rng,
@@ -1162,6 +1278,16 @@ class MLP(object):
             return numpy.concatenate(out)
         else:
             return self._feature_output(x)
+
+    def pooled_output_features(self, x, batch_size=None):
+        if batch_size:
+            out = []
+            n_batches = int(numpy.ceil(x.shape[0] / float(batch_size)))
+            for n in range(n_batches):
+                out.append(self._pooled_output_features(x[n * batch_size : (n+1) * batch_size ]))
+            return numpy.concatenate(out)
+        else:
+            return self._pooled_output_features(x)
 
     def train(self, *args):
         return self.trainer.train(*args)
