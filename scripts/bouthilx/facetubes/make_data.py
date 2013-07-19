@@ -1,11 +1,14 @@
 import argparse
 import numpy as np
+<<<<<<< HEAD
 import theano
 from pylearn2.utils import serial
 from pylearn2.config import yaml_parse
 from pylearn2.datasets.preprocessing import Standardize
 import emotiw.common.datasets.faces.afew2 as afew2
 import emotiw.common.aggregation.pooling as pooling
+=======
+>>>>>>> 37bef88e556862d180581c89fe7b7b5017036991
 
 def main():
     parser = argparse.ArgumentParser()
@@ -14,6 +17,7 @@ def main():
     options = parser.parse_args()
 
     out = options.out[0]
+<<<<<<< HEAD
     out = out.strip('.npy')
     model_path = options.model_path[0]
 
@@ -122,6 +126,19 @@ def main():
     print Xs.sum(0)
     print (Xs.argmax(1)==y.argmax(1)).mean()
     np.save(out+"_X.npy",Xs)
+=======
+
+    d = afew2.AFEW2ImageSequenceDataset()#preload_facetubes=True)
+    for i, [clip, info, target] in enumerate(zip(d.imagesequences,d.seq_info,d.labels)):
+        
+        for facetube in d.get_facetubes(i):
+            onehot = np.zeros(len(d.emotionNames.keys()))
+            onehot[d.emotionNames.values().index(target)] = 1.0
+            targets[info[0]] += [onehot]*facetube.shape[0]
+            faces[info[0]] += [face for face in facetube]
+ 
+    np.save(out+"_X.npy",X)
+>>>>>>> 37bef88e556862d180581c89fe7b7b5017036991
     np.save(out+"_y.npy",y)
 
 if __name__ == "__main__":

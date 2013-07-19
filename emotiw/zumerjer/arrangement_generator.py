@@ -20,8 +20,9 @@ class EmotiwArrangerIter(object):
                  rng=_default_seed):
 
         self.num_selected = [0]*len(inst.datasets)
-
+        
         self.inst = inst
+        self.img_per_seq = self.inst.img_per_seq
         self.n_face_per_batch = [round(batch_size * self.inst.weights[i]) for i in xrange(len(self.inst.weights))]
         self.batch_size = batch_size
 
@@ -70,7 +71,7 @@ class EmotiwArrangerIter(object):
                 return idx
 
     def _get_sequence_idx(self, dset, elem_idx):
-        len_lst = [max(1, len(dset.get_sequence(seq))-2) for seq in xrange(len(dset))]
+        len_lst = [max(1, len(dset.get_sequence(seq))- (self.img_per_seq-1)) for seq in xrange(len(dset))]
         cumul_sum = [0]*len(len_lst)
         for idx, l in enumerate(len_lst):
             if idx == 0:
@@ -99,7 +100,7 @@ class EmotiwArrangerIter(object):
             batch_idx[pick_from] += 1
             self.img_idx[pick_from] += 1
             self.num_selected[pick_from] += 1
-
+            print i
             dset = self.inst.datasets[pick_from]
             elem_idx = self.img_idx[pick_from] % len(dset)
             #if the weights are set such that we want more of a given
@@ -112,7 +113,7 @@ class EmotiwArrangerIter(object):
                 seq_idx, prev_sum = self._get_sequence_idx(dset, elem_idx)
                 img_idx = elem_idx - prev_sum
                 sequence = dset.get_sequence(seq_idx)
-                missing_frames = 3 - (len(sequence)-img_idx)
+                missing_frames =  self.img_per_seq - (len(sequence)-img_idx)
                 the_img = []
 
                 if missing_frames > 0:
@@ -122,13 +123,15 @@ class EmotiwArrangerIter(object):
                         the_img.append(the_img[-1])
 
                 else:
+                    offset = (self.img_per_seq-1)/2
+                    img_this_seq = range(max(0, img_idx-offset), max(len(sequence), img_idx+offset+1))
                     the_img = [sequence.get_original_image(i)
-                                for i in (img_idx-1, img_idx, img_idx+1)]
+                               for i in img_this_seq]
 
-                the_vals = (the_img, sequence.get_7emotion_index(0))
+                the_vals = (the_img, [sequence.get_7emotion_index(0)]*self.img_per_seq)
 
             else:
-                the_vals = ([sequence.get_original_image(elem_idx)]*3, sequence.get_7emotion_index(0))
+                the_vals = ([sequence.get_original_image(elem_idx)]*self.img_per_seq, [sequence.get_7emotion_index(0)]*self.img_per_seq)
 
             if hack:
                 the_vals = ([numpy.fromstring(Image.frombuffer(data=x, size=(1024, 576), mode='RGB').resize((48, 48)).tostring(), dtype=numpy.uint8) for x in the_vals[0]], the_vals[1])
@@ -152,7 +155,8 @@ class ArrangementGenerator(object):
                  datasets,
                  weights,
                  size=(48,48),
-                 n_chan=3):
+                 img_per_seq = 3,
+                 n_chan=1):
 
         assert len(weights) == len(datasets)
 
@@ -161,12 +165,14 @@ class ArrangementGenerator(object):
         self.weights = [float(w)/total_weight for w in weights]
         self.ex_per_dset = []
         self.total_n_exs = 0
+        assert img_per_seq%2 == 1, 'img_per_seq must be odd'
+        self.img_per_seq = img_per_seq
 
         for dset in datasets:
             if hasattr(dset, 'get_sequence'):
                 self.ex_per_dset.append(0)
                 for seq in xrange(len(dset)):
-                    self.ex_per_dset[-1] += max(1, len(dset.get_sequence(seq)) - 2)
+                    self.ex_per_dset[-1] += max(1, len(dset.get_sequence(seq)) - (self.img_per_seq-1))
                     # images grouped by 3 frames, with overlap. [XOOOOOX] is the range
                     # of valid positions that can yield a frame for times t, t-1 and t+1.
                     # Should there be less than 3 frames available, missing frames will
@@ -205,8 +211,8 @@ class ArrangementGenerator(object):
         size = self.total_n_exs
         if hack:
             size = 3*batch_size
-        out_X = numpy.memmap(path + '_x.npy', mode='w+', dtype=numpy.float32, shape=(size, 3, self.img_res[0], self.img_res[1], self.num_channels))
-        out_y = numpy.memmap(path + '_y.npy', mode='w+', dtype=numpy.uint8, shape=(size, 1))
+        out_X = numpy.memmap(path + '_x.npy', mode='w+', dtype=numpy.float32, shape=(size, self.img_per_seq, self.img_res[0], self.img_res[1], self.num_channels))
+        out_y = numpy.memmap(path + '_y.npy', mode='w+', dtype=numpy.uint8, shape=(size, self.img_per_seq, 1))
         it = self.iterator(batch_size=batch_size)
 
         if not hack:
@@ -218,10 +224,10 @@ class ArrangementGenerator(object):
                 for x in item[0]:
                     arr.append([y.reshape(self.img_res[0], self.img_res[1], self.num_channels) for y in x])
 
-                    item[1].shape = (len(item[1]), 1)
-
-                out_X[batch_size*idx:batch_size*(idx+1),:] = arr
-                out_y[batch_size*idx:batch_size*(idx+1),:] = item[1]
+                item[1].shape = (len(item[1]), self.img_per_seq, 1)
+                
+                out_X[batch_size*idx:batch_size*(idx+1),:] = arr[:]
+                out_y[batch_size*idx:batch_size*(idx+1),:] = item[1][:,:,:]
 
         else:
             for idx in xrange(3):

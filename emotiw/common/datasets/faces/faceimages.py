@@ -71,6 +71,8 @@ class FaceImagesDataset(object):
         if relative_base_directory is not None:
             self.relative_base_directory = relative_base_directory
             self.absolute_base_directory = locate_data_path(relative_base_directory)
+            self.cache_directory = os.path.join(self.absolute_base_directory,"cache_dir")
+            
 
     def get_name(self):
         return self.dataset_name
@@ -119,6 +121,7 @@ class FaceImagesDataset(object):
         and all the information that is there is displayes
         '''
         entered = False
+
         while(True):
             index1 = 0
               
@@ -127,15 +130,21 @@ class FaceImagesDataset(object):
             print 'Dataset Size:', self.__len__()
             print 'Index:', i
             filepath = self.get_original_image_path(i)
-            img = Image.open(filepath)
-            img.show('Original Image')
+            if filepath == None:
+                img = self.get_original_image(i)
+          #print image
+                img = Image.fromarray(img)
+                img = img.convert('RGB')
+            else:
+                img = Image.open(filepath)
+            #img.show('Original Image')
             print 'Size:', img.size
             bbox = self.get_bbox(i)
             factorX = 1.0
             factorY = 1.0
             draw = ImageDraw.Draw(img)
 
-            if bbox != None and isinstance(bbox[0], list) and bbox[0] is not None:
+            if bbox != None and isinstance(bbox[0], (list, tuple)) and bbox[0] is not None:
                 bbox = bbox[0]
 
             if bbox == None:
@@ -160,12 +169,16 @@ class FaceImagesDataset(object):
             if keypoints is None or len(keypoints) == 0:
                 print 'No keypoint information available'
             else:
-                index = 1
-                for key in keypoints:
-                    print index, ':' , key, '=', keypoints[key]
-                    (x, y ) = keypoints[key]
-                    draw.text((x * factorX, y * factorY), str(index))
+                if isinstance(keypoints, list):
+                    keypoints = keypoints[0]
+
+                index = 0
+                for key in keypoints_names:
                     index += 1
+                    if key in keypoints:
+                        print index, ':' , key, '=', keypoints[key]
+                        (x, y ) = keypoints[key]
+                        draw.text((x * factorX, y * factorY), str(index))
             img.show()
             print 'press any q to exit, any other key to continue..'
             ui = sys.stdin.readline()  
@@ -227,6 +240,59 @@ class FaceImagesDataset(object):
             if bbox is None:
                 bbox = self.get_opencv_bbox(i)
         return bbox
+
+    def get_pyvision_bbox(self, i):
+        if not hasattr(self, "pyvision_bbox_start_indexes"):
+            if not hasattr(self, "cache_directory"):
+                self.pyvision_bbox_start_indexes = None
+                self.pyvision_bbox_list = None
+            else:
+                indexfile = os.path.join(self.cache_directory, "pyvision_bboxes_start_indexes.npy")
+                bboxfile = os.path.join(self.cache_directory, "pyvision_bboxes_list.npy")
+
+                if os.path.exists(indexfile):
+                    self.pyvision_bbox_start_indexes = numpy.load(indexfile)
+                    self.pyvision_bbox_list = numpy.load(bboxfile)
+                else:
+                    print "*** Precomputing pyvision_bbox ***"
+                    from emotiw.common.utils.pyvisionutils import pyvision_detect_faces_bboxes
+                    prev_umask = os.umask(0002)
+                    if not os.path.exists(self.cache_directory):
+                        os.makedirs(self.cache_directory)
+                    n = len(self)
+                    bbox_start_indexes = numpy.zeros((n+1), numpy.uint32)
+                    bbox_list = numpy.zeros((10,4), numpy.uint16)
+                    bbox_num = 0
+                    for image_num in xrange(n):
+                        print "Image #%d (/%d)" % (image_num,n)
+                        bbox_start_indexes[image_num] = bbox_num
+                        bboxes = pyvision_detect_faces_bboxes(self.get_original_image(image_num))
+                        print "    pyvision detected %d faces" % len(bboxes)
+                        for bbox in bboxes:
+                            if bbox_num>=len(bbox_list):
+                                bbox_list = numpy.resize(bbox_list, (len(bbox_list)+n, 4) )
+                            bbox_list[bbox_num] = bbox
+                            bbox_num += 1
+                    bbox_start_indexes[n] = bbox_num
+                    bbox_list = numpy.resize(bbox_list, (bbox_num,4) )
+
+                    print "Saving precomputed pyvision bboxes in cache files:",
+                    print "  -> ",indexfile
+                    numpy.save(indexfile,bbox_start_indexes) 
+                    print "  -> ",bboxfile
+                    numpy.save(bboxfile,bbox_list)
+                    os.umask(prev_umask)
+                    self.pyvision_bbox_start_indexes = bbox_start_indexes
+                    self.pyvision_bbox_list = bbox_list
+
+        if self.pyvision_bbox_start_indexes is None:
+            return None
+        
+        startpos = self.pyvision_bbox_start_indexes[i]
+        endpos = self.pyvision_bbox_start_indexes[i+1]
+        if startpos==endpos:
+            return []
+        return self.pyvision_bbox_list[startpos:endpos,:]
     
     def get_opencv_bbox(self, i):
         return None
@@ -271,6 +337,17 @@ class FaceImagesDataset(object):
             return bboxes
 
         return None
+
+    def n_picasa_faces(self):
+        """Returns the total number of picasa detected faces in the dataset"""
+        if not hasattr(self,"_n_picasa_faces"):
+            n = 0
+            for i in xrange(len(self)):
+                bboxes = self.get_picasa_bbox(i)
+                if bboxes is not None:
+                    n += len(bboxes)
+            self._n_picasa_faces = n
+        return self._n_picasa_faces
     
     def get_eyes_location(self, i):
         """
@@ -284,6 +361,9 @@ class FaceImagesDataset(object):
     def get_keypoints_location(self, i):
         """
         Returns a dictionary of keypoint_names -> (x,y) image coordinates (or None if not available).
+        This should ideally return (hand) labeled keypoints from the (original) dataset.
+        Default version however calls self.get_ramanan_keypoints_location(i) (which returns keypoints precomputed with ramanan's algo)
+
         Coordinate system has its origin in the upper left corner of the image
             (horizontal_offset_in_pixels, vertical_offset_in_pixels).
 
@@ -346,7 +426,8 @@ class FaceImagesDataset(object):
             emotiw/keypoints_desc/keypoints_desc)
 
         """
-        return None
+        return self.get_ramanan_keypoints_location(i)
+
 
 
     ## Access to Ramanan precomputed keypoints
@@ -368,7 +449,8 @@ class FaceImagesDataset(object):
             if os.path.exists(os.path.dirname(newpath)):
                 basepath = newpath
 
-        basepath, ext = os.path.splitext(basepath)        
+        basepath, ext = os.path.splitext(basepath)
+        # print "Ramanan searching for "+basepath+"_ramanan_face??.mat"
         ramananpaths = glob.glob(basepath+"_ramanan_face??.mat")
         ramananpaths.sort()
         if os.path.exists(basepath+"_ramanan.mat"): # possible path for single face obtained from ramanan on whole image
@@ -389,12 +471,15 @@ class FaceImagesDataset(object):
         if len(ramananpaths) == 0:
             return None
 
-        keypoint_dicts = []
+        xs_and_ys = []
+
+        # print "ramananpaths:", ramananpaths
+        
         for ramananpath in ramananpaths:
             matfile = sio.loadmat(ramananpath)
-            xs = matfile['xs'][0]
-            ys = matfile['ys'][0]
 
+            xoffset = 0
+            yoffset = 0
             # Look for offsets to apply to coordinates
             basename,ext = os.path.splitext(ramananpath)
             bbox_filepath = basename+"_bbox.txt"
@@ -403,21 +488,64 @@ class FaceImagesDataset(object):
                     x1,y1,x2,y2 = infile.readline().split()
                     xoffset = float(x1)
                     yoffset = float(y1)            
-                    xs += xoffset
-                    ys += yoffset
+                                
+            first_xs = matfile['xs'][0]
+            first_ys = matfile['ys'][0]
+            # print "Ramanan first_xs", first_xs
+            xs_and_ys.append((first_xs+xoffset, first_ys+yoffset))
 
-            # pdb.set_trace()
+            if ramananpath[-18:-6]!='ramanan_face':
+                bs = matfile['bs']
+                bs_n, bs_m = bs.shape
+                for i in range(bs_m):
+                    bs_xy = bs[0,i]['xy']
+                    # print "Ramanan bs_xy",bs_xy
+                    xs = 0.5*(bs_xy[:,0]+bs_xy[:,2])
+                    ys = 0.5*(bs_xy[:,1]+bs_xy[:,3])
 
-            pts_idx_dict_68 = {0: 'nostrils_center', 1: 'right_nostril_inner_end', 2: 'right_nostril', 3: 'left_nostril_inner_end', 4: 'left_nostril', 5: 'nose_tip', 6: 'nose_ridge_bottom', 7: 'nose_ridge_top', 8: 'nose_center_top', 9: 'right_eye_inner_corner', 10: 'right_eye_bottom_inner_midpoint', 11: 'right_eye_bottom_outer_midpoint', 12: 'right_eye_top_inner_midpoint', 13: 'right_eye_top_outer_midpoint', 14: 'right_eye_outer_corner', 15: 'right_eyebrow_outer_end', 16: 'right_eyebrow_outer_midpoint', 17: 'right_eyebrow_center', 18: 'right_eyebrow_inner_midpoint', 19: 'right_eyebrow_inner_end', 20: 'left_eye_inner_corner', 21: 'left_eye_bottom_inner_midpoint', 22: 'left_eye_bottom_outer_midpoint', 23: 'left_eye_top_inner_midpoint', 24: 'left_eye_top_outer_midpoint', 25: 'left_eye_outer_corner', 26: 'left_eyebrow_outer_end', 27: 'left_eyebrow_outer_midpoint', 28: 'left_eyebrow_center', 29: 'left_eyebrow_inner_midpoint', 30: 'left_eyebrow_inner_end', 31: 'mouth_top_lip', 32: 'top_lip_top_right_center', 33: 'top_lip_top_right_midpoint', 34: 'mouth_right_corner', 35: 'top_lip_bottom_right_midpoint', 36: 'top_lip_bottom_right_center', 37: 'top_lip_bottom_center', 38: 'top_lip_top_left_center', 39: 'top_lip_top_left_midpoint', 40: 'mouth_left_corner', 41: 'top_lip_bottom_left_midpoint', 42: 'top_lip_bottom_left_center', 43: 'bottom_lip_bottom_left_midpoint', 44: 'bottom_lip_top_left_midpoint' , 45: 'bottom_lip_bottom_left_center', 46: 'bottom_lip_top_left_center', 47: 'bottom_lip_bottom_right_center', 48: 'bottom_lip_top_right_center', 49: 'bottom_lip_bottom_left_midpoint', 50: 'mouth_bottom_lip', 51: 'chin_center', 52: 'chin_left', 53: 'left_jaw_1', 54: 'left_jaw_0', 55: 'left_cheek_1', 56: 'left_cheek_0', 57: 'left_ear_bottom', 58: 'left_ear_center', 59: 'left_ear_top', 60: 'chin_right', 61: 'right_jaw_1', 62: 'right_jaw_0', 63: 'right_cheek_1', 64: 'right_cheek_0', 65: 'right_ear_bottom', 66: 'right_ear_center', 67: 'right_ear_top'}
+                    if len(xs)!=len(first_xs) or (numpy.abs(first_xs-xs)).max()>0.1: # don't append if it's same as first
+                        xs_and_ys.append((xs+xoffset, ys+yoffset))
 
-            pts_idx_dict_39 = {0: 'left_nostril', 1: 'nostrils_center', 2: 'nose_tip', 3: 'nose_ridge_bottom', 4: 'nose_ridge_top', 5: 'nose_center_top', 6: 'left_eye_bottom_inner_midpoint', 7: 'left_eye_bottom_outer_midpoint', 8: 'left_eye_outer_corner', 9: 'left_eye_top_inner_midpoint', 10: 'left_eye_top_outer_midpoint', 11: 'left_eyebrow_inner_midpoint', 12: 'left_eyebrow_center', 13: 'left_eyebrow_outer_midpoint', 14: 'left_eyebrow_outer_end', 15: 'mouth_top_lip', 16: 'top_lip_top_left_center', 17: 'top_lip_top_left_midpoint', 18: 'mouth_left_corner', 19: 'bottom_lip_bottom_left_midpoint', 20: 'bottom_lip_bottom_left_center', 21: 'mouth_bottom_lip', 22: 'top_lip_bottom_left_midpoint', 23: 'top_lip_bottom_left_center', 24: 'top_lip_bottom_left_center', 25: 'bottom_lip_top_left_center', 26: 'bottom_lip_top_center', 27: 'chin_center_top', 28: 'chin_center', 29: 'chin_left', 30: 'left_jaw_2', 31: 'left_jaw_1', 32: 'left_jaw_0', 33: 'left_cheek_2', 34: 'left_cheek_1', 35: 'left_cheek_0', 36: 'left_ear_bottom', 37: 'left_ear_center', 38: 'left_ear_top'}
+
+            # bs_i = matfile['bs'][i]
+            # pose = bs_i['c']            
+            # kp_rects = bs_i['xy']
+
+            # print "Ramanan xs shape:", matfile['xs'].shape
+            # bs = matfile['bs']
+            # bs_n, bs_m = bs.shape
+            # for i in range(bs_m):
+            #     bs_xy = bs[0,i]['xy']                
+            #     print "Ramanan bs",i,"shape of xy:",bs_xy.shape 
+
             
-            translation_dict = pts_idx_dict_68
+            # print "Ramanan xy shape", matfile['bs'][0,0]['xy'].shape
 
+            # xs = matfile['xs'][0]
+            # ys = matfile['ys'][0]
+
+            # # Look for offsets to apply to coordinates
+            # basename,ext = os.path.splitext(ramananpath)
+            # bbox_filepath = basename+"_bbox.txt"
+            # if os.path.exists(bbox_filepath):
+            #     with open(bbox_filepath, 'r') as infile:
+            #         x1,y1,x2,y2 = infile.readline().split()
+            #         xoffset = float(x1)
+            #         yoffset = float(y1)            
+            #         xs += xoffset
+            #         ys += yoffset
+
+        '''
+        pts_idx_dict_68 = {0: 'nostrils_center', 1: 'right_nostril_inner_end', 2: 'right_nostril', 3: 'left_nostril_inner_end', 4: 'left_nostril', 5: 'nose_tip', 6: 'nose_ridge_bottom', 7: 'nose_ridge_top', 8: 'nose_center_top', 9: 'right_eye_inner_corner', 10: 'right_eye_bottom_inner_midpoint', 11: 'right_eye_bottom_outer_midpoint', 12: 'right_eye_top_inner_midpoint', 13: 'right_eye_top_outer_midpoint', 14: 'right_eye_outer_corner', 15: 'right_eyebrow_outer_end', 16: 'right_eyebrow_outer_midpoint', 17: 'right_eyebrow_center', 18: 'right_eyebrow_inner_midpoint', 19: 'right_eyebrow_inner_end', 20: 'left_eye_inner_corner', 21: 'left_eye_bottom_inner_midpoint', 22: 'left_eye_bottom_outer_midpoint', 23: 'left_eye_top_inner_midpoint', 24: 'left_eye_top_outer_midpoint', 25: 'left_eye_outer_corner', 26: 'left_eyebrow_outer_end', 27: 'left_eyebrow_outer_midpoint', 28: 'left_eyebrow_center', 29: 'left_eyebrow_inner_midpoint', 30: 'left_eyebrow_inner_end', 31: 'mouth_top_lip', 32: 'top_lip_top_right_center', 33: 'top_lip_top_right_midpoint', 34: 'mouth_right_corner', 35: 'top_lip_bottom_right_midpoint', 36: 'top_lip_bottom_right_center', 37: 'top_lip_bottom_center', 38: 'top_lip_top_left_center', 39: 'top_lip_top_left_midpoint', 40: 'mouth_left_corner', 41: 'top_lip_bottom_left_midpoint', 42: 'top_lip_bottom_left_center', 43: 'bottom_lip_bottom_left_midpoint', 44: 'bottom_lip_top_left_midpoint' , 45: 'bottom_lip_bottom_left_center', 46: 'bottom_lip_top_left_center', 47: 'bottom_lip_bottom_right_center', 48: 'bottom_lip_top_right_center', 49: 'bottom_lip_bottom_left_midpoint', 50: 'mouth_bottom_lip', 51: 'chin_center', 52: 'chin_left', 53: 'left_jaw_1', 54: 'left_jaw_0', 55: 'left_cheek_1', 56: 'left_cheek_0', 57: 'left_ear_bottom', 58: 'left_ear_center', 59: 'left_ear_top', 60: 'chin_right', 61: 'right_jaw_1', 62: 'right_jaw_0', 63: 'right_cheek_1', 64: 'right_cheek_0', 65: 'right_ear_bottom', 66: 'right_ear_center', 67: 'right_ear_top'}
+        '''
+        pts_idx_dict_68 = {0: 'nostrils_center', 1: 'right_nostril_inner_end', 2: 'right_nostril', 3: 'left_nostril_inner_end', 4: 'left_nostril', 5: 'nose_tip', 6: 'nose_ridge_bottom', 7: 'nose_ridge_top', 8: 'nose_center_top', 9: 'right_eye_inner_corner', 10: 'right_eye_bottom_inner_midpoint', 11: 'right_eye_bottom_outer_midpoint', 12: 'right_eye_top_inner_midpoint', 13: 'right_eye_top_outer_midpoint', 14: 'right_eye_outer_corner', 15: 'right_eyebrow_outer_end', 16: 'right_eyebrow_outer_midpoint', 17: 'right_eyebrow_center', 18: 'right_eyebrow_inner_midpoint', 19: 'right_eyebrow_inner_end', 20: 'left_eye_inner_corner', 21: 'left_eye_bottom_inner_midpoint', 22: 'left_eye_bottom_outer_midpoint', 23: 'left_eye_top_inner_midpoint', 24: 'left_eye_top_outer_midpoint', 25: 'left_eye_outer_corner', 26: 'left_eyebrow_outer_end', 27: 'left_eyebrow_outer_midpoint', 28: 'left_eyebrow_center', 29: 'left_eyebrow_inner_midpoint', 30: 'left_eyebrow_inner_end', 31: 'mouth_top_lip', 32: 'top_lip_top_right_center', 33: 'top_lip_top_right_midpoint', 34: 'mouth_right_corner', 35: 'top_lip_bottom_right_midpoint', 36: 'top_lip_bottom_right_center', 37: 'top_lip_bottom_center', 38: 'top_lip_top_left_center', 39: 'top_lip_top_left_midpoint', 40: 'mouth_left_corner', 41: 'top_lip_bottom_left_midpoint', 42: 'top_lip_bottom_left_center', 43: 'bottom_lip_bottom_left_midpoint', 44: 'bottom_lip_top_left_midpoint' , 45: 'bottom_lip_bottom_left_center', 46: 'bottom_lip_top_left_center', 47: 'bottom_lip_bottom_right_center', 48: 'bottom_lip_top_right_center', 49: 'bottom_lip_bottom_left_midpoint', 50: 'mouth_bottom_lip', 51: 'chin_center', 52: 'chin_right', 53: 'right_jaw_1', 54: 'right_jaw_0', 55: 'right_cheek_1', 56: 'right_cheek_0', 57: 'right_ear_bottom', 58: 'right_ear_center', 59: 'right_ear_top', 60: 'chin_left', 61: 'left_jaw_1', 62: 'left_jaw_0', 63: 'left_cheek_1', 64: 'left_cheek_0', 65: 'left_ear_bottom', 66: 'left_ear_center', 67: 'left_ear_top'}
+        pts_idx_dict_39 = {0: 'left_nostril', 1: 'nostrils_center', 2: 'nose_tip', 3: 'nose_ridge_bottom', 4: 'nose_ridge_top', 5: 'nose_center_top', 6: 'left_eye_bottom_inner_midpoint', 7: 'left_eye_bottom_outer_midpoint', 8: 'left_eye_outer_corner', 9: 'left_eye_top_inner_midpoint', 10: 'left_eye_top_outer_midpoint', 11: 'left_eyebrow_inner_midpoint', 12: 'left_eyebrow_center', 13: 'left_eyebrow_outer_midpoint', 14: 'left_eyebrow_outer_end', 15: 'mouth_top_lip', 16: 'top_lip_top_left_center', 17: 'top_lip_top_left_midpoint', 18: 'mouth_left_corner', 19: 'bottom_lip_bottom_left_midpoint', 20: 'bottom_lip_bottom_left_center', 21: 'mouth_bottom_lip', 22: 'top_lip_bottom_left_midpoint', 23: 'top_lip_bottom_left_center', 24: 'top_lip_bottom_left_center', 25: 'bottom_lip_top_left_center', 26: 'bottom_lip_top_center', 27: 'chin_center_top', 28: 'chin_center', 29: 'chin_left', 30: 'left_jaw_2', 31: 'left_jaw_1', 32: 'left_jaw_0', 33: 'left_cheek_2', 34: 'left_cheek_1', 35: 'left_cheek_0', 36: 'left_ear_bottom', 37: 'left_ear_center', 38: 'left_ear_top'}
+        keypoint_dicts = []
+            
+        for xs,ys in xs_and_ys:
+            translation_dict = pts_idx_dict_68
             if len(xs) == 39:
                 translation_dict = pts_idx_dict_39
-
-                
             keypoint_dict = dict([ (translation_dict[pos], coord) for pos,coord in enumerate(zip(xs,ys)) ]) 
             keypoint_dicts.append(keypoint_dict)
 
@@ -703,12 +831,21 @@ class FaceImagesSubset(FaceImagesDataset):
     
     def get_bbox(self, i):
         return self.img_dataset.get_bbox(self.indices[i])
+
+    def get_picasa_bbox(self, i):
+        return self.img_dataset.get_picasa_bbox(self.indices[i])
+    
+    def get_pyvision_bbox(self, i):
+        return self.img_dataset.get_pyvision_bbox(self.indices[i])
     
     def get_eyes_location(self, i):
         return self.img_dataset.get_eyes_location(self.indices[i])
     
     def get_keypoints_location(self, i):
         return self.img_dataset.get_keypoints_location(self.indices[i])    
+
+    def get_ramanan_keypoints_location(self, i):
+        return self.img_dataset.get_ramanan_keypoints_location(self.indices[i])    
     
     def get_subject_id_of_ith_face(self, i):
         return self.img_dataset.get_subject_id_of_ith_face(self.indices[i])

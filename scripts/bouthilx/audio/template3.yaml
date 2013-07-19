@@ -1,0 +1,59 @@
+!obj:pylearn2.train.Train {
+    dataset: &train !obj:emotiw.bouthilx.datasets.FeaturesDataset {
+        features_paths: ["audio/audio_mlp_train_feats.npy"],
+        targets_path: "stats/Train_y.npy",
+        base_path: "/data/afew",
+    },
+    model: !obj:pylearn2.models.mlp.MLP {
+        layers: [ !obj:pylearn2.models.maxout.Maxout {
+                     layer_name: 'h0',
+                     num_units: %(num_units)d,
+                     num_pieces: %(num_pieces)d,
+                     sparse_init: 1,
+#                     max_col_norm: 
+#                     max_kernel_norm: .9
+                  }, !obj:pylearn2.models.mlp.RectifiedLinear {
+                     layer_name: 'h1',
+                     dim: 35,
+                     sparse_init: 1
+                  },!obj:pylearn2.models.mlp.Softmax {
+                     layer_name: 'y',
+                     n_classes: 7,
+                     irange: 0.
+                 }
+                ],
+       nvis: 364,
+    },
+    algorithm: !obj:pylearn2.training_algorithms.sgd.SGD {
+        batch_size: 20,
+        learning_rate: %(learning_rate)e,
+        monitoring_dataset:
+            {
+                'train' : *train,
+                'valid' : !obj:emotiw.bouthilx.datasets.FeaturesDataset {
+                    features_paths: ["audio/audio_mlp_valid_feats.npy"],
+                    targets_path: "stats/Val_y.npy",
+                    base_path: "/data/afew",
+                },
+            },
+        cost: !obj:pylearn2.costs.cost.SumOfCosts { costs: [
+            !obj:pylearn2.costs.cost.MethodCost {
+                method: 'cost_from_X',
+            }, !obj:pylearn2.costs.mlp.dropout.Dropout {
+                input_include_probs: { 'h0': %(dropout_h0)f, 'h1': %(dropout_h1)f, },
+                input_scales: { 'h0': %(dropout_scales_h0)f, 'h1': %(dropout_scales_h1)f }
+            }],
+        },
+        termination_criterion: !obj:pylearn2.termination_criteria.MonitorBased {
+            channel_name: "valid_y_misclass",
+            prop_decrease: 0.,
+            N: 50
+        }
+    },
+    extensions: [
+        !obj:pylearn2.train_extensions.best_params.MonitorBasedSaveBest {
+             channel_name: 'valid_y_misclass',
+             save_path: "${PYLEARN2_TRAIN_FILE_FULL_STEM}_best.pkl"
+        },
+    ],
+}
