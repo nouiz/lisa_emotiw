@@ -107,8 +107,9 @@ def compute_accuracy(scorefile, score_start_column=0):
     dataset_name = get_associated_dataset_name(scoremat)
     filelist, labelvec = filelist_and_labelvec[dataset_name]
     if labelvec is None:
-        print_usage_and_exit("""Error:  you provided a score matrix %s that corresponds to the test set, for which
-        we don't have labels, so I can't compute accuracy. Maybe you want to try the show subcommand instead.""" % scorefile)
+        print """You provided a score matrix %s that corresponds to the test set, for which
+        we don't have labels, so I can't compute accuracy. Maybe you want to try the show subcommand (instead of eval).""" % scorefile
+        sys.exit()
     winners = scoremat.argmax(axis=1)
     accuracy = (winners==labelvec).mean()
     return accuracy
