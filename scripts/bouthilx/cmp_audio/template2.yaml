@@ -1,0 +1,54 @@
+!obj:pylearn2.train.Train {
+    dataset: &train !obj:emotiw.bouthilx.datasets.FeaturesDataset {
+        features_paths: ["test6_best_audio_mlp_train_feats_features.npy"],
+        targets_path: "audio_mlp_train_labels.npy",
+        base_path: "/data/afew/audio",
+        normalize: False, 
+    },
+    model: !obj:pylearn2.models.mlp.MLP {
+        layers: [ !obj:pylearn2.models.mlp.RectifiedLinear {
+                     layer_name: 'h0',
+                     dim: %(hid)d,
+                     sparse_init: 1
+                  }, !obj:pylearn2.models.mlp.Softmax {
+                     layer_name: 'y',
+                     n_classes: 7,
+                     irange: 0.
+                 }
+                ],
+       nvis: 49,
+    },
+    algorithm: !obj:pylearn2.training_algorithms.sgd.SGD {
+        batch_size: 20,
+        learning_rate: %(learning_rate)e,
+        monitoring_dataset:
+            {
+                'train' : *train,
+                'valid' : !obj:emotiw.bouthilx.datasets.FeaturesDataset {
+                    features_paths: ["test6_best_audio_mlp_valid_feats_features.npy"],
+                    targets_path: "audio_mlp_valid_labels.npy",
+                    base_path: "/data/afew/audio",
+                    normalize: False, 
+                },
+            },
+        cost: !obj:pylearn2.costs.cost.SumOfCosts { costs: [
+            !obj:pylearn2.costs.cost.MethodCost {
+                method: 'cost_from_X',
+            }, !obj:pylearn2.models.mlp.WeightDecay {
+                coeffs: [ %(wd1)f, %(wd2)f ]
+            }
+            ]
+        },
+        termination_criterion: !obj:pylearn2.termination_criteria.MonitorBased {
+            channel_name: "valid_y_misclass",
+            prop_decrease: 0.,
+            N: 50
+        }
+    },
+    extensions: [
+        !obj:pylearn2.train_extensions.best_params.MonitorBasedSaveBest {
+             channel_name: 'valid_y_misclass',
+             save_path: "${PYLEARN2_TRAIN_FILE_FULL_STEM}_best.pkl"
+        },
+    ],
+}

@@ -1,4 +1,5 @@
 from pylearn2.utils import serial
+import emotiw.bouthilx.utils as utils
 import pylearn2.datasets.tfd as tfd
 from theano import config
 from theano import function
@@ -28,20 +29,7 @@ class MyModel:
         else:
             X = X.reshape((X.shape[0],48,48,1))
 
-        y_hat = []
-        for idx in xrange(0,X.shape[0],self.batch_size):
-            if idx+self.batch_size > X.shape[0]:
-                batch = np.cast[config.floatX](np.zeros([self.batch_size]+list(X.shape[1:])))
-                batch[:X.shape[0]-idx] = X[idx:X.shape[0]]
-            else:
-                batch = X[idx:idx+self.batch_size]
-            y_hat.append(self._fprop(batch))
-
-        y_hat = np.concatenate(y_hat,0)
-        # cut-off extra 0s
-        y_hat = y_hat[:X.shape[0]]
-            
-        return y_hat
+        return utils.apply(self._fprop,X,self.batch_size)
 
 def test(model_path,dataset_stats_path):
 #    model = serial.load(model_path)
