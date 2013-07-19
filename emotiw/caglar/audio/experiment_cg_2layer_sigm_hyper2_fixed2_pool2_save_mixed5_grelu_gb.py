@@ -268,10 +268,10 @@ def jobman_entrypoint(state, channel):
     return channel.COMPLETE
 
 
-def jobman_insert_random(n_jobs, table_name="emotiw_mlp_audio_fixed_pool2_mixed5_nrelu_2layers"):
+def jobman_insert_random(n_jobs, table_name="emotiw_mlp_audio_fixed_pool2_mixed5_grelu_gb"):
 
     JOBDB = 'postgresql://gulcehrc@opter.iro.umontreal.ca/gulcehrc_db?table=' + table_name
-    EXPERIMENT_PATH = "experiment_cg_2layer_sigm_hyper2_fixed2_pool2_save_mixed5_nrelu.jobman_entrypoint"
+    EXPERIMENT_PATH = "experiment_cg_2layer_sigm_hyper2_fixed2_pool2_save_mixed5_grelu_gb.jobman_entrypoint"
     nlr = 45
     learning_rates = numpy.logspace(numpy.log10(0.0008), numpy.log10(0.09), nlr)
     max_col_norms = [1.9835, 1.8256, 1.2124, 0.98791]
@@ -282,17 +282,20 @@ def jobman_insert_random(n_jobs, table_name="emotiw_mlp_audio_fixed_pool2_mixed5
         job = DD()
         id_lr = numpy.random.random_integers(0, nlr-1)
         rnd_maxcn = numpy.random.random_integers(0, len(max_col_norms)-1)
-        job.n_hiddens = 400
-        job.n_layers = 2
+        job.n_hiddens = numpy.random.random_integers(2,5) * 100 + 2 * numpy.random.random_integers(0,15)
+        job.n_layers = numpy.random.random_integers(2, 3)
         job.learning_rate = learning_rates[id_lr]
         job.momentum = 10.**numpy.random.uniform(-1, -0)
-        job.hidden_dropout = numpy.random.uniform(low=0.1, high=0.9)
-        job.layer_dropout = 1
+        job.hidden_dropout = numpy.random.uniform(low=0.1, high=0.2)
+        job.layer_dropout = 0
+        job.topN_pooling = 1
+        job.no_final_dropout = 1
+        job.l2 = numpy.random.random_integers(1, 20) * 1e-3
         job.rmsprop = 1
-        job.normalize_acts = 1
+        job.normalize_acts = 0
         job.enable_standardization = 0
         job.response_normalize = 0
-        job.rbm_epochs = 12
+        job.rbm_epochs = 15
         job.rho = 0.94
         job.validerror = 0.0
         job.loss = 0.0
@@ -303,7 +306,7 @@ def jobman_insert_random(n_jobs, table_name="emotiw_mlp_audio_fixed_pool2_mixed5
         job.features = "full.pca"
         job.max_col_norm = max_col_norms[rnd_maxcn]
         job.example_dropout = numpy.random.randint(60, 200)
-        job.tag = "relu_2layers_dbn"
+        job.tag = "relu_nlayers_dbn"
 
         jobs.append(job)
         print job
@@ -374,8 +377,8 @@ def jobman_insert():
         print "inserted %d jobs" % len(jobs)
         print "To run: jobdispatch --condor --mem=3G --gpu --env=THEANO_FLAGS='floatX=float32, device=gpu' --repeat_jobs=%d jobman sql -n 1 'postgres://dauphiya@opter.iro.umontreal.ca/dauphiya_db/emotiw_mlp_audio' ." % len(jobs)
 
-def view(table="emotiw_mlp_audio_fixed_pool2_mixed5_nrelu_2layers",
-         tag="relu_2layers_dbn",
+def view(table="emotiw_mlp_audio_fixed_pool2_mixed5_grelu_gb",
+         tag="relu_nlayers_dbn",
          user="gulcehrc",
          password="",
          database="gulcehrc_db",
@@ -461,8 +464,8 @@ if __name__ == "__main__":
     elif "graph" in sys.argv:
         graph()
     else:
-        main(n_hiddens=300,
-            learning_rate=0.001804084681414,
+        main(n_hiddens=480,
+            learning_rate=0.001004084681414,
             momentum=0.122135117412,
             features="full.pca",
             example_dropout=140,
@@ -477,10 +480,10 @@ if __name__ == "__main__":
             rbm_learning_rate=[0.001, 0.001, 0.001],
             layer_dropout=False,
             no_final_dropout=1,
-            l2=3*1e-3,
+            l2=1e-2,
             hidden_dropout=0.1,
-            max_col_norm=1.9365,
-            n_layers=3,
+            max_col_norm=2.9365,
+            n_layers=2,
             rho=0.94,
             train_epochs=400,
             use_nesterov=1)
