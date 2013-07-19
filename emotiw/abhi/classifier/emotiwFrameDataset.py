@@ -6,13 +6,15 @@ from pylearn2.space import CompositeSpace, VectorSpace, Conv2DSpace
 from pylearn2.datasets.dataset import Dataset
 from pylearn2.utils.iteration import resolve_iterator_class
 import theano
+import math
 
 
 class EmotiwFrameIterator(object):
     def __init__(self, dset, mode, data_specs, return_tuple, convert_fns, rng=None):
         self.dset = dset
         self.stochastic = False
-        self.num_examples = dset.x.shape[0]
+        self.num_examples = math.ceil(dset.x.shape[0]/3)+1
+        print 'Number of Examples:', self.num_examples
         self.mode =mode
         self.rng = rng
         self.return_tuple = return_tuple
@@ -30,15 +32,34 @@ class EmotiwFrameIterator(object):
     def next(self):
         next_idx = self.mode.next()
         feature = self.dset.x[next_idx]
+        feature = feature[0::3]
         in_feature_space = self.dset.space.components[0]
         out_feature_space = self.data_specs[0].components[0]
         if in_feature_space != out_feature_space:
             feature = in_feature_space.np_format_as(feature, out_feature_space)
+            
+            '''
+            print feature.shape
+            import Image
+            img = feature[:,:,:,54].reshape((48,48))
+            minImg = np.min(img)
+            maxImg = np.max(img)
+            img = ((img-minImg)*255)/(maxImg-minImg)
+            img1 = (feature[:,:,:,55].reshape((48,48)) - minImg)*255/(maxImg-minImg)
+            img2 = (feature[:,:,:,56].reshape((48,48)) - minImg)*255/(maxImg-minImg)
+            img3 = (feature[:,:,:,57].reshape((48,48)) - minImg)*255/(maxImg-minImg)
+            Image.fromarray(img).show()
+            Image.fromarray(img1).show()
+            Image.fromarray(img2).show()
+            Image.fromarray(img3).show()
+            return
+            '''
         target = self.dset.y[next_idx]
+        target = target[0::3]
 
         if self.dset.one_hot:
             one_hot = np.zeros((len(target),7), dtype=np.float32)
-            one_hot[np.asarray(range(len(one_hot))), target] = 1.
+            one_hot[np.asarray(range(len(target))), target] = 1.
             target = one_hot
 
         return (feature, target)
@@ -50,11 +71,12 @@ class EmotiwFrameDataset(Dataset):
                  shuffle_rng=None, 
                  size=(48,48), num_channels=1,
                  splitRatio = 0.7,
+                 selectFraction = 1.0,
                  path=None):
 
         if path is None:
             #path = '/data/lisa/data/faces/EmotiW/preproc/all'
-            path = '/Tmp/zumerjer/all'
+            path = '/Tmp/aggarwal/all'
 
         self.x = np.memmap(path + '_x.npy', mode='r', dtype='float32')
         self.y = np.memmap(path + '_y.npy', mode='r', dtype='uint8')
@@ -64,13 +86,18 @@ class EmotiwFrameDataset(Dataset):
         self.x = self.x.view()
         self.x.shape = (len(self.y), size[0], size[1], num_channels)
 
-        numSamples = self.x.shape[0]
+        numSamples = int(self.x.shape[0]*selectFraction)
+        
         if which_set =='train':
             start = 0
             stop = int(numSamples*splitRatio)
+            
         elif which_set == 'val':
-            start =  int(numSamples*splitRatio)
+            start = int(numSamples*splitRatio)
             stop = numSamples
+            
+        print 'start, stop', stop-start
+
 
         self.x = self.x[start:stop]
         self.y =self.y[start:stop]
