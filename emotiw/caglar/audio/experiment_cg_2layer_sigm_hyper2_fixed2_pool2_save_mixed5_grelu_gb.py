@@ -48,6 +48,7 @@ def main(n_hiddens=400,
          normalize_acts=False,
          response_normalize=False,
          rmsprop = True,
+         ratio=0.25,
          max_col_norm = 1.8356,
 		 l2=None,
 		 train_epochs=240,
@@ -69,7 +70,7 @@ def main(n_hiddens=400,
 
     print "Loading dataset..."
 
-    ratio = 0.5
+    #ratio = 0.5
     numpy.random.seed(0x7265257d5f)
 
     LABELS = ["Disgust",  "Fear",  "Happy",  "Neutral",  "Sad",  "Surprise", "Angry"]
@@ -464,12 +465,12 @@ if __name__ == "__main__":
     elif "graph" in sys.argv:
         graph()
     else:
-        main(n_hiddens=480,
-            learning_rate=0.001004084681414,
-            momentum=0.122135117412,
+        main(n_hiddens=400,
+            learning_rate=0.0008004084681414,
+            momentum=0.422135117412,
             features="full.pca",
             example_dropout=140,
-            rbm_epochs=15,
+            rbm_epochs=16,
             topN_pooling=1,
             mean_pooling=0,
             normalize_acts=False,
@@ -482,9 +483,9 @@ if __name__ == "__main__":
             no_final_dropout=1,
             l2=1e-2,
             hidden_dropout=0.1,
-            max_col_norm=2.9365,
-            n_layers=2,
+            max_col_norm=3.1365,
+            n_layers=3,
             rho=0.94,
-            train_epochs=400,
+            train_epochs=1000,
             use_nesterov=1)
 

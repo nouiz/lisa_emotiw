@@ -1108,6 +1108,7 @@ class MLP(object):
         self.layers = []
 
         constants = []
+        n_layers = len(layers)
         # Create hidden layers
         for i, layer in enumerate(layers):
             layer_type = layer[0]
@@ -1116,11 +1117,14 @@ class MLP(object):
             if i == 0:
                 layer_input = x
                 layer_n_in = n_in
+            #elif i == n_layers - 1:
+            #    layer_input = self.layers[-1].output
+            #    layer_n_in = self.layers[-1].n_in
             else:
                 layer_input = self.layers[-1].output
                 layer_n_in = self.layers[-1].n_out
 
-            if i == len(layers) - 1:
+            if i == n_layers - 1:
                 if normalize_acts:
                     layer_input = layer_input / T.sqrt(T.sum(layer_input**2, axis=1,
                         keepdims=True) + EPS)
@@ -1163,7 +1167,7 @@ class MLP(object):
                     layer_input = layer_input * self.rng.binomial(n=1, p=1-hidden_dropout,
                         dtype=theano.config.floatX, size=layer_input.shape) / 1 - hidden_dropout
 
-            if hidden_dropout != 1. and i != len(layers) - 1:
+            if hidden_dropout != 1. and i != n_layers - 1:
                 layer_input = layer_input * self.rng.binomial(n=1, p=1-hidden_dropout,
                     dtype=theano.config.floatX, size=layer_input.shape) / 1 - hidden_dropout
 
@@ -1193,7 +1197,8 @@ class MLP(object):
             else:
                 layer_input = self.clean_layers[-1].output
                 layer_n_in = self.clean_layers[-1].n_out
-            if i == len(layers) - 1:
+
+            if i == n_layers - 1:
                 if normalize_acts:
                     layer_input = layer_input / T.sqrt(T.sum(layer_input**2, axis=1,
                         keepdims=True)+ EPS)
