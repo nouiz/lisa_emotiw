@@ -290,6 +290,8 @@ class FaceImagesDataset(object):
         
         startpos = self.pyvision_bbox_start_indexes[i]
         endpos = self.pyvision_bbox_start_indexes[i+1]
+        if startpos==endpos:
+            return []
         return self.pyvision_bbox_list[startpos:endpos,:]
     
     def get_opencv_bbox(self, i):

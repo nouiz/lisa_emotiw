@@ -27,11 +27,17 @@ class FeaturesDataset(DenseDesignMatrix):
                       shuffle=True):
         X = []
         for f in features_paths:
-            X.append(np.load(os.path.join(base_path,f)))
+            if f[0]!="/":
+                path = os.path.join(base_path,f)
+            else:
+                path = f
+
+            X.append(np.load(path))
         np.random.seed(seed)
         X = np.concatenate(X,axis=1)
 
         if normalize:
+            print "normalize"
             # set 0s to mean
             tmp = X[:]
             tmp -= tmp.min(0)
@@ -49,7 +55,13 @@ class FeaturesDataset(DenseDesignMatrix):
 #        
 #        sys.exit(0)
 
-        y = np.load(os.path.join(base_path,targets_path))
+        if targets_path[0]!="/":
+            path = os.path.join(base_path,targets_path)
+        else:
+            path = targets_path
+
+        y = np.load(path)
+
         if len(y.shape)==1:
             tmp_y = np.zeros((y.shape[0],7))
             for i,t in enumerate(y):

@@ -17,19 +17,28 @@ def main():
     parser.add_argument("--force",action='store_true',help="Force to overwrite the zipped file")
     parser.add_argument("prediction_file",help="Prediction file with rows defined as : id_of_clip  winning_class  Angry_score Disgust_score Fear_score Happy_score Sad_score Surprise_score Neutral_score")
     options = parser.parse_args()
-    
-    predictions = open(options.prediction_file,'r')
+    create_submission_file(options.prediction_file, options.out)
+
+
+def create_submission_file(prediction_text_file, out_zip_file):
+
+    predictions = open(prediction_text_file,'r')
 
     d = create_tmp_folder()
 
     try:
         for prediction in predictions:
-            p_id, p_win = prediction.split(' ')[:2]
+            # p_id, p_win = prediction.split(' ')[:2]
+            p_id, p_win = prediction.strip().split()[:2]
             f = open(os.path.join(d,p_id+'.txt'),'w')
+            # print p_win
+            if p_win not in classes:
+                print "ABORTING: Read class name %s which does not correspond to one of the official class names %s" % (p_win,classes)
+                return
             f.write(p_win)
             f.close()
 
-        zipf = zipfile.ZipFile(options.out,'w')
+        zipf = zipfile.ZipFile(out_zip_file,'w')
 
         for root, dirs, files in os.walk(d):
             cwd = os.getcwd()
@@ -45,6 +54,7 @@ def main():
                 os.remove(os.path.join(root,f))
 
         os.rmdir(d)
+
 
 def create_tmp_folder():
     d = "tmp_"+str(np.random.random_integers(0, 100000))
