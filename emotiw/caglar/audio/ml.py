@@ -1155,15 +1155,15 @@ class MLP(object):
                     t1 = T.arange(layer_input.shape[1])
                     masked_in = layer_input * T.neq(layer_input, layer_input[max1_indx, t1])
                     layer_input2 = T.max(masked_in, axis=0)
-                    layer_input = (1.3 * layer_input1 + 0.7 * layer_input2) / 2
+                    layer_input = (1.4 * layer_input1 + 0.6 * layer_input2) / 2
                 elif mean_pooling:
                     layer_input = T.mean(layer_input, axis=0)
                 else:
                     layer_input = T.max(layer_input, axis=0)
 
                 if layer_dropout and not no_final_dropout:
-                    layer_input = layer_input * self.rng.binomial(n=1, p=0.5,
-                        dtype=theano.config.floatX)/ 0.5
+                    layer_input = layer_input * self.rng.binomial(n=1, p=0.6,
+                        dtype=theano.config.floatX)/ 0.6
                 elif not no_final_dropout:
                     assert hidden_dropout != 1.
                     layer_input = layer_input * self.rng.binomial(n=1, p=1-hidden_dropout,
@@ -1231,7 +1231,7 @@ class MLP(object):
                     top_ids = T.argsort(layer_input, axis=0)[-3:][::-1]
                     top_vals = layer_input[top_ids, T.arange(layer_input.shape[1])]
                     #top_mean = (1.2 * top_vals[0] + 1.0 * top_vals[1] + 0.8 * top_vals[2]) / 3
-                    top_mean = (1.3 * top_vals[0] + 0.7 * top_vals[1]) / 2
+                    top_mean = (1.4 * top_vals[0] + 0.6 * top_vals[1]) / 2
                     layer_input = top_mean
                 elif mean_pooling:
                     layer_input = T.mean(layer_input, axis=0)
