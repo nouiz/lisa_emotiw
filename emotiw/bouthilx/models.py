@@ -6,6 +6,48 @@ from theano import function
 import numpy as np
 import os
 
+from collections import OrderedDict
+import theano.tensor as T
+from pylearn2.models.mlp import Linear, RectifiedLinear
+
+class RectifiedLinearClassif(RectifiedLinear):
+    def get_monitoring_channels_from_state(self, state, target=None):
+        mx = state.max(axis=1)
+
+        rval =  OrderedDict([
+                ('mean_max_class' , mx.mean()),
+                ('max_max_class' , mx.max()),
+                ('min_max_class' , mx.min())
+        ])
+
+        if target is not None:
+            y_hat = T.argmax(state, axis=1)
+            y = T.argmax(target, axis=1)
+            misclass = T.neq(y, y_hat).mean()
+            misclass = T.cast(misclass, config.floatX)
+            rval['misclass'] = misclass
+
+        return rval
+
+class LinearClassif(Linear):
+    def get_monitoring_channels_from_state(self, state, target=None):
+        mx = state.max(axis=1)
+
+        rval =  OrderedDict([
+                ('mean_max_class' , mx.mean()),
+                ('max_max_class' , mx.max()),
+                ('min_max_class' , mx.min())
+        ])
+
+        if target is not None:
+            y_hat = T.argmax(state, axis=1)
+            y = T.argmax(target, axis=1)
+            misclass = T.neq(y, y_hat).mean()
+            misclass = T.cast(misclass, config.floatX)
+            rval['misclass'] = misclass
+
+        return rval
+
 class MyModel:
     def __init__(self,model_path,dataset_stats_path):
         self.model = serial.load(model_path)
