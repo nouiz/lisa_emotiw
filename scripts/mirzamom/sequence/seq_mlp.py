@@ -9,10 +9,12 @@ from theano.compat.python2x import OrderedDict
 from pylearn2.costs.cost import Cost
 from pylearn2.format.target_format import OneHotFormatter
 from pylearn2.models import Model
+from pylearn2.models.mlp import MLP
 from pylearn2.space import CompositeSpace, VectorSpace
 from pylearn2.termination_criteria import EpochCounter
 from pylearn2.train import Train
 from pylearn2.training_algorithms.sgd import SGD
+from pylearn2.utils import serial
 
 from emotiw.common.datasets.faces.afew2_facetubes import AFEW2FaceTubes
 from emotiw.common.datasets.faces.facetubes import FaceTubeSpace
@@ -23,7 +25,7 @@ class FrameMax(Model):
     """Frame based classifier, then elementwise max on top of representaions,
     and final classifier on top"""
     def __init__(self, mlp, final_layer, n_classes = None, input_source='features', input_space=None,
-            scale = False):
+            scale = False, remove_last=False, ptype = 'max'):
         """
         Parameters
         ----------
@@ -45,6 +47,7 @@ class FrameMax(Model):
             self.n_classes = n_classes
 
         self.scale = scale
+        self.ptype = ptype
         self.mlp = mlp
         self.final_layer = final_layer
         self.input_source = input_source
@@ -55,6 +58,9 @@ class FrameMax(Model):
                            * input_space.num_channels)
         self.output_space = VectorSpace(dim=7)
 
+        if remove_last:
+            self.mlp.layers = self.mlp.layers[:-1]
+
     def fprop(self, inputs):
 
         # format inputs
@@ -62,7 +68,7 @@ class FrameMax(Model):
         if self.scale:
             inputs = inputs / 255.
         rval = self.mlp.fprop(inputs)
-        rval = tensor.max(rval, axis=0)
+        rval = self.seq_pool(rval)
         rval = rval.dimshuffle('x', 0)
         rval = self.final_layer.fprop(rval)
 
@@ -75,32 +81,45 @@ class FrameMax(Model):
         inputs = self.input_space.format_as(inputs, self.mlp.input_space)
         if self.scale:
             inputs = inputs / 255.
-        rval = self.mlp.dropout_fprop(inputs, default_input_include_prob,
-                    input_include_probs, default_input_scale,
-                    input_scales, per_example)
-        rval = tensor.max(rval, axis=0)
+        rval = self.mlp.fprop(inputs)
+        #rval = self.mlp.dropout_fprop(inputs, default_input_include_prob,
+                    #input_include_probs, default_input_scale,
+                    #input_scales, per_example)
+        rval = self.seq_pool(rval)
         rval = rval.dimshuffle('x', 0)
 
         # TODO if you set input prob, the final layer doesn't recognize h0
-        if input_include_probs is None and input_scales is None:
-            rval = self.final_layer.dropout_fprop(rval, default_input_include_prob,
+        #if input_include_probs is None and input_scales is None:
+        rval = self.final_layer.dropout_fprop(rval, default_input_include_prob,
                     input_include_probs, default_input_scale,
                     input_scales, per_example)
-        else:
-            rval = self.final_layer.fprop(rval)
+        #else:
+            #rval = self.final_layer.fprop(rval)
 
         return rval
 
+    def seq_pool(self, inputs):
+        if self.ptype == 'max':
+            return tensor.max(inputs, axis=0)
+        elif self.ptype == 'logsum':
+            maxval = inputs.max(axis=0)
+            return tensor.log(tensor.exp(inputs - maxval).sum(axis=0))
+        else:
+            raise ValueError("Unkonwn pooling op: {}".format(self.ptype))
+
+
     def get_params(self):
-        return self.mlp.get_params() + self.final_layer.get_params()
+        #return self.mlp.get_params() + self.final_layer.get_params()
+        return  self.final_layer.get_params()
 
     def get_lr_scalers(self):
-        rval = self.mlp.get_lr_scalers()
-        rval.update(self.final_layer.get_lr_scalers())
+        #rval = self.mlp.get_lr_scalers()
+        #rval.update(self.final_layer.get_lr_scalers())
+        rval = self.final_layer.get_lr_scalers()
         return rval
 
     def censor_updates(self, updates):
-        self.mlp.censor_updates(updates)
+        #self.mlp.censor_updates(updates)
         self.final_layer.censor_updates(updates)
 
     def get_input_source(self):
@@ -120,7 +139,7 @@ class FrameMax(Model):
         X, Y = data
         X = self.input_space.format_as(X, self.mlp.input_space)
         X = self.mlp.fprop(X)
-        X = tensor.max(X, axis=0)
+        X = self.seq_pool(X)
         X = X.dimshuffle('x', 0)
         return self.final_layer.get_monitoring_channels((X, Y))
 
@@ -135,7 +154,7 @@ class FrameMax(Model):
 
         ## get final mlp monitors
         #X = self.mlp.fprop(X)
-        #X = tensor.max(X, axis=0)
+        #X = self.seq_pool(X)
         #X = X.dimshuffle('x', 0)
         #second_ch = self.final_layer.get_monitoring_channels((X, Y))
 
@@ -162,7 +181,7 @@ class FrameCRF(Model):
         """
 
         if n_classes is None:
-            if hasattr(mlp.layers[-1], 'dim'):
+            if hasattr(mlp .layers[-1], 'dim'):
                 self.n_classes = mlp.layers[-1].dim
             elif hasattr(mlp.layers[-1], 'n_classes'):
                 self.n_classes = mlp.layers[-1].n_classes
@@ -171,20 +190,32 @@ class FrameCRF(Model):
         else:
             self.n_classes = n_classes
 
-        self.scale = scale
         self.mlp = mlp
+        self.scale = scale
         self.input_source = input_source
         assert isinstance(input_space, FaceTubeSpace)
         self.input_space = input_space
         self.input_size = (input_space.shape[0]
                            * input_space.shape[1]
-                           * input_space.num_channels)
+                            * input_space.num_channels)
         self.output_space = VectorSpace(dim=7)
 
-        rng = self.mlp.rng
-        self.W = theano.shared(rng.uniform(size=(n_classes, n_classes, n_classes)).astype(config.floatX))
-        self.W.name = 'crf_w'
+        #rng = self.mlp.rng
+        #self.W = theano.shared(rng.uniform(size=(n_classes, n_classes, n_classes)).astype(config.floatX))
+        #self.W.name = 'crf_w'
+        self.init_transition_matrix()
         self.name = 'crf'
+
+    def init_transition_matrix(self):
+        W = np.zeros((self.n_classes, self.n_classes, self.n_classes)).astype(config.floatX)
+        for i in range(self.n_classes):
+            for j in range(self.n_classes):
+                for k in range(self.n_classes):
+                    if abs(i-j) == 1:
+                        W[i,j,k] = -1.
+        self.W = theano.shared(W)
+        self.W.name = 'crf_w'
+
 
     def fprop(self, inputs):
 
@@ -192,6 +223,7 @@ class FrameCRF(Model):
         inputs = self.input_space.format_as(inputs, self.mlp.input_space)
         if self.scale:
             inputs = inputs / 255.
+        #self.mlp.set_batch_size(inputs.shape[3])
         rval = self.mlp.fprop(inputs)
         rval = self.crf_fprop(rval)
 
@@ -204,6 +236,7 @@ class FrameCRF(Model):
         inputs = self.input_space.format_as(inputs, self.mlp.input_space)
         if self.scale:
             inputs = inputs / 255.
+        #self.mlp.set_batch_size(inputs.shape[3])
         rval = self.mlp.dropout_fprop(inputs, default_input_include_prob,
                     input_include_probs, default_input_scale,
                     input_scales, per_example)
@@ -230,17 +263,17 @@ class FrameCRF(Model):
         log_prob = z - tensor.log(tensor.exp(z).sum(axis=1).dimshuffle(0, 'x'))
         return crf(-log_prob, self.W)
 
-    def censor_updates(self, updates):
-        """
-        Transition matrix should be non-negative
-        """
+    #def censor_updates(self, updates):
+        #"""
+        #Transition matrix should be non-negative
+        #"""
 
-        if self.W in updates:
-            updated_W = updates[self.W]
-            desired_W = tensor.where(updated_W < 0, self.W, updated_W)
-            updates[self.W] = desired_W
+        #if self.W in updates:
+            #updated_W = updates[self.W]
+            #desired_W = tensor.where(updated_W < 0, self.W, updated_W)
+            #updates[self.W] = desired_W
 
-        self.mlp.censor_updates(updates)
+        #self.mlp.censor_updates(updates)
 
     def get_params(self):
         return self.mlp.get_params() + [self.W]
