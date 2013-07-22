@@ -34,7 +34,7 @@ def main(n_hiddens=400,
 		 learning_rate=0.001,
 		 momentum=0.5,
          use_nesterov = False,
-		 rbm_learning_rate=[0.0006, 0.0006],
+		 rbm_learning_rate=[0.001, 0.001],
 		 rbm_epochs=32,
          mean_pooling=False,
          no_final_dropout=False,
@@ -48,19 +48,19 @@ def main(n_hiddens=400,
          normalize_acts=False,
          response_normalize=False,
          rmsprop = True,
-         ratio=1.0,
          max_col_norm = 1.8356,
 		 l2=None,
 		 train_epochs=240,
 		 K=1,
          loss_based_pooling=False,
          rho=0.96,
+         ratio=1.0,
 		 features="minimal.pca",
 		 state=None,
 		 channel=None,
 		 **kwargs):
 
-    print "Hyperparams:"
+    print "Hypeparams:"
     import inspect
     frame = inspect.currentframe()
     args, _, _, values = inspect.getargvalues(frame)
@@ -70,7 +70,6 @@ def main(n_hiddens=400,
 
     print "Loading dataset..."
 
-    #ratio = 0.5
     numpy.random.seed(0x7265257d5f)
 
     LABELS = ["Disgust",  "Fear",  "Happy",  "Neutral",  "Sad",  "Surprise", "Angry"]
@@ -88,12 +87,12 @@ def main(n_hiddens=400,
 
     train_y = numpy.asarray(train_y)
 
-    pretrain_x = numpy.load("/data/lisatmp/dauphiya/emotiw/mlp_audio/train_x_%s.npy" % features)
+    pretrain_x = numpy.load("/data/lisa/data/faces/EmotiWTest/audio_features_mixed/train_x_%s.npy" % features)
 
     valid_x = []
     valid_y = []
     print "Loading validation set..."
-    for directory, dirnames, filenames in os.walk("/data/lisa/data/faces/EmotiW/complete_audio_features/Val"):
+    for directory, dirnames, filenames in os.walk("/data/lisa/data/faces/EmotiWTest/audio_features_mixed/Val"):
         for filename in filenames:
             if filename.find("%s.pkl" % features) != -1:
                 feat = numpy.load(os.path.join(directory, filename))
@@ -108,7 +107,7 @@ def main(n_hiddens=400,
     test_y = []
     print "Loading test set..."
 
-    for directory, dirnames, filenames in os.walk("/data/lisa/data/faces/EmotiWTest/audios_features/Test"):
+    for directory, dirnames, filenames in os.walk("/data/lisa/data/faces/EmotiWTest/audio_features_mixed/Test"):
         for filename in filenames:
             if filename.find("%s.pkl" % features) != -1:
                 feat = numpy.load(os.path.join(directory, filename))
@@ -129,8 +128,7 @@ def main(n_hiddens=400,
 
     print "Building model..."
 
-    layers = (n_layers-1) * [('R', n_hiddens)] + [('L', int(n_hiddens*ratio))] + [('S', train_y.max() + 1)]
-    #layers = (n_layers-1) * [('R', n_hiddens)] + [('L', 40)] + [('S', train_y.max() + 1)]
+    layers = (n_layers-1) * [('L', n_hiddens)] + [('L', int(n_hiddens*ratio))] + [('S', train_y.max() + 1)]
 
     if type(rbm_learning_rate) in [str, unicode]:
         rbm_learning_rate = eval(rbm_learning_rate)
@@ -166,19 +164,33 @@ def main(n_hiddens=400,
 
     for i in range(len(layers) - 1):
        print "Training RBM %d..." % i
-       nrelu=True
-       rl2 = 2 * 1e-3
        if i == n_layers-1:
-           nrelu = False
            n_hiddens = int(ratio*n_hiddens)
-           rl2 = 2*1e-4
-       rbm = ml.GaussianRBM(n_hiddens=n_hiddens,
+           rbm = ml.BinaryRBM(n_hiddens=n_hiddens,
                             epsilon=rbm_learning_rate[i],
-                            nrelu=nrelu,
-                            l2=rl2,
+                            nrelu=False,
                             n_samples=rbm_batch_size,
                             init_c=0,
                             init_b=0,
+                            epochs=rbm_epochs,
+                            K=K)
+       elif i == 0:
+           rbm = ml.GaussianRBM(n_hiddens=n_hiddens,
+                            epsilon=rbm_learning_rate[i],
+                            nrelu=False,
+                            l2=1e-3,
+                            n_samples=rbm_batch_size,
+                            init_c=0,
+                            init_b=0,
+                            epochs=rbm_epochs,
+                            K=K)
+       else:
+           rbm = ml.BinaryRBM(n_hiddens=n_hiddens,
+                            epsilon=rbm_learning_rate[i],
+                            nrelu=False,
+                            n_samples=rbm_batch_size,
+                            init_c=-1,
+                            init_b=-1,
                             epochs=rbm_epochs,
                             K=K)
 
@@ -207,11 +219,9 @@ def main(n_hiddens=400,
         for minibatch in range(len(train_inds)):
             x = train_x[train_inds[minibatch]] - means
             y = train_y[[train_inds[minibatch]]]
-
             inds = range(x.shape[0])
             numpy.random.shuffle(inds)
             inds = inds[:example_dropout]
-
             losses.append(model.train(x[inds], y))
 
         end = time.time()
@@ -228,13 +238,13 @@ def main(n_hiddens=400,
         train_error /= len(train_inds)
 
         valid_error = 0.
-        #valid_features = []
+        valid_features = []
         for minibatch in range(len(valid_y)):
             x = valid_x[minibatch] - valid_means
             y = valid_y[[minibatch]]
-            #valid_features.append(model.pooled_output_features(x))
+            valid_features.append(model.pooled_output_features(x))
             valid_error += (y != model.output(x))[0]
-        #numpy.save("validation_feats.npy", valid_features)
+        numpy.save("validation_feats.npy", valid_features)
         valid_error /= len(valid_y)
 
         epoch_times.append((end - begin) / 60)
@@ -248,7 +258,11 @@ def main(n_hiddens=400,
 
         if valid_error < best_valid_error:
             best_valid_error = valid_error
+
             model.save()
+
+        elif epoch > 50:
+            model.trainer.learning_rate.set_value(numpy.asarray(0.99 * model.trainer.learning_rate.get_value(), dtype=theano.config.floatX))
 
         print "epoch = %d, mean_time = %.2f, loss = %.4f, train_error = %.4f, valid_error = %.4f, learning rate = %.4f" % (epoch, mean_epoch_time, loss, train_error, valid_error, model.trainer.learning_rate.get_value())
         print "best validation error %.4f" % (best_valid_error)
@@ -268,10 +282,10 @@ def jobman_entrypoint(state, channel):
     return channel.COMPLETE
 
 
-def jobman_insert_random(n_jobs, table_name="emotiw_mlp_audio_fixed_pool2_mixed5_grelu_gb"):
+def jobman_insert_random(n_jobs,  table_name="emotiw_mlp_audio_fixed_pool2_mixed_grbmx2"):
 
     JOBDB = 'postgresql://gulcehrc@opter.iro.umontreal.ca/gulcehrc_db?table=' + table_name
-    EXPERIMENT_PATH = "experiment_cg_2layer_sigm_hyper2_fixed2_pool2_save_mixed5_grelu_gb.jobman_entrypoint"
+    EXPERIMENT_PATH = "experiment_cg_2layer_sigm_hyper2_fixed2_pool2_save_mixed_grbmx2.jobman_entrypoint"
     nlr = 45
     learning_rates = numpy.logspace(numpy.log10(0.0008), numpy.log10(0.09), nlr)
     max_col_norms = [1.9835, 1.8256, 1.2124, 0.98791]
@@ -283,7 +297,7 @@ def jobman_insert_random(n_jobs, table_name="emotiw_mlp_audio_fixed_pool2_mixed5
         id_lr = numpy.random.random_integers(0, nlr-1)
         rnd_maxcn = numpy.random.random_integers(0, len(max_col_norms)-1)
         job.n_hiddens = numpy.random.random_integers(2,5) * 100 + 2 * numpy.random.random_integers(0,15)
-        job.n_layers = numpy.random.random_integers(2, 3)
+        job.n_layers = 2
         job.learning_rate = learning_rates[id_lr]
         job.momentum = 10.**numpy.random.uniform(-1, -0)
         job.hidden_dropout = numpy.random.uniform(low=0.1, high=0.2)
@@ -377,7 +391,7 @@ def jobman_insert():
         print "inserted %d jobs" % len(jobs)
         print "To run: jobdispatch --condor --mem=3G --gpu --env=THEANO_FLAGS='floatX=float32, device=gpu' --repeat_jobs=%d jobman sql -n 1 'postgres://dauphiya@opter.iro.umontreal.ca/dauphiya_db/emotiw_mlp_audio' ." % len(jobs)
 
-def view(table="emotiw_mlp_audio_fixed_pool2_mixed5_grelu_gb",
+def view(table="emotiw_mlp_audio_fixed_pool2_mixed_grbmx2",
          tag="relu_nlayers_dbn",
          user="gulcehrc",
          password="",
@@ -464,24 +478,28 @@ if __name__ == "__main__":
     elif "graph" in sys.argv:
         graph()
     else:
-        main(n_hiddens=120,
-            learning_rate=0.00084084681414,
-            momentum=0.102135117412,
+        main(n_hiddens=200,
+            learning_rate=0.00144084681414,
+            momentum=0.105135117412,
             features="full.pca",
-            example_dropout=100,
-            rbm_epochs=20,
+            example_dropout=80,
+            rbm_epochs=32,
             topN_pooling=1,
             mean_pooling=0,
             normalize_acts=False,
-            enable_standardization=False,
+            enable_standardization=True,
             loss_based_pooling=False,
             response_normalize=False,
             rmsprop=1,
-            rbm_learning_rate=[0.0008, 0.0005, 0.001],
+            rbm_batch_size=64,
+            rbm_learning_rate=[0.0008, 0.001, 0.001],
             layer_dropout=True,
             no_final_dropout=0,
             l2=1e-5,
-            hidden_dropout=0.1,
-            max_col_norm=0.9345,
-            n_layers=3,
-            rho=0.95)
+            hidden_dropout=0.,
+            max_col_norm=0.93245,
+            n_layers=2,
+            rho=0.1,
+            train_epochs=400,
+            use_nesterov=1)
+

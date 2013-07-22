@@ -1,0 +1,78 @@
+!obj:pylearn2.train.Train {
+    dataset: &train !obj:featDataset.FeatDataset {
+        path: 'train.pkl',
+        one_hot: 1,
+        #preprocessor: !obj:pylearn2.datasets.preprocessing.Standardize {},
+    },
+    model: !obj:pylearn2.models.mlp.MLP {
+        batch_size: 50,
+        layers: [
+                !obj:pylearn2.models.maxout.Maxout {
+                    layer_name: 'h0',
+                    irange: .005,
+                    num_units: %(h0_units)i,
+                    num_pieces: 5,
+                    max_col_norm: 1.9
+                 },
+                !obj:pylearn2.models.maxout.Maxout {
+                    layer_name: 'h1',
+                    irange: .005,
+                    num_units: %(h1_units)i,
+                    num_pieces: 5,
+                    max_col_norm: 1.9
+                 },
+                 !obj:pylearn2.models.mlp.Softmax {
+                     max_col_norm: 1.9365,
+                     layer_name: 'y',
+                     n_classes: 7,
+                     irange: .005
+                     #sparse_init: 23,
+                 }
+                ],
+        nvis: 42
+    },
+    algorithm: !obj:pylearn2.training_algorithms.sgd.SGD {
+        learning_rate: %(learning_rate)f,
+        init_momentum: .5,
+        monitoring_dataset:
+            {
+                'valid': !obj:featDataset.FeatDataset {
+                    path: 'valid.pkl',
+                    one_hot: 1,
+                    #preprocessor: !obj:pylearn2.datasets.preprocessing.Standardize {},
+                },
+            },
+        cost: !obj:pylearn2.costs.mlp.dropout.Dropout {
+            input_include_probs: { 'h0' : .9 },
+            input_scales: { 'h0': 1. }
+        },
+        termination_criterion: !obj:pylearn2.termination_criteria.MonitorBased {
+            channel_name: "valid_y_misclass",
+            prop_decrease: 0.,
+            N: 100
+        },
+    },
+    extensions: [
+        !obj:pylearn2.train_extensions.best_params.MonitorBasedSaveBest {
+             channel_name: 'valid_y_misclass',
+             save_path: "%(save_path)sbest.pkl"
+        },
+        !obj:pylearn2.training_algorithms.sgd.MomentumAdjustor {
+            start: 1,
+            saturate: 250,
+            final_momentum: .7
+        },
+        !obj:pylearn2.training_algorithms.sgd.LinearDecayOverEpoch {
+            start: 1,
+            saturate: 250,
+            decay_factor: %(lr_de_fac)f,
+        },
+        !obj:noisy_encoder.utils.best_params.MonitorBasedBest {
+            channel_name: 'valid_y_misclass',
+            save_channel_names: ['valid_y_misclass'],
+        },
+
+    ],
+    #save_freq: 10,
+    #save_path: "%(save_path)slast.pkl"
+}

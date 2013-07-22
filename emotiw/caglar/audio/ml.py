@@ -8,6 +8,7 @@ from theano.tensor.shared_randomstreams import RandomStreams
 import scipy.sparse
 
 from collections import OrderedDict
+EPS = 1e-18
 
 def symbolic(inputs):
     """
@@ -51,7 +52,7 @@ def symbolic(inputs):
 
 def NReLU(x, rng=None, bound=6):
     assert rng is not None
-    stds = T.nnet.sigmoid(x)
+    stds = T.nnet.sigmoid(x) + EPS
     noisy_x = x + rng.normal(avg=0.0, std=stds)
     return T.minimum(T.maximum(0, noisy_x), bound)
 
@@ -330,7 +331,7 @@ class BinaryRBM(object):
         """
         n_in = project(X[[0]]).shape[1]
         if self.W.shape[1] == 0:
-            self.W = numpy.asarray(numpy.random.normal(0, 0.01,
+            self.W = numpy.asarray(numpy.random.normal(0, 0.005,
                 (n_in, self.n_hiddens)), dtype=theano.config.floatX)
             self.c = numpy.zeros(self.n_hiddens, dtype=theano.config.floatX) + self._init_c
             self.b = numpy.zeros(n_in, dtype=theano.config.floatX) + self._init_b
@@ -623,7 +624,7 @@ class GaussianRBM(object):
         """
         n_in = project(X[[0]]).shape[1]
         if self.W.shape[1] == 0:
-            self.W = numpy.asarray(numpy.random.normal(0, 0.01,
+            self.W = numpy.asarray(numpy.random.normal(0, 0.005,
                 (n_in, self.n_hiddens)), dtype=theano.config.floatX)
             self.c = numpy.zeros(self.n_hiddens, dtype=theano.config.floatX) + self._init_c
             self.b = numpy.zeros(n_in, dtype=theano.config.floatX) + self._init_b
@@ -993,9 +994,10 @@ class NeuralNetworkTrainer(object):
                     updates[memory] = momentum * memory + learn_rates[i] * gparam
                 elif use_nesterov:
                     memory = theano.shared(param.get_value() * 0.)
-                    new_memo = momentum * memory - learn_rates[i] * gparam
+                    new_memo = momentum * memory - e0s[param] * gparam
+                    #new_memo = momentum * memory - learn_rates[i] * gparam
                     updates[memory] = new_memo
-                    updates[param] = param + momentum * new_memo - learn_rates[i] * gparam
+                    updates[param] = param + (momentum * new_memo - e0s[param] * gparam) / val
                 else:
                     updates[param] = param - learn_rates[i] * gparam
                 i +=1
@@ -1096,7 +1098,7 @@ class MLP(object):
             'Li' : LinearLayer,
             'Sq' : SquaredLayer,
         }
-        EPS = 1e-18
+        #EPS = 1e-18
 
         self.max_col_norm = max_col_norm
         self.rng = RandomStreams(seed)
@@ -1108,6 +1110,7 @@ class MLP(object):
         self.layers = []
 
         constants = []
+        n_layers = len(layers)
         # Create hidden layers
         for i, layer in enumerate(layers):
             layer_type = layer[0]
@@ -1116,11 +1119,14 @@ class MLP(object):
             if i == 0:
                 layer_input = x
                 layer_n_in = n_in
+            #elif i == n_layers - 1:
+            #    layer_input = self.layers[-1].output
+            #    layer_n_in = self.layers[-1].n_in
             else:
                 layer_input = self.layers[-1].output
                 layer_n_in = self.layers[-1].n_out
 
-            if i == len(layers) - 1:
+            if i == n_layers - 1:
                 if normalize_acts:
                     layer_input = layer_input / T.sqrt(T.sum(layer_input**2, axis=1,
                         keepdims=True) + EPS)
@@ -1149,21 +1155,21 @@ class MLP(object):
                     t1 = T.arange(layer_input.shape[1])
                     masked_in = layer_input * T.neq(layer_input, layer_input[max1_indx, t1])
                     layer_input2 = T.max(masked_in, axis=0)
-                    layer_input = (1.2 * layer_input1 + 0.8 * layer_input2) / 2
+                    layer_input = (1.4 * layer_input1 + 0.6 * layer_input2) / 2
                 elif mean_pooling:
                     layer_input = T.mean(layer_input, axis=0)
                 else:
                     layer_input = T.max(layer_input, axis=0)
 
                 if layer_dropout and not no_final_dropout:
-                    layer_input = layer_input * self.rng.binomial(n=1, p=0.8,
-                        dtype=theano.config.floatX) / hidden_dropout
+                    layer_input = layer_input * self.rng.binomial(n=1, p=0.6,
+                        dtype=theano.config.floatX)/ 0.6
                 elif not no_final_dropout:
                     assert hidden_dropout != 1.
                     layer_input = layer_input * self.rng.binomial(n=1, p=1-hidden_dropout,
                         dtype=theano.config.floatX, size=layer_input.shape) / 1 - hidden_dropout
 
-            if hidden_dropout != 1. and i != len(layers) - 1:
+            if hidden_dropout != 1. and i != n_layers - 1:
                 layer_input = layer_input * self.rng.binomial(n=1, p=1-hidden_dropout,
                     dtype=theano.config.floatX, size=layer_input.shape) / 1 - hidden_dropout
 
@@ -1193,7 +1199,8 @@ class MLP(object):
             else:
                 layer_input = self.clean_layers[-1].output
                 layer_n_in = self.clean_layers[-1].n_out
-            if i == len(layers) - 1:
+
+            if i == n_layers - 1:
                 if normalize_acts:
                     layer_input = layer_input / T.sqrt(T.sum(layer_input**2, axis=1,
                         keepdims=True)+ EPS)
@@ -1224,7 +1231,7 @@ class MLP(object):
                     top_ids = T.argsort(layer_input, axis=0)[-3:][::-1]
                     top_vals = layer_input[top_ids, T.arange(layer_input.shape[1])]
                     #top_mean = (1.2 * top_vals[0] + 1.0 * top_vals[1] + 0.8 * top_vals[2]) / 3
-                    top_mean = (1.2 * top_vals[0] + 0.8 * top_vals[1]) / 2
+                    top_mean = (1.4 * top_vals[0] + 0.6 * top_vals[1]) / 2
                     layer_input = top_mean
                 elif mean_pooling:
                     layer_input = T.mean(layer_input, axis=0)
