@@ -23,10 +23,10 @@
                      irange: 0.
                  }
                 ],
-       nvis: 3000,
+       nvis: 6400,
     },
     algorithm: !obj:pylearn2.training_algorithms.sgd.SGD {
-        batch_size: 20,
+        batch_size: 64,
         learning_rate: %(learning_rate)e,
         monitoring_dataset:
             {
