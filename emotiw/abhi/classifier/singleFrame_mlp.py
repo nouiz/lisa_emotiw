@@ -16,7 +16,7 @@ save_freq= 10
 num_chan = 1
 splitRatio = 0.7
 batch_size = 3000
-learning_rate = 1.0 #0.000100
+learning_rate = 0.10 #0.000100
 selectFraction = 1.0
 
 train_ds = EmotiwFrameDataset(which_set= 'train',
