@@ -142,6 +142,9 @@ class AFEW2TestImageSequenceDataset(afew2.AFEW2ImageSequenceDataset):
 
             idx += 1
 
+    def __len__(self):
+        return len(self.imagesequences)
+
     def get_bbox_coords(self, i):
         """
         Get a list of dictionary containing all facetubes' bounding boxes

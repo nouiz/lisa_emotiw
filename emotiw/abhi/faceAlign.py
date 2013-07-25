@@ -13,6 +13,25 @@ import Image
 import math
 
 
+from emotiw.common.datasets.faces.faceimages import keypoints_names
+
+    #sequence Datasets
+from emotiw.common.datasets.faces.afew2 import AFEW2ImageSequenceDataset
+from emotiw.common.datasets.faces.afew2_test import AFEW2TestImageSequenceDataset
+    
+    #Static Datasets
+from emotiw.common.datasets.faces.multipie import MultiPie
+from emotiw.common.datasets.faces.tfd import ArFace
+from emotiw.common.datasets.faces.googleFaceDataset import GoogleFaceDataset
+        
+    #without keypoints
+from emotiw.common.datasets.faces.tfd import TorontoFaceDataset
+from emotiw.common.datasets.faces.afew import AFEWImageSequence
+
+
+
+
+
 class faceAlign(object):
    def __init__(self, datasetObjects, keypoint_dictionary, face_size = (256, 256), margin = 0.3):
    
@@ -84,11 +103,16 @@ class faceAlign(object):
          org_Ats = {}
          mean = 0
          meanNum = 0
-         facetube = facetubes[i]
+         facetubeOld = facetubes[i]
+         facetube = {}
+         #correcting the Raul's mistake
+         for framePrev in facetubeOld:
+            facetube[framePrev-1]=facetubeOld[framePrev]
+
          #print facetube
          for frame in facetube:
             bbox = facetube[frame] 
-            At = self.apply(seqDataset, frame, returnA_t=True, bbox = bbox)
+            At = self.apply(seqDataset, frame, returnA_t=True, bbox = bbox) #Blame Raul, frames indices begin with zeros
             if At == None:
                continue
             else:
@@ -337,7 +361,13 @@ class faceAlign(object):
        return imgT           
 
    def get_keypoints_based_bbox(self, dataset, index):
-       keypoints = dataset.get_keypoints_location(index).copy()
+       keypoints = dataset.get_keypoints_location(index)
+       if isinstance( keypoints, list):
+          keypoints = keypoints[0].copy()
+       else:
+          keypoints = keypoints.copy()
+       
+       
        x0 = 10000
        x1 = 0
        y0 = 10000
@@ -390,6 +420,7 @@ class faceAlign(object):
    
 
    def get_keypoints(self, dataset, index, bbox = None):
+       #print 'index now:', index
        keypoints = dataset.get_keypoints_location(index)
        #print keypoints
        if keypoints == None or len(keypoints) == 0:
@@ -566,21 +597,36 @@ def create_static_dataset(name, dataset, alignObj, lis = ['org', '1', '2', '3', 
 
 
 
-def create_seq_dataset():
+def create_seq_dataset(alignObj, which_set):
     alignObj.nums = 0
-    #Afew2 = AFEW2ImageSequenceDataset(preproc =['smooth'])
-    Afew2 = AFEW2TestImageSequenceDataset(preproc=['smooth'])
-    name = 'afew2_test_'
+    
+    if which_set in ('train',):
+       Afew2 = AFEW2ImageSequenceDataset(preproc =['smooth'])
+       name = 'afew2_train_'
+       train = True
+    elif which_set in ('test',):
+       Afew2 = AFEW2TestImageSequenceDataset(preproc=['smooth'])
+       name = 'afew2_test_'
+       train = False
+        
     features = 48*48
+    index0 = 0
+    index1 = 100
+    print 'Range', index0,'-', index1
     print 'total number of sequences:', len(Afew2)
-    for i in xrange(len(Afew2)):
+    for i in xrange(index0,index1):
        print 'sequence:', i
        dataset = Afew2.get_sequence(i)
        facetubes =  Afew2.get_bbox_coords(i)
-       #split_name, emo_name, seq_id = Afew2.seq_info[i]
-       seq_id = int(os.path.split(Afew2.seq_info[i])[-1])
-       emo_name = 'test'
-       lis = ['org', '1', '2', '3', '4']
+       if train:
+          lis = ['org', '1', '2', '3', '4']
+          split_name, emo_name, seq_id = Afew2.seq_info[i]
+       else:
+          lis = ['org']
+          seq_id = int(os.path.split(Afew2.seq_info[i])[-1])
+          emo_name = 'test'
+
+       
        for copy in lis:
           if copy == 'org':
              perturb = False
@@ -590,47 +636,40 @@ def create_seq_dataset():
           for j in xrange(len(result)):
              numberOfSamples = len(result[j])             
              #print numberOfSamples
-             dsX = numpy.memmap('/Tmp/aggarwal/'+name+copy+'_'+emo_name+'_'+str(seq_id)+'_'+str(j)+'_X.npy', dtype='float32', mode='write', shape=(numberOfSamples,features))
-             flipX = numpy.memmap('/Tmp/aggarwal/'+name+copy+'_'+emo_name+'_'+str(seq_id)+'_'+str(j)+'_flip_X.npy', dtype='float32', mode='write', shape=(numberOfSamples,features))
+             dsX = numpy.memmap('/Tmp/aggarwal/NoRaul'+str(index0) + '_' + str(index1) + '/' +name+copy+'_'+emo_name+'_'+str(seq_id)+'_'+str(j)+'_X.npy', dtype='float32', mode='write', shape=(numberOfSamples,features))
+             if train:
+                flipX = numpy.memmap('/Tmp/aggarwal/NoRaul'+str(index0) + '_' + str(index1) + '/'+name+copy+'_'+emo_name+'_'+str(seq_id)+'_'+str(j)+'_flip_X.npy', dtype='float32', mode='write', shape=(numberOfSamples,features))
+
              for k in xrange(len(result[j])):
                 img = result[j][k]
                 img = img.crop((28,24, 96-28, 96-16))
                 img = img.resize((48,48), Image.ANTIALIAS)
                 #img.save('./resultImages/'+str(i)+'_'+str(j)+'_'+str(k)+'.png')
-                fImg = img.transpose(Image.FLIP_LEFT_RIGHT)
                 npImg = alignObj.apply_gcn(img, mode = 'L')
-                fNpImg = alignObj.apply_gcn(fImg, mode = 'L')
                 dsX[k, :] = npImg.reshape((1, features))
-                flipX[k,:] = fNpImg.reshape((1, features))
+                if train:
+                   fImg = img.transpose(Image.FLIP_LEFT_RIGHT)
+                   fNpImg = alignObj.apply_gcn(fImg, mode = 'L')
+                   flipX[k,:] = fNpImg.reshape((1, features))
 
 
 def dummy_test():
     import pickle
 
-    from emotiw.common.datasets.faces.faceimages import keypoints_names
-
-    #sequence Datasets
-    from emotiw.common.datasets.faces.afew2 import AFEW2ImageSequenceDataset
-    from emotiw.common.datasets.faces.afew2_test import AFEW2TestImageSequenceDataset
     
-    #Static Datasets
-    from emotiw.common.datasets.faces.multipie import MultiPie
-    from emotiw.common.datasets.faces.tfd import ArFace
-    from emotiw.common.datasets.faces.googleFaceDataset import GoogleFaceDataset
-        
-    #without keypoints
-    from emotiw.common.datasets.faces.tfd import TorontoFaceDataset
-    from emotiw.common.datasets.faces.afew import AFEWImageSequence
-
     
     datasetObjs = []
     #datasetObjs = pickle.load(open("/Tmp/aggarwal/datasetObjs.pkl","r"))
-    alignObj = pickle.load(open( "/Tmp/aggarwal/AlignObj.pkl", "r" ))
+    alignObj = pickle.load(open( "AlignObj.pkl", "r" ))
     paths = []
 
+    #create_seq_dataset(alignObj, 'test')
+    create_seq_dataset(alignObj, 'train')
     #dataset = GoogleFaceDataset()
     #create_static_dataset('GFD', dataset, alignObj, lis=['1', '2'])
     
+    return
+
     dataset = TorontoFaceDataset()
     dataset.verify_samples()
     obj = MultiPie()

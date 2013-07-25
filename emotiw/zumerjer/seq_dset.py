@@ -9,12 +9,16 @@ import os
 class SeqDataset(dense_design_matrix.DenseDesignMatrix):
     def __init__(self, which_set, shuffle=True):
 
+        assert which_set in ['train', 'test', 'val']
         if which_set == 'train':
-            path = '/u/aggarwal/alignData/afew2_with_splits/train/'
+            path = '/u/aggarwal/alignData/train_with_splits/train/'
+            #path = '/u/aggarwal/alignData/oldData/afew2_with_splits/train/'
         elif which_set == 'val':
-            path = '/u/aggarwal/alignData/afew2_with_splits/val/'
+            path = '/u/aggarwal/alignData/train_with_splits/val/'
+            #path = '/u/aggarwal/alignData/oldData/afew2_with_splits/val/'
         elif which_set == 'test':
-            path = '/u/aggarwal/alignData/afew2_test_final/'
+            path = '/u/aggarwal/alignData/test_final_to_be_used/'
+            #path = '/u/aggarwal/alignData/oldData/afew2_test_final/'
         
         mode = 'r'
 
@@ -26,42 +30,41 @@ class SeqDataset(dense_design_matrix.DenseDesignMatrix):
         self.perturbations = []        
         self.flipped = []
         self.numSamples = 0
+        self.clipIDs = []
         for root, subdir, files in os.walk(path):
             for file in files:
                 if os.path.splitext(file)[-1] in ('.npy',):
+                    #print file.split('_')
                     self.numSamples += 1
                     if which_set in ('train', 'val'):
+                        clipID = int(file.split('_')[4])
                         for emotion in ['Happy', 'Disgust', 'Neutral', 'Fear', 'Surprise', 'Sad', 'Angry']:
                             if emotion in file:
                                 emotionThis = emotion
                                 break
-
-                        emIndex = file.find(emotionThis)
-                        bgIndex = file.find('_')
-                
-                        if bgIndex == emIndex-1:
-                            perturbation = '0' 
-                        else:
-                            perturbation = file[bgIndex+1:emIndex-1]
-
                         self.emotions.append(emotionThis)
                     else:
-                        for pert in ['_1_', 'org', '_2_', '_3_', '_4_']:
-                            if pert  in file:
-                                if pert[1] in ('1', '2', '3', '4'):
-                                    perturbation = pert[1]
-                                else:
-                                    perturbation = '0'
-                                break
+                        clipID = int(file.split('_')[4])
+                        emotionThis = 'unknown'
+                    for pert in ['_1_', 'org', '_2_', '_3_', '_4_']:
+                        if pert  in file:
+                            if pert[1] in ('1', '2', '3', '4'):
+                                perturbation = pert[1]
+                            else:
+                                perturbation = '0'
+                            break
                             
                     flip = 'flip' in file
+                    #print flip, perturbation, emotionThis, clipID, file
                     self.flipped.append(flip)
                     self.perturbations.append(perturbation)
                     self.paths.append(os.path.join(root, file))
+                    self.clipIDs.append(clipID)
 
         self.indices = np.asarray(range(self.numSamples))
         if shuffle:
-            np.random.shuffle(self.indices)
+            rng = np.random.RandomState(42)
+            rng.shuffle(self.indices)
               
 
     def __len__(self):
@@ -73,9 +76,9 @@ class SeqDataset(dense_design_matrix.DenseDesignMatrix):
         numSamples = len(clip)/(48*48)
         clip = clip.reshape(numSamples, 48*48)
         if self.which_set == 'test':
-            return (clip, {'flip':self.flipped[index],'perturbation':self.perturbations[index]})
+            return (clip, None, self.paths[index])
         else:
-            return (clip, self.emotions[index], None, {'flip':self.flipped[index],'perturbation':self.perturbations[index]})
+            return (clip, self.emotions[index], self.paths[index])
 
     def get_filtered_indices(self, perturbations = ['0', '1', '2', '3', '4'], flips = [True, False]):
         indices = []
