@@ -1,6 +1,6 @@
 !obj:pylearn2.train.Train {
     dataset: &train !obj:emotiw.bouthilx.datasets.FeaturesDataset {
-        features_paths: ["ActivityRecognition/activity_train_features.npy"],
+        features_paths: ["BagOfMouthFeatures/With_clip-wise_std-pooling/mouthBoF8std_training_features.npy"],
         targets_path: "afew2_train_targets.npy",
         base_path: "/data/afew/ModelPredictionsToCombine/"
     },
@@ -15,16 +15,16 @@
                      irange: 0.
                  }
                 ],
-       nvis: 3000,
+       nvis: 6400,
     },
     algorithm: !obj:pylearn2.training_algorithms.sgd.SGD {
-        batch_size: 20,
+        batch_size: 64,
         learning_rate: %(learning_rate)e,
         monitoring_dataset:
             {
                 'train' : *train,
                 'valid' : !obj:emotiw.bouthilx.datasets.FeaturesDataset {
-                    features_paths: ["ActivityRecognition/activity_valid_features.npy"],
+                    features_paths: ["BagOfMouthFeatures/With_clip-wise_std-pooling/mouthBoF8std_val_features.npy"],
                     targets_path: "afew2_valid_targets.npy",
                     base_path: "/data/afew/ModelPredictionsToCombine/"
                 },

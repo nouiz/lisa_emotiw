@@ -2,6 +2,11 @@ import numpy as np
 import argparse
 import os
 import emotiw.bouthilx.utils as utils
+from theano import config
+from theano import function
+from pylearn2.utils import serial
+
+
 
 def main():
     parser = argparse.ArgumentParser()
@@ -9,7 +14,7 @@ def main():
     parser.add_argument("--layer",default=None,type=int,help="Layer to extract (default is prediction of the model)")
     parser.add_argument("--data",action='append',required=True,help="Data path (.npy)")
     parser.add_argument("--targets",action='append',help="Target path (.npy)")
-    parser.add_argument("--normalize",default=False)
+    parser.add_argument("--normalize",default=True)
 
     parser.add_argument("model_paths",nargs='+',help="Pylearn2 models")
 
@@ -25,9 +30,11 @@ def main():
     print data_paths
 
     if options.targets:
-        datas = [(data_path, np.load(data_path), np.load(target_path)) for data_path, target_path in zip(data_paths,options.targets)]
+        datas = [(data_path, 
+                  np.cast[config.floatX](np.load(data_path)), 
+                  np.cast[config.floatX](np.load(target_path))) for data_path, target_path in zip(data_paths,options.targets)]
     else:
-        datas = [(data_path, np.load(data_path), None) for data_path in data_paths]
+        datas = [(data_path, np.cast[config.floatX](np.load(data_path)), None) for data_path in data_paths]
 
 #    if normalize:
 #        # set 0s to mean
@@ -39,28 +46,7 @@ def main():
 #        tmp = (X.min(0)!=X.max(0))*tmp # set empty dimensions to 0
 #        X = tmp
 
-    from theano import config
-    from theano import function
-    from pylearn2.utils import serial
-
     for model_path in model_paths:
-        model = serial.load(model_path)
-
-        batch_size = model.get_test_batch_size()
-
-        X = model.get_input_space().make_batch_theano()
-        rval = X
-
-        if layer_idx is None:
-            layers = model.layers
-        else:
-            layers = model.layers[:layer_idx]
-
-        for layer in layers:
-            rval = layer.fprop(rval)
-
-        f = function([X], rval)
-        
         for data_path, data, targets in datas:
             features = []
 
@@ -74,7 +60,7 @@ def main():
                 tmp = (data.min(0)!=data.max(0))*tmp # set empty dimensions to 0
                 data = tmp
 
-            features = utils.apply(f,data,batch_size)
+            features = get_features(model_path,data,layer_idx)
 
             if targets is not None:
                 print data_path
@@ -89,6 +75,27 @@ def main():
                 tmpout += "_features.npy"
             print os.path.join(out,tmpout)
             np.save(os.path.join(out,tmpout),features)
+
+def get_features(model_path,data,layer_idx=None):
+
+    model = serial.load(model_path)
+
+    batch_size = model.get_test_batch_size()
+
+    X = model.get_input_space().make_batch_theano()
+    rval = X
+
+    if layer_idx is None:
+        layers = model.layers
+    else:
+        layers = model.layers[:layer_idx]
+
+    for layer in layers:
+        rval = layer.fprop(rval)
+
+    f = function([X], rval)
+    
+    return utils.apply(f,data,batch_size)
 
 if __name__=="__main__":
     main()

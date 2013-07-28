@@ -1,0 +1,6 @@
+# hyper-parameter                        default
+learning_rate     [0.1,0.01,0.0001,1e-8] 0.001  combine(all)
+hid               [1400,6000]            1400   alone
+h0_dropout        [0.7,0.6,0.5]          0.6    alone
+h0_maxcn          [2.0,1.9,1.6]          2.0    alone
+y_maxcn           [2.0,1.9,1.6]          2.0    combine(h0_maxcn)
