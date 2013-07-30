@@ -2,7 +2,7 @@ import numpy as np
 import argparse
 import os
 import emotiw.bouthilx.utils as utils
-base_path = "/data/afew/ModelPredictionsToCombine"
+base_path = "/data/lisatmp2/bouthilx/EmotiW/ModelPredictionsToCombine"
 base_name = "learned_on_train_predict_on_%s_scores.npy"
 
 modes = {
