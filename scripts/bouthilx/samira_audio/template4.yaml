@@ -1,0 +1,67 @@
+!obj:pylearn2.train.Train {
+    dataset: &train !obj:emotiw.bouthilx.datasets.FeaturesDataset {
+        features_paths: ["Audio/learned_on_train_predict_on_train_scores.npy",
+                         "ConvNetPlusSVM_PierreSamiraChris/learned_on_train_predict_on_train_scores.npy"],
+        targets_path: "afew2_train_targets.npy",
+        base_path: "/data/afew/ModelPredictionsToCombine",
+    },
+    model: !obj:pylearn2.models.mlp.MLP {
+        layers: [ !obj:pylearn2.models.mlp.RectifiedLinear {
+                     layer_name: 'h0',
+                     dim: %(hid)d,
+                     irange: .005,
+                     max_col_norm: %(h0_maxcn)f,
+                  },!obj:pylearn2.models.mlp.Softmax {
+                     layer_name: 'y',
+                     n_classes: 7,
+                     irange: .005,
+                     max_col_norm: %(y_maxcn)f
+                 }
+                ],
+        nvis: 14,
+    },
+    algorithm: !obj:pylearn2.training_algorithms.sgd.SGD {
+        batch_size: 10,
+        learning_rate: %(learning_rate)e,
+        init_momentum: .5,
+        monitoring_dataset:
+            {
+                'train' : *train,
+                'valid' : !obj:emotiw.bouthilx.datasets.FeaturesDataset {
+                    features_paths: ["Audio/learned_on_train_predict_on_valid_scores.npy",
+                                     "ConvNetPlusSVM_PierreSamiraChris/learned_on_train_predict_on_valid_scores.npy"],
+                    targets_path: "afew2_valid_targets.npy",
+                    base_path: "/data/afew/ModelPredictionsToCombine",
+                },
+            },
+        cost: !obj:pylearn2.costs.cost.SumOfCosts { costs: [
+            !obj:pylearn2.costs.cost.MethodCost {
+                method: 'cost_from_X',
+            }, !obj:pylearn2.costs.mlp.dropout.Dropout {
+                input_include_probs: { 'h0' : %(h0_dropout)f },
+                input_scales: { 'h0': 1. }
+            },
+        ]},
+        termination_criterion: !obj:pylearn2.termination_criteria.MonitorBased {
+            channel_name: "valid_y_misclass",
+            prop_decrease: 0.,
+            N: 200
+        },
+        update_callbacks: !obj:pylearn2.training_algorithms.sgd.ExponentialDecay {
+            decay_factor: 1.000004,
+            min_lr: .000001
+        }
+    },
+    extensions: [
+        !obj:pylearn2.train_extensions.best_params.MonitorBasedSaveBest {
+             channel_name: 'valid_y_misclass',
+             save_path: "${PYLEARN2_TRAIN_FILE_FULL_STEM}_best.pkl"
+        },
+        !obj:pylearn2.training_algorithms.sgd.MomentumAdjustor {
+            start: 1,
+            saturate: 250,
+            final_momentum: .7
+        }
+
+    ],
+}

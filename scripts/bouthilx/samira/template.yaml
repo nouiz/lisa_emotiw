@@ -1,21 +1,21 @@
 !obj:pylearn2.train.Train {
     dataset: &train !obj:emotiw.bouthilx.datasets.FeaturesDataset {
-        features_paths: ["ActivityRecognition/activity_train_features.npy"],
-        targets_path: "afew2_train_targets.npy",
-        base_path: "/data/afew/ModelPredictionsToCombine/"
+        features_paths: ["/data/afew/ModelPredictionsToCombine/Conv2/experiment_4/AFEW_train/featureTrain.npy"],
+        targets_path: "/data/afew/pascal/afew2_train_rmananinpic_emmanuel_targets.npy",
+        base_path: ""
     },
     model: !obj:pylearn2.models.mlp.MLP {
         layers: [ !obj:pylearn2.models.mlp.RectifiedLinear {
                      layer_name: 'h0',
-                     dim: 35,
+                     dim: %(hid)d,
                      sparse_init: 1
-                  },!obj:emotiw.bouthilx.models.LinearClassif {
+                  },!obj:pylearn2.models.mlp.Softmax {
                      layer_name: 'y',
-                     dim: 7,
+                     n_classes: 7,
                      irange: 0.
                  }
                 ],
-       nvis: 3000,
+       nvis: 70,
     },
     algorithm: !obj:pylearn2.training_algorithms.sgd.SGD {
         batch_size: 20,
@@ -24,9 +24,9 @@
             {
                 'train' : *train,
                 'valid' : !obj:emotiw.bouthilx.datasets.FeaturesDataset {
-                    features_paths: ["ActivityRecognition/activity_valid_features.npy"],
-                    targets_path: "afew2_valid_targets.npy",
-                    base_path: "/data/afew/ModelPredictionsToCombine/"
+                    features_paths: ["/data/afew/ModelPredictionsToCombine/Conv2/experiment_4/AFEW_validation/featureVal.npy"],
+                    targets_path: "/data/afew/pascal/afew2_valid_rmananinpic_emmanuel_targets.npy",
+                    base_path: ""
                 },
             },
         cost: !obj:pylearn2.costs.cost.SumOfCosts { costs: [
@@ -39,7 +39,7 @@
         termination_criterion: !obj:pylearn2.termination_criteria.MonitorBased {
             channel_name: "valid_y_misclass",
             prop_decrease: 0.,
-            N: 20
+            N: 50
         }
     },
     extensions: [

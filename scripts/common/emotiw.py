@@ -114,6 +114,18 @@ def compute_accuracy(scorefile, score_start_column=0):
     accuracy = (winners==labelvec).mean()
     return accuracy
 
+def create_conf_matrix(scorefile, score_start_column=0):
+    scoremat = np.load(scorefile)
+    scoremat = scoremat[:,score_start_column:(score_start_column+7)]
+    dataset_name = get_associated_dataset_name(scoremat)
+    filelist, labelvec = filelist_and_labelvec[dataset_name]
+    winners = scoremat.argmax(axis=1)
+#    n_classes = 7
+    m = np.zeros((7,7))#[[0] * n_classes for i in range(n_classes)]
+    for pred, exp in zip(winners, labelvec):
+        m[pred,exp] += 1
+    return m
+
 def submit(scorefile, score_start_column=0):
     scoremat = np.load(scorefile)
     scoremat = scoremat[:,score_start_column:(score_start_column+7)]
@@ -150,6 +162,9 @@ def main(argv):
     elif command=='eval':
         accu = compute_accuracy(matrix_filepath,score_start_column)
         print "%2.2f%% accuracy on %s" % (accu*100., get_associated_dataset_name(matrix_filepath))
+        conf_matrix = create_conf_matrix(matrix_filepath,score_start_column)
+        print "confusion matrix"   
+        print conf_matrix
     elif command=='submit':
         submit(matrix_filepath,score_start_column)
     else:
