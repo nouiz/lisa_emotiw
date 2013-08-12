@@ -31,8 +31,8 @@ def main():
     #best_path = '/models/no_maxout/titan_bart10_gpu2_best.joblib'
     #save_path = './models/'+params.host+'_'+params.device+'_'+sys.argv[1]+'.joblib'
     #best_path = './models/'+params.host+'_'+params.device+'_'+sys.argv[1]+'best.joblib'
-    save_path = 'models/bart10_no_preproc.joblib'
-    best_path = 'models/bart10_no_preproc_best.joblib'
+    save_path = 'models/bart10_preproc.joblib'
+    best_path = 'models/bart10_preproc_best.joblib'
     #numBatches = 400000/batch_size
 
     '''
@@ -129,7 +129,7 @@ def main():
                   model = MLPerc,
                   algorithm= kpSGD,
                   extensions = [train_ext, 
-                                MonitorBasedSaveBest(channel_name='validation_objective',
+                      MonitorBasedSaveBest(channel_name='validation_objective',
                                                      save_path= best_path),
 
                                 MomentumAdjustor(start = 1,

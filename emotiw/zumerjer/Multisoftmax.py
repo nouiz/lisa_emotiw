@@ -44,6 +44,9 @@ class MatrixSpace(Space):
         self.num_row = num_row
         self.num_column = num_column
 
+    def __str__(self):
+        return self.__class__.__name__
+
     @functools.wraps(Space.get_origin)
     def get_origin(self):
         return np.zeros((self.num_row,self.num_column))
@@ -53,7 +56,7 @@ class MatrixSpace(Space):
         return np.zeros((n, self.num_row, self.num_column))
 
     @functools.wraps(Space.make_theano_batch)
-    def make_theano_batch(self, name=None, dtype=None):
+    def make_theano_batch(self, name=None, dtype=None, batch_size=None):
         if dtype is None:
             dtype = config.floatX
 
@@ -98,6 +101,13 @@ class MatrixSpace(Space):
             raise TypeError("MatrixSpace batch should be a theano Variable, got "+str(type(batch)))
         if batch.ndim != 3:
             raise ValueError('MatrixSpace batches must be 2D, got %d dimensions' % batch.ndim)
+
+    def np_validate(self, batch):
+        pass #ALL IS FINE IN THE BEST OF WORLDS! XXX
+        #return self.validate(batch)
+
+    def np_batch_size(self, X):
+        return len(X)
 
 class MultiSoftmax(Layer):
 

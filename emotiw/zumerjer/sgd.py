@@ -118,7 +118,6 @@ class SGD(TrainingAlgorithm):
         self.monitoring_costs = monitoring_costs
 
     def setup(self, model, dataset):
-
         if self.cost is None:
             self.cost = model.get_default_cost()
 
@@ -280,8 +279,6 @@ class SGD(TrainingAlgorithm):
         self.params = params
 
     def train(self, dataset):
-        #print 'entering train:', dataset.name
-        #print 'dataset.y', dataset.y
         if not hasattr(self, 'sgd_update'):
             raise Exception("train called without first calling setup")
         model = self.model
@@ -290,6 +287,8 @@ class SGD(TrainingAlgorithm):
         # Make sure none of the parameters have bad values
         for param in self.params:
             value = param.get_value(borrow=True)
+            #this is sometimes very slow. we could get a huge speedup if we could
+            #avoid having to run this everytime.
             if np.any(np.isnan(value)) or np.any(np.isinf(value)):
                 raise Exception("NaN in " + param.name)
 
@@ -297,7 +296,6 @@ class SGD(TrainingAlgorithm):
         rng = self.rng
         if not is_stochastic(self.train_iteration_mode):
             rng = None
-        #print 'self.supervised is' , self.supervised
 
         iterator = dataset.iterator(mode=self.train_iteration_mode,
                 batch_size=self.batch_size, targets=self.supervised,
@@ -309,8 +307,6 @@ class SGD(TrainingAlgorithm):
         if self.supervised:
             ind = 0
             for (batch_in, batch_target) in iterator:
-                #print 'updating batch:', 
-                #ind += 1
                 self.sgd_update(batch_in, batch_target)
                 actual_batch_size = batch_in.shape[batch_idx]
                 self.monitor.report_batch(actual_batch_size)
@@ -326,6 +322,8 @@ class SGD(TrainingAlgorithm):
                     callback(self)
 
         # Make sure none of the parameters have bad values
+        #this part is also sometimes very slow. Here again, if we can find a way
+        #to speed it up, the gain could be significant.
         for param in self.params:
             value = param.get_value(borrow=True)
             if np.any(np.isnan(value)) or np.any(np.isinf(value)):

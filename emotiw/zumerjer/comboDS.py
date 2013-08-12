@@ -4,13 +4,15 @@ from pylearn2.datasets import dense_design_matrix
 from pylearn2.utils import serial
 from pylearn2.utils.string_utils import preprocess
 import tables
+from pylearn2.space import CompositeSpace, Conv2DSpace
+from Multisoftmax import MatrixSpace
 
 class ComboDatasetPyTable(dense_design_matrix.DenseDesignMatrixPyTables):
     def __init__(self, path = None, start = None, stop = None, shuffle=True,
                 rng = None, seed = 132987, center = False,
                 scale = False,
                 axes=('b', 0, 1, 'c'), preprocessor=None,
-                which_set = 'all'):
+                which_set = 'test'):
 
         if path is None:
             path = '/data/lisa/data/faces/EmotiW/preproc/'
@@ -52,22 +54,24 @@ class ComboDatasetPyTable(dense_design_matrix.DenseDesignMatrixPyTables):
         orig_path = '/data/lisa/data/faces/EmotiW/preproc/'
         orig_path = '/Tmp/zumerjer/'
         file_n = "{}{}.h5".format(orig_path, which_set)
-        data_x = np.memmap(orig_path + 'complete_train_x.npy', mode='r', dtype='uint8')
+        data_x = np.memmap(orig_path + 'EmotiW_GCN_test.npy', mode='r', dtype='float32')
         data_y = np.memmap(orig_path + 'complete_train_y.npy', mode='r', dtype='float32')
         numSamples = len(data_x)/(96*96*3)
         data_x = data_x.reshape((numSamples, -1))
-        data_y = data_y.reshape((numSamples, -1))
+        data_y = data_y.reshape((-1, 98*2))
+        data_y = data_y[44000:]
+        print data_y.shape
 
         assert numSamples == len(data_y)
         data_x = data_x.reshape(-1,96,96,3)[:,::-1,:,:] #(b, 0, 1, c)
-        data_y = data_y.reshape(-1, 98, 2)[:,:,::-1].reshape(-1, 98*2) #(num_samples, 2*num_targets)
-        import Image
-        print 'going to print image'
-        img = data_x[0,:].reshape((96,96,3)).copy()
-        for idx, _ in enumerate(data_y[0,:]):
-            if idx % 2 == 1:
-                img[round(data_y[0,idx-1]), round(data_y[0,idx])] = [0,0,0]
-        Image.fromarray(img).show()
+        data_y = data_y.reshape(numSamples, 98, 2)[:,:,::-1].reshape(numSamples, 98*2) #(num_samples, 2*num_targets)
+        #import Image
+        #print 'going to print image'
+        #img = data_x[0,:].reshape((96,96,3)).copy()
+        #for idx, _ in enumerate(data_y[0,:]):
+        #    if idx % 2 == 1:
+        #        img[round(data_y[0,idx-1]), round(data_y[0,idx])] = [0,0,0]
+        #Image.fromarray(img).show()
 #        data_x = data_x.reshape((data_y.shape[0], 48 * 48))
 
 #        one_hot = np.zeros((len(data_y),7), dtype=np.float32)
@@ -95,6 +99,10 @@ class ComboDatasetPyTable(dense_design_matrix.DenseDesignMatrixPyTables):
         h5file, node = ComboDatasetPyTable.init_hdf5(file_n, (data_x.shape, data_y.shape))
         ComboDatasetPyTable.fill_hdf5(h5file, data_x, data_y, node)
         h5file.close()
+
+    def get_data_specs(self):
+        axes = ('b', 0, 1, 'c')
+        return (CompositeSpace([Conv2DSpace(shape=(96, 96), num_channels=3, axes=axes), MatrixSpace(196, 96)]), ('features', 'targets'))
 
 if __name__ == "__main__":
     # ComboDatasetPyTable(start=0, stop=210000, which_set = 'train')

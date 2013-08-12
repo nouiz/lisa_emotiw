@@ -10,6 +10,7 @@ import logging
 log = logging.getLogger(__name__)
 from pylearn2.utils import sharedX
 from pylearn2.utils.timing import log_timing
+from pylearn2.space import CompositeSpace
 
 
 class KeypointSGD(SGD):
@@ -101,10 +102,10 @@ class KeypointSGD(SGD):
             monitoring_dataset = self.monitoring_dataset[dataset_name]
             #TODO: have Monitor support non-data-dependent channels
             self.monitor.add_channel(name='learning_rate', ipt=ipt,
-                    val=learning_rate, dataset=monitoring_dataset)
+                    val=learning_rate, dataset=monitoring_dataset, data_specs = (CompositeSpace([model.get_input_space(), model.get_output_space()]), ('features', 'targets')))
             if self.momentum:
                 self.monitor.add_channel(name='momentum', ipt=ipt,
-                        val=self.momentum, dataset=monitoring_dataset)
+                        val=self.momentum, dataset=monitoring_dataset, data_specs=(CompositeSpace([model.get_input_space(), model.get_output_space()]), ('features', 'targets')))
             '''
             Ypred = model.fprop(X)
             Y_ = (T.arange(0,96).dimshuffle('x','x',0)*Ypred).sum(axis = 2)

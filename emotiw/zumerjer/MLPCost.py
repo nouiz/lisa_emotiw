@@ -6,12 +6,13 @@ from theano import function
 from theano.gof.op import get_debug_values
 from theano.printing import Print
 
+from pylearn2.space import CompositeSpace
+
 from collections import OrderedDict
 
 from pylearn2.utils import serial
 from itertools import izip
 from pylearn2.utils import safe_zip
-
 
 class MLPCost(Cost):
     supervised = True
@@ -45,7 +46,10 @@ class MLPCost(Cost):
         
         self.use_dropout=True
 
-    def get_gradients(self, model, X, Y=None, ** kwargs):
+    def get_gradients(self, model, X, Y, ** kwargs):
+        #self.get_data_specs(model)[0].validate(data)
+        #X = data[0]
+        #Y = data[1]
         """
         model: a pylearn2 Model instance
         X: a batch in model.get_input_space()
@@ -141,4 +145,4 @@ class MLPCost(Cost):
         return cost
 
     def get_data_specs(self, model):
-        return (model.layers[-1].output_space, ('targets')) #XXX
+        return (CompositeSpace([model.get_input_space(), model.get_output_space()]), ('features', 'targets')) #XXX
