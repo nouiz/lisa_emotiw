@@ -105,11 +105,12 @@ def test_works():
     model_file = 'titan2/titan2_lr_0.01_finMomentum_0.8_batch_size_32_mlp.RectifiedLinear.joblib'
     model_file = 'titan2/titan2_best.joblib'
     model_file = 'titan3/titan3_best.joblib'
-    batch_size = 64
+    model_file = '/u/zumerjer/Documents/lisa_emotiw/emotiw/zumerjer/models/bart10_no_preproc.joblib'
 
-    from emotiw.common.datasets.faces.EmotiwKeypoints import EmotiwKeypoints
+    batch_size = 64
+    from emotiw.zumerjer.comboDS import ComboDS
     
-    ddmTest = EmotiwKeypoints(hack = 'test', preproc='STD')
+    ddmTest = ComboDS(path='/Tmp/zumerjer/all_train_test.h5')
 
     generateTest(ddmTest, model_file, batch_size = batch_size)
 
