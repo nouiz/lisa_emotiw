@@ -58,3 +58,6 @@ nosetests.xml
 
 #core
 core.*
+
+#joblib
+*.joblib

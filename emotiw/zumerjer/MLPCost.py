@@ -1,6 +1,6 @@
 from pylearn2.costs.cost import SumOfCosts, Cost
 import numpy as np
-from theano import config
+from theano import config, printing
 import theano.tensor as T
 from theano import function
 from theano.gof.op import get_debug_values
@@ -104,6 +104,7 @@ class MLPCost(Cost):
         return gradients, updates
         
     def __call__(self, model, X, Y, ** kwargs):
+
         if self.use_dropout:
             Y_hat = model.dropout_fprop(X, default_input_include_prob=self.default_input_include_prob,
                     input_include_probs=self.input_include_probs, default_input_scale=self.default_input_scale,
@@ -116,8 +117,27 @@ class MLPCost(Cost):
             assert (self.cost_type == 'default')
             costMatrix = model.layers[-1].cost_matrix(Y, Y_hat)
             costMatrix *= T.neq(Y, self.missing_target_value)  # This sets to zero all elements where Y == -1
-            cost = costMatrix.sum()/(T.neq(Y, -1).sum())
-            cost = T.cast(cost, 'float32')
+            #cost = costMatrix.sum()/T.neq(Y, self.missing_target_value).sum()
+            #tmp = (T.neq(Y, -1).sum(axis =2, keepdims=True)/96.)
+            #printing.Print("tmp")(tmp)
+            #tmp2 = tmp.sum(axis=1, keepdims=True)
+            #printing.Print("tmp2")(tmp2)
+            #tmp3 = costMatrix/tmp2
+            
+            denom = (((T.neq(Y, -1).sum(axis=2)/96.).sum(axis=1)))
+            denom = denom.dimshuffle(0, 'x', 'x')
+            nn = T.neq(denom, 0)
+            denom = denom + 1e-10
+
+            #numpy.arrange(64)*T.neq(denom, 0)
+            #nn = (denom != 0).nonzero()
+#denom = printing.Print("nothing")(denom)
+            #nn = printing.Print("something")(nn)
+            #denom = printing.Print("everything")(denom[nn])
+            
+            #printing.Print("costMatrix")(costMatrix)
+            cost = (costMatrix*nn/denom).sum()
+            cost = T.cast(cost, 'float32')            
             #cost = model.cost_from_cost_matrix(costMatrix)
         else:
             if self.cost_type == 'default':

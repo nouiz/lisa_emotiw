@@ -23,6 +23,8 @@ class ComboDatasetPyTable(dense_design_matrix.DenseDesignMatrixPyTables):
 
 
         path = preprocess(path)
+        #if which_set == 'valid':
+        #    which_set = 'val'
         file_n = "{}{}.h5".format(path, which_set)
         if os.path.isfile(file_n):
             make_new = False
@@ -53,14 +55,14 @@ class ComboDatasetPyTable(dense_design_matrix.DenseDesignMatrixPyTables):
 
         orig_path = '/data/lisa/data/faces/EmotiW/preproc/'
         orig_path = '/Tmp/zumerjer/'
-        file_n = "{}{}.h5".format(orig_path, which_set)
-        data_x = np.memmap(orig_path + 'EmotiW_GCN_test.npy', mode='r', dtype='float32')
+        file_n = "{}{}.h5".format(orig_path, "GCN_" + which_set)
+        data_x = np.memmap(orig_path + 'EmotiW_GCN_' + which_set + '.npy', mode='r', dtype='float32')
         data_y = np.memmap(orig_path + 'complete_train_y.npy', mode='r', dtype='float32')
         numSamples = len(data_x)/(96*96*3)
         data_x = data_x.reshape((numSamples, -1))
         data_y = data_y.reshape((-1, 98*2))
-        data_y = data_y[44000:]
-        print data_y.shape
+        data_y = data_y[start:stop]
+        #print data_y.shape
 
         assert numSamples == len(data_y)
         data_x = data_x.reshape(-1,96,96,3)[:,::-1,:,:] #(b, 0, 1, c)
@@ -84,6 +86,7 @@ class ComboDatasetPyTable(dense_design_matrix.DenseDesignMatrixPyTables):
             data_x = data_x[rand_idx]
             data_y = data_y[rand_idx]
 
+
         if start is not None or stop is not None:
             if start is None:
                 start = 0
@@ -93,8 +96,8 @@ class ComboDatasetPyTable(dense_design_matrix.DenseDesignMatrixPyTables):
                 stop = -1
             if stop != -1:
                 assert stop > start
-            data_x = data_x[start:stop]
-            data_y = data_y[start:stop]
+#            data_x = data_x[start:stop]
+#            data_y = data_y[start:stop]
 
         h5file, node = ComboDatasetPyTable.init_hdf5(file_n, (data_x.shape, data_y.shape))
         ComboDatasetPyTable.fill_hdf5(h5file, data_x, data_y, node)
@@ -105,8 +108,9 @@ class ComboDatasetPyTable(dense_design_matrix.DenseDesignMatrixPyTables):
         return (CompositeSpace([Conv2DSpace(shape=(96, 96), num_channels=3, axes=axes), MatrixSpace(196, 96)]), ('features', 'targets'))
 
 if __name__ == "__main__":
-    # ComboDatasetPyTable(start=0, stop=210000, which_set = 'train')
+    #ComboDatasetPyTable(start=0, stop=40000, which_set = 'train')
     ComboDatasetPyTable()
-    #ComboDatasetPyTable(start=210000, stop=-1, which_set = 'valid')
-    #ComboDatasetPyTable()
+    #ComboDatasetPyTable(start=40000, stop=44000, which_set = 'val')
+    #ComboDatasetPyTable(start=44000, stop=47197, which_set = 'test')
+    ##ComboDatasetPyTable()
 

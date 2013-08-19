@@ -1,0 +1,66 @@
+DATA
+-use:
+The files named all_{which_set}.h5 in ${PYLEARN2_DATA_PATH}/faces/hdf5/ 
+contain the non-preprocessed version of the AFLW, LFPW, ArFaceDB, and Multi-Pie data,
+where each image has been first converted to RGB and then cropped around the face based 
+on available bounding box, or, failing that, the keypoints' maximum and minimum x and 
+y (or, failing that, the image's boundaries), to which a 20% frame was added so the frame 
+isn't too tight. The bound was then blown up from the smaller side toward the larger one, 
+until either the sizes matched a square or the image's edges were encountered. If such
+an edge was found, the other side of the image was reduced to match the blown-up smaller
+side. The keypoints still inside the bounds were kept, while the others were discarded. 
+Finally, the images were resized to 96x96.
+
+The preprocessed data is the same data, to which Global Contrast Normalization (image-wise 
+(X-mu)/sigma) preprocessing was applied. The files containing this data are called GCN_{which_set}.h5 
+and live in the same folder as the non-preprocessed data.
+
+-generate:
+Supposing the data is already available as .npy, then run the following scripts, in order:
+* comboDS (after having set the appropriate paths in the file). This will generate .h5 
+files from the .npy. BEWARE that the original .npy were incorrectly formated, so the 
+make_data function in this script will automatically correct the problem before dumping 
+the data to .h5 and you should make sure to remove this behavior if it is no longer relevant 
+to you.
+* [optional] split_h5 (with arguments: .h5 complete filename, which_set, start and stop). 
+This will split the .h5 file into, for example, train, test and validation sets (at your discretion).
+* make_h5_targets. This will turn the keypoints target into density vectors describing a gaussian 
+distribution around their x (first vector of a pair) and y (second vector of a pair). The 
+result will be a (batch_size, 2*num_keypoints, num_valid_{x,y}_coords) matrix.
+
+If the data is not already available as .npy, follow the instructions in 
+${PYLEARN2_DATA_PATH}/faces/hdf5_datasets/ for generating the data.
+
+MODEL
+The model is based on Nicholas Leonard's model, which was the best model entered in the kaggle 
+competition. It is composed of 2 convrect layers on top of which is a maxout layer, followed by 
+a multisoftmax layer (a softmax that applies in different dimensions separately, so as to output 
+a separate vector for the x and y coordinates). This model was tested in the kaggle competition 
+with the kaggle data and won first place, outclassing Nicholas' original model. The cost function 
+is MLPCost, which is a simple least-square error cost. It was modified from an error sum to an error 
+mean, but this change should be reverted (see below). The training algorithm is KeypointsSGD, which 
+is simply an SGD adapted to work with this model. Some changes were made to pylearn2 and Nicholas' 
+files in order to make everything compatible with the new interface, which Nicholas' code didn't care 
+about (but which DenseDesignMatrixPytable, which ComboDatasetPyTable, the main dataset class, cares about), 
+and to make it more compatible with stream-based or lazy-loaded data. The branch with which the model 
+works is available at:
+git@github.com:git-/pylearn2
+The rest of the required files are available in this directory.
+As mentioned, the dataset object is ComboDatasetPyTable, available from comboDS.py.
+
+ALREADY TRIED
+* Changing the cost function to consider the mean (least squared error over non-missing points) 
+resulted in the model learning the 4-5 points that were available on all images rather well, 
+but the 93 other points' accuracy was completely ignored.
+* With the sum cost, GCN would start at a much lower objective value and yet would converge slower than
+the model not using any preprocessing. 
+* Removing dropout...
+
+TOOLS
+testModel.py will display images with the model's predicted keypoints using either argmax or expectation, 
+based on the provided path and set (changes have to be made in the script). It requires THEANO_FLAGS to be
+set appropriately.
+
+TODO
+* Implement the ADADELTA algorithm for training (supposing we're not learning because of optimization problems).
+* Visualize hidden layer weights 

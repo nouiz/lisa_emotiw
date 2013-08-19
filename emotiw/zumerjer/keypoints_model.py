@@ -31,8 +31,9 @@ def main():
     #best_path = '/models/no_maxout/titan_bart10_gpu2_best.joblib'
     #save_path = './models/'+params.host+'_'+params.device+'_'+sys.argv[1]+'.joblib'
     #best_path = './models/'+params.host+'_'+params.device+'_'+sys.argv[1]+'best.joblib'
-    save_path = 'models/bart10_preproc.joblib'
-    best_path = 'models/bart10_preproc_best.joblib'
+    save_path = '/Tmp/zumerjer/bart10_with_dropout.joblib'
+    best_path = '/Tmp/zumerjer/bart10_with_dropout_best.joblib'
+
     #numBatches = 400000/batch_size
 
     '''
@@ -55,6 +56,7 @@ def main():
 
     ddmTrain = ComboDatasetPyTable('/Tmp/zumerjer/all_', which_set='train')
     ddmValid = ComboDatasetPyTable('/Tmp/zumerjer/all_', which_set='valid')
+    ddmSmallTrain = ComboDatasetPyTable('/Tmp/zumerjer/all_', which_set='small_train')
 
     layer1 = ConvRectifiedLinear(layer_name = 'convRect1',
                      output_channels = 64,
@@ -102,14 +104,14 @@ def main():
     missing_target_value = -1
     mlp_cost = MLPCost(cost_type='default',
                             missing_target_value=missing_target_value )
-    mlp_cost.setup_dropout(input_include_probs= { 'convRect1' : 1.0 },
-                           input_scales= { 'convRect1': 1. })
+    mlp_cost.setup_dropout(input_include_probs= { 'convRect1' : 0.8 })#,
+                         #  input_scales= { 'convRect1': 1. })
 
     #dropout_cost = Dropout(input_include_probs= { 'convRect1' : .8 },
     #                      input_scales= { 'convRect1': 1. })
 
     #algorithm
-    monitoring_dataset = {'validation':ddmValid}
+    monitoring_dataset = {'validation':ddmValid, 'mini-train':ddmSmallTrain}
 
     term_crit  = MonitorBased(prop_decrease = 1e-7, N = 100, channel_name = 'validation_objective')
 
