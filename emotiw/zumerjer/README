@@ -29,7 +29,7 @@ distribution around their x (first vector of a pair) and y (second vector of a p
 result will be a (batch_size, 2*num_keypoints, num_valid_{x,y}_coords) matrix.
 
 If the data is not already available as .npy, follow the instructions in 
-${PYLEARN2_DATA_PATH}/faces/hdf5_datasets/ for generating the data.
+${PYLEARN2_DATA_PATH}/faces/hdf5/ for generating the data.
 
 MODEL
 The model is based on Nicholas Leonard's model, which was the best model entered in the kaggle 
@@ -54,7 +54,9 @@ resulted in the model learning the 4-5 points that were available on all images 
 but the 93 other points' accuracy was completely ignored.
 * With the sum cost, GCN would start at a much lower objective value and yet would converge slower than
 the model not using any preprocessing. 
-* Removing dropout...
+* No dropout resulted in rather poor overall results with a few good results based on argmax on the
+gaussians, and no good result whatsoever on expection based point coordinates. Dropout is currently
+being tested.
 
 TOOLS
 testModel.py will display images with the model's predicted keypoints using either argmax or expectation, 
