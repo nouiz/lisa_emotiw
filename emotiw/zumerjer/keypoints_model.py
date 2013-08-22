@@ -9,6 +9,8 @@ from pylearn2.models.maxout import Maxout
 from pylearn2.training_algorithms.sgd import LinearDecayOverEpoch
 from pylearn2.space import Conv2DSpace
 from pylearn2.models.mlp import ConvRectifiedLinear, MLP
+from KeypointADADELTA import KeypointADADELTA
+
 #params = __import__('experiment_' + sys.argv[1] + '_params')
 
 from comboDS import ComboDatasetPyTable
@@ -22,7 +24,7 @@ def main():
     #creating layers
         #2 convolutional rectified layers, border mode valid
     batch_size = 64
-    lr = 0.1
+    lr = 1.0 #0.1/4
     finMomentum = 0.9
     maxout_units = 2000
     num_pcs = 4
@@ -31,8 +33,8 @@ def main():
     #best_path = '/models/no_maxout/titan_bart10_gpu2_best.joblib'
     #save_path = './models/'+params.host+'_'+params.device+'_'+sys.argv[1]+'.joblib'
     #best_path = './models/'+params.host+'_'+params.device+'_'+sys.argv[1]+'best.joblib'
-    save_path = '/Tmp/zumerjer/bart10_with_dropout.joblib'
-    best_path = '/Tmp/zumerjer/bart10_with_dropout_best.joblib'
+    save_path = '/Tmp/zumerjer/bart10_adadelta.joblib'
+    best_path = '/Tmp/zumerjer/bart10_adadelta_best.joblib'
 
     #numBatches = 400000/batch_size
 
@@ -104,8 +106,7 @@ def main():
     missing_target_value = -1
     mlp_cost = MLPCost(cost_type='default',
                             missing_target_value=missing_target_value )
-    mlp_cost.setup_dropout(input_include_probs= { 'convRect1' : 0.8 })#,
-                         #  input_scales= { 'convRect1': 1. })
+    mlp_cost.setup_dropout(input_include_probs= { 'convRect1' : 0.8 }, input_scales= { 'convRect1': 1. })
 
     #dropout_cost = Dropout(input_include_probs= { 'convRect1' : .8 },
     #                      input_scales= { 'convRect1': 1. })
@@ -115,28 +116,31 @@ def main():
 
     term_crit  = MonitorBased(prop_decrease = 1e-7, N = 100, channel_name = 'validation_objective')
 
-    kpSGD = KeypointSGD(learning_rate = lr, init_momentum = 0.5, 
+    kp_ada = KeypointADADELTA(decay_factor = 0.95, 
+            #init_momentum = 0.5, 
                         monitoring_dataset = monitoring_dataset, batch_size = batch_size,
                         termination_criterion = term_crit,
                         cost = mlp_cost)
 
     #train extension
     #train_ext = ExponentialDecayOverEpoch(decay_factor = 0.998, min_lr_scale = 0.001)
-    train_ext = LinearDecayOverEpoch(start= 1,saturate= 250,decay_factor= .01)
+    #train_ext = LinearDecayOverEpoch(start= 1,saturate= 250,decay_factor= .01)
+    #train_ext = ADADELTA(0.95)
 
     #train object
     train = Train(dataset = ddmTrain,
                   save_path= save_path,
                   save_freq=10,
                   model = MLPerc,
-                  algorithm= kpSGD,
-                  extensions = [train_ext, 
+                  algorithm= kp_ada,
+                  extensions = [#train_ext, 
                       MonitorBasedSaveBest(channel_name='validation_objective',
-                                                     save_path= best_path),
+                                                     save_path= best_path)#,
 
-                                MomentumAdjustor(start = 1,
-                                                 saturate = 25,
-                                                 final_momentum = finMomentum)] )
+#                                MomentumAdjustor(start = 1,#
+ #                                                saturate = 25,
+  #                                               final_momentum = finMomentum)
+  ] )
     train.main_loop()
     train.save()
 

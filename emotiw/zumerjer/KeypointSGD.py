@@ -11,6 +11,8 @@ log = logging.getLogger(__name__)
 from pylearn2.utils import sharedX
 from pylearn2.utils.timing import log_timing
 from pylearn2.space import CompositeSpace
+from pylearn2.utils import safe_zip
+import theano
 
 
 class KeypointSGD(SGD):
@@ -139,6 +141,8 @@ class KeypointSGD(SGD):
                                      {'costname': cost_value.name,
                                       'paramname': param.name})
 
+        self.grads = grads
+
         lr_scalers = model.get_lr_scalers()
 
         for key in lr_scalers:
@@ -155,9 +159,20 @@ class KeypointSGD(SGD):
             log.info('\t' + param_name + ': ' + str(lr))
 
         if self.momentum is None:
+            update_dict = dict()
+            up_g2 = self.E_g2 + 1e-10
+            self.E_g2 = self.decay_factor * self.E_g2 + (1 - self.decay_factor) * T.pow(the_grads, 2)
+            up_dx2 = self.E_dx2 + 1e-10
+            dx = -T.sqrt(up_g2)/T.sqrt(up_dx2) * the_grads
+            self.E_dx2 = self.decay_factor * self.E_dx2 + (1 - self.decay_factor) * T.pow(dx, 2)
+
+            for p in grads:
+               update_dict[p] = p - dx[grads.index(p)]            
+            self.E_dx2 = self.decay_factor * self.E_g2 + (1 - self.decay_factor) * T.pow(dx, 2)
+            updates.update(update_dict)
             updates.update( dict(safe_zip(params, [param - learning_rate * \
                 lr_scalers.get(param, 1.) * grads[param]
-                                    for param in params])))
+                                   for param in params])))
         else:
             for param in params:
                 inc = sharedX(param.get_value() * 0.)

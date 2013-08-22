@@ -117,28 +117,16 @@ class MLPCost(Cost):
             assert (self.cost_type == 'default')
             costMatrix = model.layers[-1].cost_matrix(Y, Y_hat)
             costMatrix *= T.neq(Y, self.missing_target_value)  # This sets to zero all elements where Y == -1
-            #cost = costMatrix.sum()/T.neq(Y, self.missing_target_value).sum()
-            #tmp = (T.neq(Y, -1).sum(axis =2, keepdims=True)/96.)
-            #printing.Print("tmp")(tmp)
-            #tmp2 = tmp.sum(axis=1, keepdims=True)
-            #printing.Print("tmp2")(tmp2)
-            #tmp3 = costMatrix/tmp2
+            #cost = costMatrix.sum()/(costMatrix.shape[0]*costMatrix.shape[1]*96)
+            cost = costMatrix.sum()/T.neq(Y,self.missing_target_value).sum()
             
-            denom = (((T.neq(Y, -1).sum(axis=2)/96.).sum(axis=1)))
-            denom = denom.dimshuffle(0, 'x', 'x')
-            nn = T.neq(denom, 0)
-            denom = denom + 1e-10
+            #denom = (((T.neq(Y, -1).sum(axis=2)/96.).sum(axis=1)))
+            #denom = denom.dimshuffle(0, 'x', 'x') + 1e-10
+            #nn = T.neq(denom, 0)
+            #denom = denom + 1e-10
 
-            #numpy.arrange(64)*T.neq(denom, 0)
-            #nn = (denom != 0).nonzero()
-#denom = printing.Print("nothing")(denom)
-            #nn = printing.Print("something")(nn)
-            #denom = printing.Print("everything")(denom[nn])
-            
-            #printing.Print("costMatrix")(costMatrix)
-            cost = (costMatrix*nn/denom).sum()
+            #cost = (costMatrix*T.neq(Y,-1)/denom).sum()
             cost = T.cast(cost, 'float32')            
-            #cost = model.cost_from_cost_matrix(costMatrix)
         else:
             if self.cost_type == 'default':
                 cost = model.cost(Y, Y_hat)
