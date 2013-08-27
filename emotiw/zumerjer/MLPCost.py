@@ -117,8 +117,8 @@ class MLPCost(Cost):
             assert (self.cost_type == 'default')
             costMatrix = model.layers[-1].cost_matrix(Y, Y_hat)
             costMatrix *= T.neq(Y, self.missing_target_value)  # This sets to zero all elements where Y == -1
-            #cost = costMatrix.sum()/(costMatrix.shape[0]*costMatrix.shape[1]*96)
-            cost = costMatrix.sum()/T.neq(Y,self.missing_target_value).sum()
+            cost = costMatrix.sum()/(costMatrix.shape[0]*costMatrix.shape[1]*96)
+            #cost = costMatrix.sum()/T.neq(Y,self.missing_target_value).sum()
             
             #denom = (((T.neq(Y, -1).sum(axis=2)/96.).sum(axis=1)))
             #denom = denom.dimshuffle(0, 'x', 'x') + 1e-10

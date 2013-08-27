@@ -23,7 +23,7 @@ def main():
 
     #creating layers
         #2 convolutional rectified layers, border mode valid
-    batch_size = 64
+    batch_size = 48
     lr = 1.0 #0.1/4
     finMomentum = 0.9
     maxout_units = 2000
@@ -33,8 +33,8 @@ def main():
     #best_path = '/models/no_maxout/titan_bart10_gpu2_best.joblib'
     #save_path = './models/'+params.host+'_'+params.device+'_'+sys.argv[1]+'.joblib'
     #best_path = './models/'+params.host+'_'+params.device+'_'+sys.argv[1]+'best.joblib'
-    save_path = '/Tmp/zumerjer/bart10_meancost_adadelta_ema.joblib'
-    best_path = '/Tmp/zumerjer/bart10_meancost_adadelta_ema_best.joblib'
+    save_path = '/Tmp/zumerjer/bart10_sumcost_adadelta_drop.joblib'
+    best_path = '/Tmp/zumerjer/bart10_sumcost_adadelta_drop_best.joblib'
 
     #numBatches = 400000/batch_size
 
@@ -106,7 +106,7 @@ def main():
     missing_target_value = -1
     mlp_cost = MLPCost(cost_type='default',
                             missing_target_value=missing_target_value )
-    mlp_cost.setup_dropout(input_include_probs= { 'convRect1' : 0.8 }, input_scales= { 'convRect1': 1. })
+    mlp_cost.setup_dropout(input_include_probs= { 'convRect1' : 1.0 }, input_scales= { 'convRect1': 1. })
 
     #dropout_cost = Dropout(input_include_probs= { 'convRect1' : .8 },
     #                      input_scales= { 'convRect1': 1. })

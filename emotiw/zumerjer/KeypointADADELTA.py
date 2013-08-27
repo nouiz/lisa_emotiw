@@ -26,7 +26,7 @@ class KeypointADADELTA(TrainingAlgorithm):
     """
     E_g2 = {}
     E_dx2 = {}
-    #learning_rate = theano.shared(value=numpy.cast['float32'](0.0), name='learning_rate')
+    learning_rate = {}
     def __init__(self, 
                  decay_factor = 0.95,
                  cost=None,
@@ -138,9 +138,7 @@ class KeypointADADELTA(TrainingAlgorithm):
             monitoring_dataset = self.monitoring_dataset[dataset_name]
             #TODO: have Monitor support non-data-dependent channels
             #LR is meaningless for ADADELTA, this will be the adaptive coefficient (which serves the same role) => printing var.
-            #self.monitor.add_channel(name='learning_rate', ipt=ipt,
-            #        val=self.learning_rate, dataset=monitoring_dataset, data_specs = (CompositeSpace([model.get_input_space(), model.get_output_space()]), ('features', 'targets')))
-            #if self.momentum:
+                        #if self.momentum:
              #   self.monitor.add_channel(name='momentum', ipt=ipt,
               #          val=self.momentum, dataset=monitoring_dataset, data_specs=(CompositeSpace([model.get_input_space(), model.get_output_space()]), ('features', 'targets')))
             '''
@@ -195,21 +193,29 @@ class KeypointADADELTA(TrainingAlgorithm):
 
         #ADADELTA
         update_dict = {}
+        idx = 0
         for g in grads:
             if g not in self.E_g2:
                 self.E_g2[g] = T.pow(grads[g], 2)
             if g not in self.E_dx2:
-                self.E_dx2[g] = theano.shared(0)
+                self.E_dx2[g] = theano.shared(numpy.cast['float32'](0))
+            if g not in self.learning_rate:
+                self.learning_rate[g] = theano.shared(value=numpy.cast['float32'](1), name='learning_rate')
+                self.monitor.add_channel(name='learning_rate_EMA_' + str(g) + str(idx), ipt=ipt,
+                    val=self.learning_rate[g], dataset=monitoring_dataset, data_specs = (CompositeSpace([model.get_input_space(), model.get_output_space()]), ('features', 'targets')))
+                idx += 1
+
 
             self.E_g2[g] = self.decay_factor * self.E_g2[g] + (1 - self.decay_factor) * T.pow(grads[g], 2)
-            up_g2 = self.E_g2[g] + 1e-10
-            up_dx2 = self.E_dx2[g] + 1e-10
+            up_g2 = self.E_g2[g] + numpy.cast[theano.config.floatX](1e-10)
+            up_dx2 = self.E_dx2[g] + numpy.cast[theano.config.floatX](1e-10)
             lr = (T.sqrt(up_dx2)/T.sqrt(up_g2))
-            #TODO:printing/monitoring for lr.
-            dx =  -lr * grads[g]
-            self.E_dx2[g] = self.decay_factor * self.E_dx2[g] + (1 - self.decay_factor) * T.pow(dx, 2)
+            up_lr = T.mean(numpy.cast[theano.config.floatX](0.95)*self.learning_rate[g] + numpy.cast[theano.config.floatX](1-0.95)*lr)
+            update_dict[self.learning_rate[g]] = up_lr
+            dx = -lr * grads[g]
+            self.E_dx2[g] = numpy.cast[theano.config.floatX](self.decay_factor) * self.E_dx2[g] + numpy.cast[theano.config.floatX](1 - self.decay_factor) * T.pow(dx, 2)
 
-            update_dict[g] = T.cast(g + dx, theano.config.floatX)
+            update_dict[g] = g + dx
         updates.update(update_dict)
 
         for param in params:
@@ -239,6 +245,12 @@ class KeypointADADELTA(TrainingAlgorithm):
         self.params = params
 
     def train(self, dataset):
+        #import pdb
+        #import theano
+        #pdb.set_trace()
+        #theano.printing.debug_print()
+        #theano.printing.pydotprint()
+
         if not hasattr(self, 'sgd_update'):
             raise Exception("train called without first calling setup")
         model = self.model
@@ -294,4 +306,3 @@ class KeypointADADELTA(TrainingAlgorithm):
             return True
         else:
             return self.termination_criterion.continue_learning(self.model)
-

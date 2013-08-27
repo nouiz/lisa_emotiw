@@ -12,7 +12,7 @@ side. The keypoints still inside the bounds were kept, while the others were dis
 Finally, the images were resized to 96x96.
 
 The preprocessed data is the same data, to which Global Contrast Normalization (image-wise 
-(X-mu)/sigma) preprocessing was applied. The files containing this data are called GCN_{which_set}.h5 
+(X-mean)/std. dev.) preprocessing was applied. The files containing this data are called GCN_{which_set}.h5 
 and live in the same folder as the non-preprocessed data.
 
 -generate:
@@ -48,15 +48,43 @@ git@github.com:git-/pylearn2
 The rest of the required files are available in this directory.
 As mentioned, the dataset object is ComboDatasetPyTable, available from comboDS.py.
 
+NOTE: since the model uses CudaConvnet for convolution, it cannot run on the CPU. Furthermore, without
+Adadelta or dropout, with a batch_size of 64, and the default image size, it takes about 5.5GB
+of VRAM to run the model (which means only titans can handle it).
+Adadelta without dropout and a batch_size of 48 can take the whole 6GB, so make sure the GPU has
+freed all its memory before starting the experiment (lacking as little as 120MB is NOT OK).
+
 ALREADY TRIED
-* Changing the cost function to consider the mean (least squared error over non-missing points) 
-resulted in the model learning the 4-5 points that were available on all images rather well, 
-but the 93 other points' accuracy was completely ignored.
-* With the sum cost, GCN would start at a much lower objective value and yet would converge slower than
-the model not using any preprocessing. 
-* No dropout resulted in rather poor overall results with a few good results based on argmax on the
-gaussians, and no good result whatsoever on expection based point coordinates. Dropout is currently
-being tested.
+* LR:
+- 0.1
+Cost: sum or mean, with dropout, epoch 187
+Overall bad results, only a few good detections with argmax, none with keypoint position expectation.
+
+Cost: sum, no dropout, epoch 120
+Better but still unsatisfying results. No apparent overfitting.
+
+-0.025
+Cost: sum, with dropout, epoch 130
+Same as with LR 0.1
+
+Cost: sum, no dropout, epoch 80
+Better results still than no dropout with LR of 0.1, at around 1/3 heads correctly trained for and 1/4 of those
+with accurate enough keypoints.
+
+-0.0025
+Cost: sum, no dropout, epoch 198
+Worse results than with LR 0.025, better than with LR 0.1
+
+-0.005
+Cost: sum, no dropout, epoch 66
+So far, somewhat better than LR 0.0025 at this point. Still worse than LR 0.025 at the same point.
+
+-ADADELTA
+Cost: sum, no dropout, epoch 100
+Best results so far by quite a bit. Still not good enough. Also, starts overfitting around epoch 50.
+
+Cost: sum, with dropout, epoch ??
+??
 
 TOOLS
 testModel.py will display images with the model's predicted keypoints using either argmax or expectation, 
@@ -64,5 +92,7 @@ based on the provided path and set (changes have to be made in the script). It r
 set appropriately.
 
 TODO
-* Implement the ADADELTA algorithm for training (supposing we're not learning because of optimization problems).
-* Visualize hidden layer weights 
+* Visualize hidden layer weights to more accurately determine why the model isn't training as expected.
+* Try mean cost again
+* Incorporate perturbations
+* Try GCN again (might help for highly saturated images)

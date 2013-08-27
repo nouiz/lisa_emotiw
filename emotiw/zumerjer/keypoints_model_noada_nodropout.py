@@ -24,7 +24,7 @@ def main():
     #creating layers
         #2 convolutional rectified layers, border mode valid
     batch_size = 64
-    lr = 1.0 #0.1/4
+    lr = 0.1/20
     finMomentum = 0.9
     maxout_units = 2000
     num_pcs = 4
@@ -33,8 +33,8 @@ def main():
     #best_path = '/models/no_maxout/titan_bart10_gpu2_best.joblib'
     #save_path = './models/'+params.host+'_'+params.device+'_'+sys.argv[1]+'.joblib'
     #best_path = './models/'+params.host+'_'+params.device+'_'+sys.argv[1]+'best.joblib'
-    save_path = '/Tmp/zumerjer/bart10_meancost_adadelta_ema.joblib'
-    best_path = '/Tmp/zumerjer/bart10_meancost_adadelta_ema_best.joblib'
+    save_path = '/Tmp/zumerjer/eos1_sumcost_nodrop_noada_small_ema.joblib'
+    best_path = '/Tmp/zumerjer/eos1_sumcost_nodrop_noada_small_ema_best.joblib'
 
     #numBatches = 400000/batch_size
 
@@ -96,7 +96,7 @@ def main():
     layer_name = 'multisoftmax'
     layerMS = MultiSoftmax(n_groups=n_groups,irange = 0.05, n_classes=n_classes, layer_name= layer_name)
 
-    #setting up MLP
+    #setting up MLP0
     MLPerc = MLP(batch_size = batch_size,
                  input_space = Conv2DSpace(shape = [96, 96],
                  num_channels = 3, axes=('b', 0, 1, 'c')),
@@ -106,7 +106,7 @@ def main():
     missing_target_value = -1
     mlp_cost = MLPCost(cost_type='default',
                             missing_target_value=missing_target_value )
-    mlp_cost.setup_dropout(input_include_probs= { 'convRect1' : 0.8 }, input_scales= { 'convRect1': 1. })
+    #mlp_cost.setup_dropout(input_include_probs= { 'convRect1' : 0.8 }, input_scales= { 'convRect1': 1. })
 
     #dropout_cost = Dropout(input_include_probs= { 'convRect1' : .8 },
     #                      input_scales= { 'convRect1': 1. })
@@ -116,15 +116,15 @@ def main():
 
     term_crit  = MonitorBased(prop_decrease = 1e-7, N = 100, channel_name = 'validation_objective')
 
-    kp_ada = KeypointADADELTA(decay_factor = 0.95, 
-            #init_momentum = 0.5, 
+    kpSGD = KeypointSGD(learning_rate = lr,
+                        init_momentum = 0.5, 
                         monitoring_dataset = monitoring_dataset, batch_size = batch_size,
                         termination_criterion = term_crit,
                         cost = mlp_cost)
 
     #train extension
     #train_ext = ExponentialDecayOverEpoch(decay_factor = 0.998, min_lr_scale = 0.001)
-    #train_ext = LinearDecayOverEpoch(start= 1,saturate= 250,decay_factor= .01)
+    train_ext = LinearDecayOverEpoch(start= 1,saturate= 250,decay_factor= .01)
     #train_ext = ADADELTA(0.95)
 
     #train object
@@ -132,14 +132,14 @@ def main():
                   save_path= save_path,
                   save_freq=10,
                   model = MLPerc,
-                  algorithm= kp_ada,
-                  extensions = [#train_ext, 
+                  algorithm= kpSGD,
+                  extensions = [train_ext,
                       MonitorBasedSaveBest(channel_name='validation_objective',
-                                                     save_path= best_path)#,
+                                                     save_path= best_path),
 
-#                                MomentumAdjustor(start = 1,#
- #                                                saturate = 25,
-  #                                               final_momentum = finMomentum)
+                                MomentumAdjustor(start = 1,
+                                                 saturate = 25,
+                                                 final_momentum = finMomentum)
   ] )
     train.main_loop()
     train.save()
