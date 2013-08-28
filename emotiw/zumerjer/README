@@ -22,6 +22,8 @@ files from the .npy. BEWARE that the original .npy were incorrectly formated, so
 make_data function in this script will automatically correct the problem before dumping 
 the data to .h5 and you should make sure to remove this behavior if it is no longer relevant 
 to you.
+* [optional] gen_perms. This will create a new .h5 file with the original data
+as well as perturbations thereof.
 * [optional] split_h5 (with arguments: .h5 complete filename, which_set, start and stop). 
 This will split the .h5 file into, for example, train, test and validation sets (at your discretion).
 * make_h5_targets. This will turn the keypoints target into density vectors describing a gaussian 
@@ -55,7 +57,7 @@ Adadelta without dropout and a batch_size of 48 can take the whole 6GB, so make 
 freed all its memory before starting the experiment (lacking as little as 120MB is NOT OK).
 
 ALREADY TRIED
-* LR:
+* Without ADADELTA
 - 0.1
 Cost: sum or mean, with dropout, epoch 187
 Overall bad results, only a few good detections with argmax, none with keypoint position expectation.
@@ -79,7 +81,7 @@ Worse results than with LR 0.025, better than with LR 0.1
 Cost: sum, no dropout, epoch 66
 So far, somewhat better than LR 0.0025 at this point. Still worse than LR 0.025 at the same point.
 
--ADADELTA
+* With ADADELTA
 Cost: sum, no dropout, epoch 100
 Best results so far by quite a bit. Still not good enough. Also, starts overfitting around epoch 50.
 
@@ -90,6 +92,8 @@ TOOLS
 testModel.py will display images with the model's predicted keypoints using either argmax or expectation, 
 based on the provided path and set (changes have to be made in the script). It requires THEANO_FLAGS to be
 set appropriately.
+gen_perms.py takes an h5 file without gaussian targets and adds the original data as well as 
+perturbations into a new h5 file.
 
 TODO
 * Visualize hidden layer weights to more accurately determine why the model isn't training as expected.
