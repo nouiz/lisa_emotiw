@@ -15,6 +15,12 @@ The preprocessed data is the same data, to which Global Contrast Normalization (
 (X-mean)/std. dev.) preprocessing was applied. The files containing this data are called GCN_{which_set}.h5 
 and live in the same folder as the non-preprocessed data.
 
+The perturbed data is a perturbed version of the original data without preprocessing. The
+test and valid set contain a subset of the unperturbed data (together they make the full set),
+while the train set contains only perturbed data (a different perturbation for each image, 4 times
+the original set in the same order).
+They live in the same folder as the other sets and are named perturbed_{which_set}.h5.
+
 -generate:
 Supposing the data is already available as .npy, then run the following scripts, in order:
 * comboDS (after having set the appropriate paths in the file). This will generate .h5 
