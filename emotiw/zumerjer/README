@@ -1,3 +1,10 @@
+MODELS
+The Adadelta, no dropout, trained on GCN preprocessed data; adadelta, no dropout, trained on 
+unpreprocessed data; adadelta, with dropout, trained on unpreprocessed data; and non-adadelta, 
+no dropout, trained on unpreprocessed data models are located in /data/lisatmp2/keypoints_detector/ 
+in joblib format (pickle and cPickle would both bug out while trying to read the files while joblib 
+is fine with it).
+
 DATA
 -use:
 The files named all_{which_set}.h5 in ${PYLEARN2_DATA_PATH}/faces/hdf5/ 
