@@ -91,8 +91,21 @@ So far, somewhat better than LR 0.0025 at this point. Still worse than LR 0.025 
 Cost: sum, no dropout, epoch 100
 Best results so far by quite a bit. Still not good enough. Also, starts overfitting around epoch 50.
 
-Cost: sum, with dropout, epoch ??
-??
+Cost: sum, with dropout, epoch 79
+Should continue training for about 40 more epochs to see what happens but otherwise it converges and doesn't overfit,
+but it's (as expected) much slower than without dropout.
+
+Cost: sum, no dropout, epoch 87, GCN preprocessing
+After 87 epochs, still not as good as the non-preprocessed data at ~50 epochs. Pretty close, and hasn't
+overfit. However, the initial score was lower than without preprocessing (a bug?).
+Nonetheless, the results are outstanding compared to anything else.
+It is the only model with low enough variance in the output gaussians that points can be displayed via expectation instead of argmax.
+While it's not quite there yet (many mistakes on obscured or very zoomed-in faces), I count around 1 in 5 image with actually bad keypoints where a face is really present.
+
+Cost: sum, with dropout, epoch -, perturbed data
+Didn't finish even one epoch after 22 hours, even though the perturbed set was no bigger than 4x the original train set (valid set being <2x as big).
+NOTE: sending SIGTERM results in "Error freeing device pointer <addr> (unspecified launch failure)". It is possible that the error didn't properly stop execution
+and instead locked up the process for the 22 hours.
 
 TOOLS
 testModel.py will display images with the model's predicted keypoints using either argmax or expectation, 
@@ -104,5 +117,5 @@ perturbations into a new h5 file.
 TODO
 * Visualize hidden layer weights to more accurately determine why the model isn't training as expected.
 * Try mean cost again
-* Incorporate perturbations
-* Try GCN again (might help for highly saturated images)
+* Try to get the perturbed data and model to work
+* Try dataset-wise contrast normalization instead of GCN

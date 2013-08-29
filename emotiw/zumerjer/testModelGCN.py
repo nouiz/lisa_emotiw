@@ -55,8 +55,10 @@ def generateTest(dataset, modelPath,  batch_size = 8):
     y = []
         
     import matplotlib.pyplot as plt
+    import matplotlib.cm as cm
     for imgIdx in xrange(dataset.X.shape[0] / batch_size):
         x_arg = dataset.X[imgIdx * batch_size:(imgIdx + 1) * batch_size, :]
+        x_arg = ((x_arg - x_arg.min())/(x_arg.max() - x_arg.min()))*255.
         images = []
         #if X.ndim > 2:
         #    x_arg2 = dataset.get_topological_view(x_arg)
@@ -66,6 +68,9 @@ def generateTest(dataset, modelPath,  batch_size = 8):
             #print ys[i, 25,:]
          #   images.append(x_arg)
             transf = x_arg[i]
+            for a in xrange(len(transf)):  # This grayscales the image using the matlab formula.
+                for b in xrange(len(transf[a])):
+                    transf[a][b] = [np.sum(transf[a][b]*np.array([0.299, 0.587, 0.114]))]*3
             #diff = (max(transf) - min(transf))
             #transf = (transf/diff)*255
             #transf = np.cast['uint8'](transf)
@@ -121,7 +126,7 @@ def test_works():
     from emotiw.zumerjer.comboDS import ComboDatasetPyTable as ComboDS
 
     
-    ddmTest = ComboDS(path='/data/lisa/data/faces/hdf5/all_', which_set = 'test')
+    ddmTest = ComboDS(path='/data/lisa/data/faces/hdf5/GCN_', which_set = 'test')
 
     generateTest(ddmTest, model_file, batch_size = batch_size)
 
