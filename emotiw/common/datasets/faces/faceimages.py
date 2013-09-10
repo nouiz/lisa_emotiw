@@ -32,7 +32,7 @@ import os
 import os.path
 import glob
 import sys
-#import cv
+import cv
 import Image
 import ImageDraw
 import ImageFont
@@ -105,10 +105,10 @@ class FaceImagesDataset(object):
 
     def get_original_image(self, i):
         filepath = self.get_original_image_path(i)
-        print 'check the code, its been compromised'
-        #img = cv.LoadImage(filepath)
-        #return img
-        return None
+        # print 'check the code, its been compromised'
+        # return None
+        img = cv.LoadImage(filepath)
+        return img
 
     def get_original_image_path(self,i):
         """
