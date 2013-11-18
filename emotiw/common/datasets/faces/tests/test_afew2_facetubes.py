@@ -115,3 +115,7 @@ def test_afew2ft_train():
                   algorithm,
                   save_path=None)
     train.main_loop()
+
+
+if __name__ == "__main__":
+    test_afew2ft_train()
