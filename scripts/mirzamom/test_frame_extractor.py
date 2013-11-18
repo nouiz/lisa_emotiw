@@ -51,11 +51,20 @@ def extract_frames(src, dest, asr):
 
 if __name__ == "__main__":
 
-    _, clip_path, save_path = sys.argv
+    args = sys.argv
+    clip_path = args[1]
+    save_path = args[2]
+    file_list = args[3:]
 
-    file_list = []
     if len(file_list) == 0:
         file_list = glob.glob("{}/*.avi".format(clip_path))
+    else:
+        for i in xrange(len(file_list)):
+            try:
+                file_list[i].index('/')
+            except ValueError:
+                file_list[i] = "{}/{}".format(clip_path, file_list[i])
+    print file_list
 
     # make path if not exist
     if not os.path.isdir(save_path):
