@@ -1,3 +1,4 @@
+# not needed, was used to launch on cluster
 qsub -v a=16 -l nodes=3,walltime=20:00:00 matlab.bat
 qsub -v a=17 -l nodes=3,walltime=20:00:00 matlab.bat
 qsub -v a=18 -l nodes=3,walltime=20:00:00 matlab.bat
