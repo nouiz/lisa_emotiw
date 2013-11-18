@@ -46,8 +46,8 @@ def extract_frames(src, dest, asr):
     asr: aspect ration string e.g. 1024x576
     """
 
-    command = ["ffmpeg", "-i", src,  "-s", asr, "-q", "1", dest]
-    subprocess.call(command)
+    command = ["ffmpeg", "-i", src,  "-s", asr, "-qscale", "1", dest]
+    subprocess.check_call(command)
 
 if __name__ == "__main__":
 
