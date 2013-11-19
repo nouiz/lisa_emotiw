@@ -1,0 +1,8 @@
+execute the inference_line.py file
+
+Before execution the path to videos in the inference_line.py should be appropriately edited.
+
+Needs theano to be installed and uses libsvm which is already in the subdirectory.
+
+The propabilities for the test videos will be stored in activity_recognition_test_results.txt
+chal_*_data.npz files contain computed features and corresponding labels
