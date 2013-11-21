@@ -67,6 +67,7 @@ class DirToProcessEventHandler(FileSystemEventHandler):
             time.sleep(2)   # It seems like some amount of time must pass between two
                     # runs of Picasa. The first run occurs in INIT_AHK_EXE.
 	    os.system(AHK_EXE + ' ' + str(file_count))
+            time.sleep(2)
             os.rename(FACES_DIRECTORY, path_w_out_folder_ext + '.' + FACES_EXT)
             os.rename(PROCESSING_DIRECTORY, path_w_out_folder_ext + '.' + PROCESSED_EXT)
 	    time.sleep(2)	# For same purpose as above, in case a 2nd run of the process occurs immediately

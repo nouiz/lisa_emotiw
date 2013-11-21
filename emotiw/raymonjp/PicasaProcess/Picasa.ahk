@@ -55,7 +55,7 @@ if ErrorLevel = 0
 	StarY = %StarYWithAlbum%
 	PeopleX = %PeopleXWithAlbum%
 	PeopleY = %PeopleYWithAlbum%
-	MsgBox, With Album
+	;MsgBox, With Album
 }
 else
 {
@@ -63,7 +63,7 @@ else
 	StarY = %StarYWithoutAlbum%
 	PeopleX = %PeopleXWithoutAlbum%
 	PeopleY = %PeopleYWithoutAlbum%
-	MsgBox, Without Album
+	;MsgBox, Without Album
 }
 
 ; Detecting the beginning of the face detection process
@@ -77,7 +77,7 @@ Loop
 		break
 }
 
-MsgBox, Face detection has begun
+;MsgBox, Face detection has begun
 
 ; Detecting the end of the face detection process
 Loop
