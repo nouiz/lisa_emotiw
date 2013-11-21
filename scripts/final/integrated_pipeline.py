@@ -10,7 +10,7 @@ import time
 ### Define environment variables for configuration
 
 # Root directory for the data read and generated
-DATA_ROOT_DIR = '/u/lamblinp/emotiw_pipeline/test1'
+DATA_ROOT_DIR = '/u/ebrahims/emotiw_pipeline/test1'
 
 # Initial directory containing the *.avi files,
 # relative to DATA_ROOT_DIR
@@ -19,11 +19,20 @@ AVI_DIR = 'Test_Vid_Distr/Data'
 # Names of clips to process
 CLIP_IDS = [
     '000143240',
+#    '000152960',
+#    '000157760',
+#    '000201320',
+#    '000231280',
+#    '000236840',
+#    '000240440',
+#    '000247920',
+#    '000257240',
+#    '000311160',
     ]
 
 # TODO: Jean-Philippe, which directories to use?
 # Picasa incoming directory
-PICASA_PROCESSING_DIR = '???'
+PICASA_PROCESSING_DIR = '/data/lisatmp/faces/picasa_process'
 
 ## Export these variables as environment variables
 # TODO: Pascal L., see if actually needed
@@ -93,7 +102,7 @@ for clip_id in CLIP_IDS:
     clip_picasa_faces_dir = os.path.join(
         PICASA_PROCESSING_DIR, '%s.faces' % clip_id)
 
-    for i in xrange(6):
+    for i in xrange(300):
         time.sleep(1)
         if os.path.exists(clip_picasa_processed_dir):
             break

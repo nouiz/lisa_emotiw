@@ -6,7 +6,7 @@ import subprocess
 import glob
 import os
 import sys
-import ipdb
+#import ipdb
 
 def get_output_size(path, width = 1024):
     """
