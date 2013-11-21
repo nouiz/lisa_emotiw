@@ -131,6 +131,17 @@ for clip_id in CLIP_IDS:
 
 
 ## Phase 2.2: get bounding boxes
+find_match_script = os.path.join(SCRIPTS_PATH, 'mirzamom', 'find_match.py')
+cmd_line_template = '%(python)s %(script)s %(orig_path)s %(cropped_path)s %(save_path)s'
+for clip_id in CLIP_IDS:
+    cmd_line = cmd_line_template % dict(
+        python=sys.executable,
+        script=find_match_script,
+        orig_path=os.path.join(frame_dir, clip_id),
+        cropped_path=os.path.join(faces_dir, clip_id),
+        save_path=os.path.join(bbox_dir, clip_id))
+    subprocess.check_call(cmd_line, shell=True)
+
 
 ## Phase 2.3:
 
