@@ -6,6 +6,7 @@ import subprocess
 import sys
 import time
 
+from mlabwrap import mlab
 
 ### Define environment variables for configuration
 
@@ -122,3 +123,33 @@ for clip_id in CLIP_IDS:
 
 
 ### Phase 2b: Fallback if Picasa did not find anything
+
+# Use Ramanan keypoints algorithm to find and save keypoint detections.  
+# Needs to check it PICASSA failed!
+# How to deal with multiple detections? 
+backup_faces_dir = os.path.join(DATA_ROOT_DIR, 'ramanan_keypoints_picassa_backup')
+if not os.path.exists(backup_faces_dir):
+    os.mkdir(backup_faces_dir)
+
+for clip_id in CLIP_IDS:
+    clip_frame_dir = os.path.join(frame_dir, clip_id)
+    clips = []
+    for i,j,c in os.walk(clip_frame_dir):
+        clips = c
+    for clip in clips:
+        print '\n', clip, clip_frame_dir, backup_faces_dir, '\n'
+        dest = backup_faces_dir + '/' + clip[:-4] + '__ramanan.mat'
+        clip = clip_frame_dir + '/' + clip
+        print clip, dest, '\n'
+        #model can be 0 (used for challenge), 1, or 2.  
+        #Lower numbered models are better and slower.
+        mlab.ramanan1(clip, dest, 0)
+    
+
+
+
+
+
+
+
+
