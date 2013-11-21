@@ -35,9 +35,7 @@ def assign(modes):
     
     for mode in modes:
         l.append((mode,))
-        print l
         tmp = modes[:modes.index(mode)]+modes[modes.index(mode)+1:]
-        print tmp
         assigned = assign(tmp)
         for mm in assigned:
             l.append(build([mode]+list(mm)))
@@ -45,32 +43,34 @@ def assign(modes):
     return unique(l)
 
 def build(s):
-    print s
     return tuple(sorted(s))
 
 def unique(s):
     return OrderedDict.fromkeys(s).keys()
 
-l = assign(sorted(modes.keys()))
-print l
+#l = assign(sorted(modes.keys()))
 
-#l = [('bagofmouth', 'pascal', 'samira', 'samira-audio'),
-#('activity', 'bagofmouth', 'samira', 'samira-audio'),
-#('activity', 'audio', 'bagofmouth', 'samira', 'samira-audio'),
-#('activity', 'audio', 'bagofmouth', 'pascal', 'samira', 'samira-audio'),
-#('activity', 'bagofmouth', 'pascal', 'samira', 'samira-audio'),
-#('audio', 'bagofmouth', 'pascal', 'samira', 'samira-audio'),
-#('activity', 'audio', 'bagofmouth', 'samira-audio'),
-#('activity', 'audio', 'bagofmouth', 'pascal', 'samira-audio'),
-#('activity', 'bagofmouth', 'pascal', 'samira-audio'),
-#('bagofmouth', 'samira', 'samira-audio'),
-#('audio', 'bagofmouth', 'samira', 'samira-audio'),
-#('activity', 'bagofmouth', 'samira-audio'),
-#('audio', 'bagofmouth', 'samira-audio'),
-#('activity', 'pascal', 'samira', 'samira-audio'),
-#('activity', 'audio', 'pascal', 'samira', 'samira-audio'),
-#('activity', 'samira', 'samira-audio'),
-#('activity', 'audio', 'bagofmouth', 'samira')]
+l = [('bagofmouth', 'pascal', 'samira', 'samira-audio'),
+('activity', 'bagofmouth', 'samira', 'samira-audio'),
+('activity', 'audio', 'bagofmouth', 'samira', 'samira-audio'),
+('activity', 'audio', 'bagofmouth', 'pascal', 'samira', 'samira-audio'),
+('activity', 'bagofmouth', 'pascal', 'samira', 'samira-audio'),
+('audio', 'bagofmouth', 'pascal', 'samira', 'samira-audio'),
+('activity', 'audio', 'bagofmouth', 'samira-audio'),
+('activity', 'audio', 'bagofmouth', 'pascal', 'samira-audio'),
+('activity', 'bagofmouth', 'pascal', 'samira-audio'),
+('bagofmouth', 'samira', 'samira-audio'),
+('audio', 'bagofmouth', 'samira', 'samira-audio'),
+('activity', 'bagofmouth', 'samira-audio'),
+('audio', 'bagofmouth', 'samira-audio'),
+('activity', 'pascal', 'samira', 'samira-audio'),
+('activity', 'audio', 'pascal', 'samira', 'samira-audio'),
+('activity', 'samira', 'samira-audio'),
+('audio', 'samira'),
+('activity', 'audio', 'bagofmouth', 'samira')]
+
+l = [('audio','samira'),
+('activity', 'audio', 'bagofmouth', 'samira')]
 
 def make_precision(best):
     precision = np.zeros(best.values()[0][0].shape)
@@ -86,61 +86,77 @@ for s in ['valid']:#'train','valid','test']:
 
     if s!='test':
         targets = np.load(os.path.join(base_path,"afew2_%s_targets.npy" % s))
-    for mm in l:
-        print mm
-        mean_pred = mean([os.path.join(base_path,modes[mode],base_name % s) for mode in mm])
-        if s!='test':
-            rvals[mm] = np.mean(mean_pred.argmax(1)==targets)
-        np.save("mean/"+"_".join(mm)+"_"+s,mean_pred)
 
-    rvals2 = {}
-    timer = Timer(len(mm)*3*7)
-    timer.start()
-    for j, [mm, rval] in enumerate(reversed(sorted(rvals.items(),key=lambda a:a[1]))):
-        best = (None,0)
+    for j, mm in enumerate(l):
+        rvals[mm] = (None,0)
         paths = [os.path.join(base_path,modes[mode],base_name % s) for mode in mm]
 
-        for k in range(3):
-#                tests = np.random.multinomial(2000,[1/(0.+len(mm))]*len(mm),size=2000)/2000.
+        for k in range(5):
             tests = np.random.random((4000,len(mm),7))
-#            tests = np.round(tests/np.sum(tests,axis=1)[:,None,:],decimals=2)
             tests = tests/np.sum(tests,axis=1)[:,None,:]
-#            base = np.copy(best[i][0])#np.ones((len(mm),7))*1/(0.+len(mm))
             for test in tests:
-                #print test
-                #print base[:,i]
-#                base[:,i] = test
-                #print base
-                mean_pred = take_best_p(paths,test)#base)
+                mean_pred = take_best_p(paths,test)
                 if s!='test':
                     rval = np.mean(mean_pred.argmax(1)==targets)
-                    if rval > best[1]:
-                        best = (test,rval)#(base,rval)
-            timer.print_update(1)
-
+                    if rval > rvals[mm][1]:
+                        rvals[mm] = (test,rval)#(base,rval)
         
             print "round",k
-            #print make_precision(best)
-            print best[0]
-            #rvals2[mm] = np.mean(take_best_p(paths,make_precision(best)).argmax(1)==targets)
-            rvals2[mm] = best
-            print rvals2[mm]
-            print j,len(rvals)
-    print "it took",timer.over()
+            #print rvals[mm][0]
+            print mm
+            print rvals[mm][1]
+            print j,len(l)
 
-    for mm, rval2 in reversed(sorted(rvals2.items(),key=lambda a:a[1][1])):
-        print rval2[1],mm
-        np.save('random_weights/'+s+'_'.join(mm),rval2[0])
+    for mm, rval in reversed(sorted(rvals.items(),key=lambda a:a[1][1])):
+        print rval[1],mm
+        np.save('random_weights/'+s+'_'.join(mm),rval[0])
 
+    y = 0
+    while True:
+        for mm in l:
+            train_paths = [os.path.join(base_path,modes[mode],base_name % 'train') for mode in mm]
+            valid_paths = [os.path.join(base_path,modes[mode],base_name % 'valid') for mode in mm]
 
+            targets = np.load(os.path.join(base_path,"afew2_%s_targets.npy" % 'valid'))
 
-#        mean_pred = take_best([os.path.join(base_path,modes[mode],base_name % s) for mode in mm])
+            paths = [os.path.join(base_path,modes[mode],base_name % 'valid') for mode in mm]
 
+            mean_pred = take_best_p(paths,rvals[mm][0])
+            rval = np.mean(mean_pred.argmax(1)==targets)
+            #print "init"
+            #print rvals[mm][0]
+            #print rvals[mm][1]
 
+            r = 1.0
 
+            for k in range(3):
+                tests = np.random.normal(scale=0.10,size=(2000,len(mm),7))
+                tests = (tests * (tests < r)) * (tests > -r)
+                for test in tests:
+                    new = test+rvals[mm][0]
+                    new = new * (new > 0)
+                    new = np.round(new/np.sum(new,axis=0)[None,:],decimals=2)
+                    mean_pred = take_best_p(paths,new)
+                    if s!='test':
+                        rval = np.mean(mean_pred.argmax(1)==targets)
+                        if rval > rvals[mm][1]:
+                            rvals[mm] = (new,rval)
 
+                np.save('random_weights/best_both'+'_'.join(mm)+'.npy',rvals[mm][0])
+                mean_pred = take_best_p(train_paths,rvals[mm][0])
+                np.save('random_weights/brute_train_predicts'+'_'.join(mm)+'.npy',mean_pred)
+                mean_pred = take_best_p(valid_paths,rvals[mm][0])
+                np.save('random_weights/brute_valid_predicts'+'_'.join(mm)+'.npy',mean_pred)
+                mean_pred = take_best_p([os.path.join(base_path,modes[mode],base_name % 'test') for mode in mm],rvals[mm][0])
+                np.save('random_weights/brute_test_predicts'+'_'.join(mm)+'.npy',mean_pred)
 
+            print mm
 
+        y += 1
+        print "round", y
+
+        for mm, rval in reversed(sorted(rvals.items(),key=lambda a:a[1][1])):
+            print rval[1],mm
 
 
 
