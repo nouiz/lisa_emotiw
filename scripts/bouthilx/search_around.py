@@ -72,10 +72,10 @@ for k in range(10000):
     print best[1]
     #rvals2[mm] = np.mean(take_best_p(paths,make_precision(best)).argmax(1)==targets)
 
-    np.save('random_weights/best_both.npy',best[0])
+    np.save('random_weights/final.npy',best[0])
     mean_pred = take_best_p(train_paths,best[0])
-    np.save('random_weights/brute_train_predicts.npy',mean_pred)
+    np.save('random_weights/final_train_predicts.npy',mean_pred)
     mean_pred = take_best_p(valid_paths,best[0])
-    np.save('random_weights/brute_valid_predicts.npy',mean_pred)
+    np.save('random_weights/final_valid_predicts.npy',mean_pred)
     mean_pred = take_best_p([os.path.join(base_path,modes[mode],base_name % 'test') for mode in mm],best[0])
-    np.save('random_weights/brute_test_predicts.npy',mean_pred)
+    np.save('random_weights/final_test_predicts.npy',mean_pred)
