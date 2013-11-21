@@ -414,7 +414,7 @@ def save_tube(tubes, src_path, des_path, size, what_to_save):
                     orig_name = "%s%s-%03d_.png" % (src_path, clip, frame)
                     img = cv2.imread(orig_name)
                     if img is None:
-                        import pdb; pdb.set_trace()
+                        continue
 
                     center_x, center_y = smoothed_sq_bb_center_coords[idx]
                     length = smoothed_sq_bb_length[idx]
@@ -423,11 +423,8 @@ def save_tube(tubes, src_path, des_path, size, what_to_save):
                     pt1_x, pt1_y = int(center_x - (length/2.)), int(center_y - (length/2.))
                     pt2_x, pt2_y = int(center_x + (length/2.)), int(center_y + (length/2.))
 
-                    try:
-                        pt1_x, pt2_x = numpy.clip([pt1_x, pt2_x], 0, img.shape[1]-1)
-                        pt1_y, pt2_y = numpy.clip([pt1_y, pt2_y], 0, img.shape[0]-1)
-                    except AttributeError:
-                        import pdb; pdb.set_trace()
+                    pt1_x, pt2_x = numpy.clip([pt1_x, pt2_x], 0, img.shape[1]-1)
+                    pt1_y, pt2_y = numpy.clip([pt1_y, pt2_y], 0, img.shape[0]-1)
 
                     # Check if there is a black border around the picture. We will trim
                     # this black border if it is the case.
