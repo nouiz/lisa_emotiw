@@ -157,4 +157,4 @@ test_probabilities_formatted[:,6] = test_probabilities[:,4].copy()
 
 test_probabilities_formatted_v2 = test_probabilities_formatted.copy()
 
-np.save("test_probabilities_submitted.npy",test_probabilities_formatted_v2)
+np.save("BoMF_test_probabilities.npy",test_probabilities_formatted_v2)
