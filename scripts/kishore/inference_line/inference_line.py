@@ -280,7 +280,7 @@ if __name__ == '__main__':
     # Initializing the ActionRecognizer class
     Recog = ActionRecognizer(args)
     # Computing the video descriptors
-    #Recog.get_dense_samples()
+    Recog.get_dense_samples()
     # pridicting labels for computed video descriptors
     Recog.classify(args)
 

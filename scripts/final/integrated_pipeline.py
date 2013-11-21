@@ -10,12 +10,25 @@ from mlabwrap import mlab
 
 ### Define environment variables for configuration
 
+# For libsvm
+os.environ['PYTHONPATH'] = (
+    '/data/lisa/exp/faces/emotiw_final/Kishore/inference_line/'
+    'libsvm-3.13/python:') + os.environ['PYTHONPATH']
+
+
 # Root directory for the data read and generated
 DATA_ROOT_DIR = '/u/ebrahims/emotiw_pipeline/test1'
 
 # Initial directory containing the *.avi files,
 # relative to DATA_ROOT_DIR
 AVI_DIR = 'Test_Vid_Distr/Data'
+AVI_DIR = os.path.join(DATA_ROOT_DIR, AVI_DIR)
+
+# Data where we put the individual predictions
+PREDICTION_DIR = 'module_predictions'
+PREDICTION_DIR = os.path.join(DATA_ROOT_DIR, PREDICTION_DIR)
+if not os.path.exists(PREDICTION_DIR):
+    os.mkdir(PREDICTION_DIR)
 
 # Names of clips to process
 CLIP_IDS = [
@@ -60,7 +73,7 @@ if not os.path.exists(frame_dir):
     os.mkdir(frame_dir)
 
 for clip_id in CLIP_IDS:
-    clip_dir = os.path.join(DATA_ROOT_DIR, AVI_DIR)
+    clip_dir = AVI_DIR
     clip_frame_dir = os.path.join(frame_dir, clip_id)
     if os.path.exists(clip_frame_dir):
         raise Exception(
@@ -124,32 +137,67 @@ for clip_id in CLIP_IDS:
 
 ### Phase 2b: Fallback if Picasa did not find anything
 
-# Use Ramanan keypoints algorithm to find and save keypoint detections.  
-# Needs to check it PICASSA failed!
-# How to deal with multiple detections? 
+# Use Ramanan keypoints algorithm to find and save keypoint detections.
+# How to deal with multiple detections?
 backup_faces_dir = os.path.join(DATA_ROOT_DIR, 'ramanan_keypoints_picassa_backup')
 if not os.path.exists(backup_faces_dir):
     os.mkdir(backup_faces_dir)
 
 for clip_id in CLIP_IDS:
+    clip_faces_dir = os.path.join(faces_dir, clip_id)
+    nb_faces = len([f for f in os.listdir(clip_faces_dir) if f.endswith('.png')])
+    if nb_faces > 0:
+        # Picasa detected faces, no need for the backup plan
+        continue
+
     clip_frame_dir = os.path.join(frame_dir, clip_id)
     clips = []
-    for i,j,c in os.walk(clip_frame_dir):
+    for i, j, c in os.walk(clip_frame_dir):
         clips = c
     for clip in clips:
-        print '\n', clip, clip_frame_dir, backup_faces_dir, '\n'
-        dest = backup_faces_dir + '/' + clip[:-4] + '__ramanan.mat'
-        clip = clip_frame_dir + '/' + clip
-        print clip, dest, '\n'
-        #model can be 0 (used for challenge), 1, or 2.  
-        #Lower numbered models are better and slower.
+        print '\n', clip, clip_frame_dir, backup_faces_dir
+        dest = os.path.join(backup_faces_dir, clip[:-4] + '__ramanan.mat')
+        clip = os.path.join(clip_frame_dir, clip)
+        print clip, dest
+        # model can be 0 (used for challenge), 1, or 2.
+        # Lower numbered models are better and slower.
         mlab.ramanan1(clip, dest, 0)
-    
 
 
 
 
+###
+### Kishore's module (activity recognition)
 
+kishore_model_root = '/data/lisa/exp/faces/emotiw_final/Kishore/inference_line'
 
+# Convert from mpeg2 to mjpeg, otherwise opencv cannot read the video
+mjpeg_dir = os.path.join(DATA_ROOT_DIR, 'mjpeg_avi')
+if not os.path.exists(mjpeg_dir):
+    os.mkdir(mjpeg_dir)
 
+convert_line_template = 'mencoder %(inp)s -ovc lavc -lavcopts vcodec=mjpeg -oac copy -o %(out)s'
+cmd_line_template = '%(python)s %(inference_line)s %(centroids_file)s %(model_file)s %(videos_path)s %(train_data_file)s %(clip_ids)s'
 
+for clip_id in CLIP_IDS:
+    convert_line = convert_line_template % dict(
+        inp=os.path.join(AVI_DIR, '%s.avi' % clip_id),
+        out=os.path.join(mjpeg_dir, '%s.avi' % clip_id))
+    subprocess.check_call(convert_line, shell=True)
+
+    cmd_line = cmd_line_template % dict(
+        python=sys.executable,
+        inference_line=os.path.join(SCRIPTS_PATH, 'kishore', 'inference_line', 'inference_line.py'),
+        centroids_file=os.path.join(kishore_model_root, 'kmeans_centroids.npy'),
+        model_file=os.path.join(kishore_model_root, 'model_params.npz'),
+        videos_path=mjpeg_dir,
+        train_data_file=os.path.join(kishore_model_root, 'chal_train_data.npz'),
+        clip_ids=clip_id)
+
+    subprocess.check_call(cmd_line, shell=True)
+
+    # The output will be a one-liner file in the current directory
+    # TODO: check if it makes a difference to run all the clips at once,
+    #       Kishore did that, and the results could be different
+    shutil.move(os.path.join('activity_recognition_test_results.txt'),
+                os.path.join(PREDICTION_DIR, 'kishore_pred_%s.txt' % clip_id))
