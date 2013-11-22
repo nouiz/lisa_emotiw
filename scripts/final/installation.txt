@@ -1,0 +1,51 @@
+Dependencies and installation
+
+- This lisa_emotiw repo
+  lisa_emotiw should be mentionned in the PYTHONPATH
+
+- libsvm, with the "python" module in the PYTHONPATH
+
+- chi2, in the PYTHONPATH
+
+- Theano, in the PYTHONPATH
+
+
+Installation of PICASA
+- Picasa 3 (3.9, I think)
+- Mount \\cerveau\data as Z:\ (from windows explorer)
+- Create Z:\sans-bkp\faces\picasa_process\ProcessingFolder (Do Not Touch)
+
+Things to configure on first launch:
+- In the options, select .png among file extensions to watch
+- Configure folders: watch Z:\sans-bkp\faces\picasa_process\ProcessingFolder (Do Not Touch), and nothing else
+- Put some images with faces in that directory
+- Watch them import (close and reload picasa if needed)
+- Click on "Personnes" ("people") in the left menu, then the "expand" button (top of the main panel)
+- Click on the "export" button (bottom of the main panel)
+- In the dialog, change the main folder to Z:\sans-bkp\faces\picasa_process, and use "Faces" as album name
+
+Once this is done, you can remove Faces and "ProcessingFolder (Do Not Touch)" from Z:\sans-bkp\faces\picasa_process, and the script should work.
+
+
+Build the script extracting bbox coordinates:
+- cd scripts/mirzamom
+- python setup.py build_ext --inplace
+
+
+Compiling cuda-convnet:
+- create a phony cuda SDK folder $PHONY_SDK, I used /u/lamblinp/emotiw_final/toto
+- copy the following headers from Pylearn2/pylearn2/sandbox/cuda_convnet into $PHONY_SDK/includes:
+    cutil_inline.h
+    cutil.h
+    cutil_inline_bankchecker.h
+    cutil_inline_runtime.h
+    cutil_inline_drvapi.h
+    drvapi_error_string.h
+    helper_string.h
+- edit build.sh with:
+    export CUDA_INSTALL_PATH=/opt/cuda-5.5.22
+    export CUDA_SDK_PATH=$PHONY_SDK
+    export PYTHON_INCLUDE_PATH=/opt/lisa/os/epd-7.1.2/include/python2.7
+    export NUMPY_INCLUDE_PATH=/opt/lisa/os/epd-7.1.2/lib/python2.7/site-packages/numpy/core/include/numpy
+- Run with:
+    CPATH=$PHONY_SDK/include:$CPATH OMIT_CUTIL_LIB=1 sh build.sh
