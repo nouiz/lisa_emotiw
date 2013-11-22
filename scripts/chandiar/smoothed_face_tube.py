@@ -6,6 +6,8 @@ from util import *
 from conf import config
 
 
+# python smoothed_face_tube.py ../../../ExtractedFrame/003044960/ ../../../BoundBoxData/003044960/ ../../../smooth/003044960
+
 def main():
     extracted_frames_path = sys.argv[1]
     picasa_bbox_path = sys.argv[2]
@@ -13,6 +15,9 @@ def main():
 
     to_be_saved = []
     missing_bbx = []
+    # TODO: c'est tu bon de faire ca, de checker s'il y a un / a la fin de l'arg1?
+    if extracted_frames_path[-1] == '/':
+	extracted_frames_path = extracted_frames_path[:-1] 
     clip_id = extracted_frames_path.split('/')[-1]
     if True:
         print 'clip id: ', clip_id
