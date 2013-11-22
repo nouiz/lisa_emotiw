@@ -16,12 +16,12 @@ run_picasa = 0
 extract_bbox = 0
 smooth_facetubes = 0
 
-run_audio = 0
+run_audio = 1
 
 run_kishore = 0
 run_bomf = 0
 
-run_xavier = 1
+run_xavier = 0
 
 
 ### Define environment variables for configuration
@@ -295,6 +295,19 @@ if run_bomf:
                     os.path.join(PREDICTION_DIR, 'bomf_pred_%s.npy' % clip_id))
 
 
+# audio module
+if run_audio:
+
+    cmd_line_template = "%(python)s %(audio_wrapper)s %(data)s %(feats)s %(output)s %(clip_id)s"
+    for clip_id in CLIP_IDS:
+        cmd_line = cmd_line_template % dict(
+                python = sys.executable,
+                audio_wrapper = os.path.join(SCRIPTS_PATH, 'final', 'audio_wrapper.py'),
+                data = os.path.join(DATA_ROOT_DIR, 'Test_Vid_Distr', 'Data'),
+                feats = os.path.join(DATA_ROOT_DIR, 'audio_feats'),
+                output = PREDICTION_DIR,
+                clip_id = clip_id)
+        subprocess.check_call(cmd_line, shell = True)
 
 # Xavier's weighted prediction
 if run_xavier:
