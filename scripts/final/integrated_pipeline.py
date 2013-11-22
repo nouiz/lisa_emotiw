@@ -19,7 +19,9 @@ smooth_facetubes = 0
 run_audio = 0
 
 run_kishore = 0
-run_bomf = 1
+run_bomf = 0
+
+run_xavier = 1
 
 
 ### Define environment variables for configuration
@@ -91,7 +93,7 @@ frame_dir = os.path.join(DATA_ROOT_DIR, 'extracted_frames')
 if extract_frames:
     if not os.path.exists(frame_dir):
         os.mkdir(frame_dir)
-    
+
     for clip_id in CLIP_IDS:
         clip_dir = AVI_DIR
         clip_frame_dir = os.path.join(frame_dir, clip_id)
@@ -100,12 +102,12 @@ if extract_frames:
                 "Directory for extracting frames of clip id %s already exists: "
                 "%s" % (clip_id, clip_frame_dir))
         os.mkdir(clip_frame_dir)
-    
+
         # sys.executable is the full path to python
         cmd_line = '%s %s %s %s %s' % (
             sys.executable, script_name, clip_dir, clip_frame_dir,
             '%s.avi' % clip_id)
-    
+
         subprocess.check_call(cmd_line, shell=True)
 
 ### Phase 2: Extract Picasa faces
@@ -124,11 +126,11 @@ if run_picasa:
         clip_frame_dir = os.path.join(frame_dir, clip_id)
         clip_picasa_incoming = os.path.join(PICASA_PROCESSING_DIR, clip_id)
         shutil.copytree(clip_frame_dir, clip_picasa_incoming)
-    
+
         # Then, append '.process_me' to its name, to signal the Windows script
         # that it can proceed
         os.rename(clip_picasa_incoming, '%s.process_me' % clip_picasa_incoming)
-    
+
         # Wait for Picasa to return
         # This one contains the full frames, after processing
         clip_picasa_processed_dir = os.path.join(
@@ -136,16 +138,16 @@ if run_picasa:
         # This one contains the extracted faces
         clip_picasa_faces_dir = os.path.join(
             PICASA_PROCESSING_DIR, '%s.faces' % clip_id)
-    
+
         for i in xrange(300):
             time.sleep(1)
             if os.path.exists(clip_picasa_processed_dir):
                 break
-    
+
         else:
             # This is executed if the "break" was never executed
             raise Exception("Picasa script timed out")
-    
+
         assert os.path.exists(clip_picasa_faces_dir)
         clip_faces_dir = os.path.join(faces_dir, clip_id)
         shutil.copytree(clip_picasa_faces_dir, clip_faces_dir)
@@ -163,7 +165,7 @@ if extract_bbox:
                 "already exists: %s" % (clip_id, save_path))
         else:
             os.mkdir(save_path)
-    
+
         cmd_line = cmd_line_template % dict(
             python=sys.executable,
             script=find_match_script,
@@ -228,28 +230,28 @@ if smooth_facetubes:
             save_path=save_path)
         print 'executing:'
         print cmd_line
-        subprocess.check_call(cmd_line, shell=True)        
+        subprocess.check_call(cmd_line, shell=True)
 
 
 ###
 ### Kishore's module (activity recognition)
 if run_kishore:
     kishore_model_root = '/data/lisa/exp/faces/emotiw_final/Kishore/inference_line'
-    
+
     # Convert from mpeg2 to mjpeg, otherwise opencv cannot read the video
     mjpeg_dir = os.path.join(DATA_ROOT_DIR, 'mjpeg_avi')
     if not os.path.exists(mjpeg_dir):
         os.mkdir(mjpeg_dir)
-    
+
     convert_line_template = 'mencoder %(inp)s -ovc lavc -lavcopts vcodec=mjpeg -oac copy -o %(out)s'
     cmd_line_template = '%(python)s %(inference_line)s %(centroids_file)s %(model_file)s %(videos_path)s %(train_data_file)s %(clip_ids)s'
-    
+
     for clip_id in CLIP_IDS:
         convert_line = convert_line_template % dict(
             inp=os.path.join(AVI_DIR, '%s.avi' % clip_id),
             out=os.path.join(mjpeg_dir, '%s.avi' % clip_id))
         subprocess.check_call(convert_line, shell=True)
-    
+
         cmd_line = cmd_line_template % dict(
             python=sys.executable,
             inference_line=os.path.join(SCRIPTS_PATH, 'kishore', 'inference_line', 'inference_line.py'),
@@ -258,9 +260,9 @@ if run_kishore:
             videos_path=mjpeg_dir,
             train_data_file=os.path.join(kishore_model_root, 'chal_train_data.npz'),
             clip_ids=clip_id)
-    
+
         subprocess.check_call(cmd_line, shell=True)
-    
+
         # The output will be a one-liner file in the current directory
         # TODO: check if it makes a difference to run all the clips at once,
         #       Kishore did that, and the results could be different
@@ -275,7 +277,7 @@ if run_bomf:
     if not os.path.exists(small_faces_outdir):
         os.mkdir(small_faces_outdir)
     bomf_model_dir = '/data/lisa/exp/faces/emotiw_final/jeasebas'
-    
+
     cmd_line_template = '%(python)s %(bomf_cmdline)s %(aligned_faces_dir)s %(small_faces_outdir)s %(model_dir)s %(pred_dir)s %(batch_size)i %(clip_ids)s'
 
     for clip_id in CLIP_IDS:
@@ -291,3 +293,23 @@ if run_bomf:
         subprocess.check_call(cmd_line, shell=True)
         shutil.move(os.path.join(PREDICTION_DIR, 'BoMF_test_probabilities.npy'),
                     os.path.join(PREDICTION_DIR, 'bomf_pred_%s.npy' % clip_id))
+
+
+
+# Xavier's weighted prediction
+if run_xavier:
+
+    weights_file = "/data/lisa/exp/faces/emotiw_final/bouthilx/weights_in_paper.npy"
+    cmd_line_template = "%(python)s %(xavier_cmdline)s %(weights)s %(activity)s %(audio)s %(bagofmouth)s %(convnet)s %(convnet_audio)s %(output)s"
+    for clip_id in CLIP_IDS:
+        cmd_line = cmd_line_template % dict(
+                python = sys.executable,
+                xavier_cmdline = os.path.join(SCRIPTS_PATH, 'bouthilx', 'weighted_average.py'),
+                weights = weights_file,
+                activity = os.path.join(PREDICTION_DIR, 'garbage4.npy'),
+                audio = os.path.join(PREDICTION_DIR, 'bomf_pred_%s.npy' % clip_id),
+                bagofmouth = os.path.join(PREDICTION_DIR, 'garbage1.npy'),
+                convnet = os.path.join(PREDICTION_DIR, 'garbage2.npy'),
+                convnet_audio = os.path.join(PREDICTION_DIR, 'garbage3.npy'),
+                output = os.path.join(PREDICTION_DIR, 'xavier_output.npy'))
+        subprocess.check_call(cmd_line, shell = True)
