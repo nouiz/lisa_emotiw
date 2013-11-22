@@ -46,7 +46,7 @@ def get_bounding_boxes(path, clips):
             name = int(item.split('/')[-1].rstrip('.txt').split('-')[-1].split('_')[0])
             val = numpy.loadtxt(item, delimiter=',')
             if val.ndim == 1:
-		val = val.reshape((1,4))
+                val = val.reshape((1,4))
             clip_holder[name] = val.tolist()
         rval[clip] = clip_holder
     return rval
@@ -275,7 +275,7 @@ def get_face_tubes(frames, boxes, failed, img_path, tube_path, distance_thr, siz
         face_tubes[clip] = []
 
         for frame in frame_range:
-            img = "%s%s-%03d.png" % (img_path, clip, frame) 
+            img = "%s%s-%03d.png" % (img_path, clip, frame)
 
             # if we have bounding box
             if frame in boxes[clip]:
