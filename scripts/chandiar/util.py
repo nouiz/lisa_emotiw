@@ -5,6 +5,7 @@ from PIL import Image, ImageDraw
 import shutil
 import pickle
 import os
+import sys
 import scipy.io
 
 
@@ -277,7 +278,7 @@ def get_face_tubes(frames, boxes, failed, img_path, tube_path, distance_thr, siz
         face_tubes[clip] = []
 
         for frame in frame_range:
-            img = "%s%s-%03d_.png" % (img_path, clip, frame) 
+            img = "%s%s-%03d.png" % (img_path, clip, frame) 
 
             # if we have bounding box
             if frame in boxes[clip]:
@@ -287,7 +288,7 @@ def get_face_tubes(frames, boxes, failed, img_path, tube_path, distance_thr, siz
             else:
                 prev = find_previous(boxes[clip], frame)
                 if prev is not None:
-                    prev_img = "%s%s-%03d_.png" % (img_path, clip, prev)
+                    prev_img = "%s%s-%03d.png" % (img_path, clip, prev)
                     prev_boxes = get_previous_boxes(img, prev_img, boxes[clip][prev], similar_thr)
                     if len(prev_boxes) > 0:
                         face_tubes[clip] = assign_tube(face_tubes[clip], prev_boxes, frame, distance_thr, size_thr, overlap_thr)
@@ -411,9 +412,10 @@ def save_tube(tubes, src_path, des_path, size, what_to_save):
 
                 for idx in xrange(len(smoothed_sq_bb_center_coords)):
                     frame = frames[idx]
-                    orig_name = "%s%s-%03d_.png" % (src_path, clip, frame)
+                    orig_name = "%s%s-%03d.png" % (src_path, clip, frame)
                     img = cv2.imread(orig_name)
                     if img is None:
+                        print >>sys.stderr, "Could not open image %s" % orig_name
                         continue
 
                     center_x, center_y = smoothed_sq_bb_center_coords[idx]
@@ -476,7 +478,7 @@ def save_tube(tubes, src_path, des_path, size, what_to_save):
                         raise NotImplementedError('Option %s not implmemented.'%what_to_save)
                         facetubes[clip][clip_i][frame] = list(box)
                     elif what_to_save == 'img':
-                        save_name = "%s%s-%d-%03d_.png" % (des_path, clip, clip_i, frame)
+                        save_name = "%s%s-%d-%03d.png" % (des_path, clip, clip_i, frame)
                         cv2.imwrite(save_name, resized_img)
                     elif what_to_save == 'mat':
                         save_name = "%s%s-%d-%03d_.mat" % (des_path, clip, clip_i, frame)
