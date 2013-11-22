@@ -31,7 +31,7 @@ def get_bbox(extracted_frames_path, ramanan_keypts_path, bbox_path, bbox_on_img_
 	name = basename.split('/')[-1]
 	img = cv2.imread(frame_path)
 	# TODO: c'est quoi la convention de nommer les fichiers mat?
-	ramanan_path = ramanan_keypts_path + name + '_ramanan.mat'
+	ramanan_path = ramanan_keypts_path + name + '.mat'#+ '_ramanan.mat'
 	if not os.path.exists(ramanan_path):
 	    # TODO: si pas de ramanan donc pas de bounding box pour la frame.
 	    continue
