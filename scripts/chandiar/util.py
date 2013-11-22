@@ -46,10 +46,7 @@ def get_bounding_boxes(path, clips):
             name = int(item.split('/')[-1].rstrip('.txt').split('-')[-1].split('_')[0])
             val = numpy.loadtxt(item, delimiter=',')
             if val.ndim == 1:
-                try:
-                    val = val.reshape((1,4))
-                except ValueError:
-		    import pdb; pdb.set_trace()
+		val = val.reshape((1,4))
             clip_holder[name] = val.tolist()
         rval[clip] = clip_holder
     return rval
