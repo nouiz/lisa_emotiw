@@ -297,17 +297,17 @@ if run_bomf:
 
 # audio module
 if run_audio:
-
+    # TODO Caglar: put script in git, model in /data/lisa/exp/...
     cmd_line_template = "%(python)s %(audio_wrapper)s %(data)s %(feats)s %(output)s %(clip_id)s"
     for clip_id in CLIP_IDS:
         cmd_line = cmd_line_template % dict(
-                python = sys.executable,
-                audio_wrapper = os.path.join(SCRIPTS_PATH, 'final', 'audio_wrapper.py'),
-                data = os.path.join(DATA_ROOT_DIR, 'Test_Vid_Distr', 'Data'),
-                feats = os.path.join(DATA_ROOT_DIR, 'audio_feats'),
-                output = PREDICTION_DIR,
-                clip_id = clip_id)
-        subprocess.check_call(cmd_line, shell = True)
+            python=sys.executable,
+            audio_wrapper=os.path.join(SCRIPTS_PATH, 'final', 'audio_wrapper.py'),
+            data=os.path.join(DATA_ROOT_DIR, 'Test_Vid_Distr', 'Data'),
+            feats=os.path.join(DATA_ROOT_DIR, 'audio_feats'),
+            output=PREDICTION_DIR,
+            clip_id=clip_id)
+        subprocess.check_call(cmd_line, shell=True)
 
 # Xavier's weighted prediction
 if run_xavier:
@@ -319,9 +319,9 @@ if run_xavier:
                 python = sys.executable,
                 xavier_cmdline = os.path.join(SCRIPTS_PATH, 'bouthilx', 'weighted_average.py'),
                 weights = weights_file,
-                activity = os.path.join(PREDICTION_DIR, 'garbage4.npy'),
-                audio = os.path.join(PREDICTION_DIR, 'bomf_pred_%s.npy' % clip_id),
-                bagofmouth = os.path.join(PREDICTION_DIR, 'garbage1.npy'),
+                activity = os.path.join(PREDICTION_DIR, 'kishore_pred_%s.txt' % clip_id),
+                audio = os.path.join(PREDICTION_DIR, 'audio_mlp_learned_on_train_predict_on_test_scores.npy'),
+                bagofmouth = os.path.join(PREDICTION_DIR, 'bomf_pred_%s.npy' % clip_id),
                 convnet = os.path.join(PREDICTION_DIR, 'garbage2.npy'),
                 convnet_audio = os.path.join(PREDICTION_DIR, 'garbage3.npy'),
                 output = os.path.join(PREDICTION_DIR, 'xavier_output.npy'))
