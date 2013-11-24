@@ -3,7 +3,7 @@ function demoneimagewhole_scaled(path_in,path_out)
 %path_out='C:\challenges\FaceTubes\missingtestvideos\test\';
 'scaled'
 
-imagedir=dir(fullfile([path_in '*.png']));
+imagedir=dir(fullfile(path_in, '*.png'));
 %path_=['images/' imagedir(kk).name];
 %path_res=['Result/' imagedir(kk).name];
 %path_done=['Done/' imagedir(kk).name];

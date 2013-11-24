@@ -68,13 +68,6 @@ CLIP_IDS = [
 # Picasa incoming directory
 PICASA_PROCESSING_DIR = '/data/lisatmp/faces/picasa_process'
 
-## Export these variables as environment variables
-# TODO: Pascal L., see if actually needed
-#os.environ['DATA_ROOT_DIR'] = DATA_ROOT_DIR
-#os.environ['AVI_DIR'] = AVI_DIR
-#os.environ['PICASA_INCOMING_DIR'] = PICASA_INCOMING_DIR
-#os.environ['PICASA_FACES_DIR'] = PICASA_FACES_DIR
-
 
 ## Path of current script and "scripts" directory
 SELF_PATH = __file__
