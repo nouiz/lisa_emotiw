@@ -26,21 +26,13 @@ path5="$data_root_dir/IS/$1"
 path6="$data_root_dir/batches/$1"
 path7="'$data_root_dir/SVM/$1/'"
 
-echo "path1=$path1"
-echo "path2=$path2"
-echo "path3=$path3"
-echo "path4=$path4"
-echo "path5=$path5"
-echo "path6=$path6"
-echo "path7=$path7"
-
 
 matlab -nodesktop << EOF       #starts Matlab
 warning off
-%mkdir $data_root_dir/Ramanan
-%mkdir $data_root_dir/Ramanan/$1
-%cd $script_dir/RamananCodes
-%demoneimagewhole_scaled($path1, $path2)
+mkdir $data_root_dir/Ramanan
+mkdir $data_root_dir/Ramanan/$1
+cd $script_dir/RamananCodes
+demoneimagewhole_scaled($path1, $path2)
 
 '..........Registeration..........'
 mkdir $data_root_dir/Registeration
@@ -72,7 +64,7 @@ $path6
 python $script_dir/Dimg2batch.py $path5 $path6
 # TODO: put the right mean face.
 # This one is the mean of the initial test set.
-cp $model_dir/working-cuda-convnet-2013-11-15/data/AFEWIS/batch48/batches.meta $path6
+cp $model_dir/mean_over_initial_test_batches.meta $path6/batches.meta
 
 #'..........ConvNet..........'
 cd ../
