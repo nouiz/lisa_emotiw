@@ -5,6 +5,7 @@ import math
 import glob
 import os
 import pickle
+import sys
 from crop_match import match_subregion
 
 
@@ -37,7 +38,7 @@ if __name__ == "__main__":
     files = glob.glob("{}/*.png".format(orig_path))
     for orig in files:
         crop = orig.split('/')[-1].rstrip('.png')
-        crops = glob.glob("{}{}/{}/{}*".format(cropped_path, set_n, emot, crop))
+        crops = glob.glob("{}/{}*".format(cropped_path, crop))
         corners = []
         for crop in crops:
             if os.path.isfile(crop):
@@ -49,10 +50,10 @@ if __name__ == "__main__":
                     corners.append(res)
                 except:
                     print "failed: {}".format(crop)
-                    missed.append([set_n, emot, orig])
+                    missed.append([orig])
         if len(corners) > 0:
             print corners
-            save_name = "{}{}/{}/{}.txt".format(save_path, set_n, emot, orig.split('/')[-1].rstrip('.png'))
+            save_name = "{}/{}.txt".format(save_path ,orig.split('/')[-1].rstrip('.png'))
             save(save_name, corners)
 
 

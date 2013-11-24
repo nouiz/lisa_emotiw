@@ -16,13 +16,24 @@ import logreg
 
 original_dir = sys.argv[1] #"C:\Users\Sebastien\Documents\Faces_Aligned_Test" #May be modified
 target_dir = sys.argv[2] #original_dir + "_Small"
+params_dir = sys.argv[3]
+pred_dir = sys.argv[4]
+batch_size = int(sys.argv[5])
+clip_ids = sys.argv[6:]
+
+#if len(sys.argv) >= 6:
+#    batch_size = int(sys.argv[5])
+#else:
+#    batch_size = 50
+
 
 import Image
 
 if (os.path.isdir(target_dir) == False):
     os.makedirs(target_dir)
 
-    for j in sorted(os.listdir(original_dir)):
+    #for j in sorted(os.listdir(original_dir)):
+    for j in clip_ids:
         os.makedirs(os.path.join(target_dir,j))
         for k in sorted(os.listdir(os.path.join(original_dir,j))):
             cur_image = Image.open(os.path.join(original_dir,j,k))
@@ -52,9 +63,9 @@ h_size = h_max - h_min
 #chdir("C:\Users\Sebastien\Documents\Aligned_faces_org_small_Essentials") #removed
 #import logreg
 
-mean_inter = np.load("mean_inter_submitted.npy")
-centroids = np.load("centroids_submitted.npy")
-V_list = np.load("V_list_submitted.npy")
+mean_inter = np.load(os.path.join(params_dir, "mean_inter_submitted.npy"))
+centroids = np.load(os.path.join(params_dir, "centroids_submitted.npy"))
+V_list = np.load(os.path.join(params_dir, "V_list_submitted.npy"))
 
 def feature_extract(array_im): #shape num_im, v_size, h_size, 3
     
@@ -113,12 +124,13 @@ numclasses = 7
 wc = 1e-3
 
 lr = logreg.Logreg(numclasses, v_sections*h_sections*num_centroids)
-lr.weights = loadtxt("weights_submitted.txt")
-lr.biases = loadtxt("biases_submitted.txt")
+lr.weights = loadtxt(os.path.join(params_dir, "weights_submitted.txt"))
+lr.biases = loadtxt(os.path.join(params_dir, "biases_submitted.txt"))
 
 test = []
 
-for j in sorted(os.listdir(target_dir)):
+#for j in sorted(os.listdir(target_dir)):
+for j in clip_ids:
     for k in sorted(os.listdir(os.path.join(target_dir,j))):
         test.append(imread(os.path.join(target_dir,j,k))[v_min:v_max,h_min:h_max])
 
@@ -126,11 +138,6 @@ test = asarray(test)
 num_test_images = shape(test)[0]
 
 test_features = zeros((v_sections*h_sections*num_centroids,num_test_images))
-
-if len(sys.argv) >= 4:
-    batch_size = int(sys.argv[3])
-else:
-    batch_size = 50
 
 for j in xrange(num_test_images/batch_size):
     #print j
@@ -142,14 +149,16 @@ test_probabilities = []
 
 start = 0
 end = 0
-for j in sorted(os.listdir(target_dir)):
+#for j in sorted(os.listdir(target_dir)):
+for j in clip_ids:
     end += shape(sorted(os.listdir(os.path.join(target_dir,j))))[0]
     test_probabilities.append(mean(lr.probabilities(test_features[:,start:end]),1))
     start = end
 
 test_probabilities = asarray(test_probabilities)
 
-test_probabilities_formatted = zeros((shape(os.listdir(target_dir))[0],7))
+#test_probabilities_formatted = zeros((shape(os.listdir(target_dir))[0],7))
+test_probabilities_formatted = zeros((len(clip_ids), 7))
 
 test_probabilities_formatted[:,0:4] = test_probabilities[:,0:4].copy()
 test_probabilities_formatted[:,4:6] = test_probabilities[:,5:7].copy()
@@ -157,4 +166,5 @@ test_probabilities_formatted[:,6] = test_probabilities[:,4].copy()
 
 test_probabilities_formatted_v2 = test_probabilities_formatted.copy()
 
-np.save("BoMF_test_probabilities.npy",test_probabilities_formatted_v2)
+np.save(os.path.join(pred_dir, "BoMF_test_probabilities.npy"),
+        test_probabilities_formatted_v2)
