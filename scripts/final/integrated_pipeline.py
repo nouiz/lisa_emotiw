@@ -266,8 +266,18 @@ if run_audio:
 
 ###
 ### Second SVM script from Poly, works on top of first SVM prediction and audio
+# NB: The script is "Smodel1.bash", the first one was "Dmodel1.bash".
 if run_svm_convnet_audio:
-    pass
+    samira_model_dir = '/data/lisa/exp/faces/emotiw_final/Samira'
+    cmd_line_template = 'bash $(script)s $(clip_id)s $(model_dir)s $(data_root_dir)s'
+    for clip_id in CLIP_IDS:
+        cmd_line = cmd_line_template % dict(
+            script=os.path.join(SCRIPTS_PATH, 'samira', 'Smodel1.bash'),
+            clip_id=clip_id,
+            model_dir=samira_model_dir,
+            data_root_dir=DATA_ROOT_DIR)
+        subprocess.check_call(cmd_line, shell=True)
+
 
 ###
 ### Kishore's module (activity recognition)
@@ -345,6 +355,6 @@ if run_xavier:
                 audio = os.path.join(PREDICTION_DIR, 'audio_pred_%s.npy' % clip_id),
                 bagofmouth = os.path.join(PREDICTION_DIR, 'bomf_pred_%s.npy' % clip_id),
                 convnet = os.path.join(PREDICTION_DIR, 'svm_convnet_pred_%s.mat' % clip_id),
-                convnet_audio = os.path.join(PREDICTION_DIR, 'garbage3.npy'),
-                output = os.path.join(PREDICTION_DIR, 'xavier_output.npy'))
+                convnet_audio = os.path.join(PREDICTION_DIR, 'svm_convnet_audio_pred_%s.mat' % clip_id),
+                output = os.path.join(PREDICTION_DIR, 'xavier_output_%s.npy' % clip_id))
         subprocess.check_call(cmd_line, shell = True)
