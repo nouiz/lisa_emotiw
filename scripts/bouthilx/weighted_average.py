@@ -15,10 +15,13 @@ def make_weighted_prediction(weightFile, *modelFiles):
     model_preds = []
     for i, path in enumerate(modelFiles):
         if path.split(".")[-1]=="npy":
-            model_preds.append(np.load(path))
+            preds = np.load(path)
+            if np.prod(preds.shape) == 7:
+                preds = preds.reshape(1,7)
+            model_preds.append(preds)
         elif path.split(".")[-1]=="mat":
-            preds = sio.loadmat(path)['prob_values']
-            if np.prod(preds.shape)==7:
+            preds = sio.loadmat(path)['prob_values_test']
+            if np.prod(preds.shape) == 7:
                 preds = preds.reshape(1,7)
             model_preds.append(preds)
         elif path.split(".")[-1]=="txt":
