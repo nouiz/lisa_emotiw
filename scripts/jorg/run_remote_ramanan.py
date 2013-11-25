@@ -6,10 +6,9 @@ import subprocess
 import sys
 from time import sleep
 
-
 REMOTE_USER_HOST='bornj@cudahead.rdgi.polymtl.ca'
-REMOTE_DATA_PATH='tmp/jobdata/'      # directory there the workpackages will be copied
-REMOTE_JOB_PATH='ramanan.job'        # jobscript to submit on the cluster
+REMOTE_DATA_PATH='tmp/jobdata/'                               # directory there the workpackages will be copied
+REMOTE_JOB_PATH='lisa_emotiw/scripts/jorg/remote/ramanan.job' # jobscript to submit on the cluster
 
 REMOTE_PARALEL_JOBS=1
 REMOTE_POLLING_TIMEOUT=10
