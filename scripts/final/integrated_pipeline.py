@@ -103,6 +103,8 @@ if extract_frames:
             sys.executable, script_name, clip_dir, clip_frame_dir,
             '%s.avi' % clip_id)
 
+        print 'executing cmd:'
+        print cmd_line
         subprocess.check_call(cmd_line, shell=True)
 
 ### Phase 2: Extract Picasa faces
@@ -167,6 +169,8 @@ if extract_bbox:
             orig_path=os.path.join(frame_dir, clip_id),
             cropped_path=os.path.join(faces_dir, clip_id),
             save_path=save_path)
+        print 'executing cmd:'
+        print cmd_line
         subprocess.check_call(cmd_line, shell=True)
 
 
@@ -243,6 +247,8 @@ if run_svm_convnet:
             clip_id=clip_id,
             model_dir=samira_model_dir,
             data_root_dir=DATA_ROOT_DIR)
+        print 'executing cmd:'
+        print cmd_line
         subprocess.check_call(cmd_line, shell=True)
 
 ###
@@ -260,6 +266,8 @@ if run_audio:
             output=PREDICTION_DIR,
             model_dir=caglar_audio_model_dir,
             clip_id=clip_id)
+        print 'executing cmd:'
+        print cmd_line
         subprocess.check_call(cmd_line, shell=True)
 
         os.rename(os.path.join(PREDICTION_DIR, 'audio_mlp_learned_on_train_predict_on_test_scores.npy'),
@@ -280,6 +288,8 @@ if run_svm_convnet_audio:
             clip_id=clip_id,
             model_dir=samira_model_dir,
             data_root_dir=DATA_ROOT_DIR)
+        print 'executing cmd:'
+        print cmd_line
         subprocess.check_call(cmd_line, shell=True)
 
 
@@ -300,6 +310,8 @@ if run_kishore:
         convert_line = convert_line_template % dict(
             inp=os.path.join(AVI_DIR, '%s.avi' % clip_id),
             out=os.path.join(mjpeg_dir, '%s.avi' % clip_id))
+        print 'executing cmd:'
+        print cmd_line
         subprocess.check_call(convert_line, shell=True)
 
         cmd_line = cmd_line_template % dict(
@@ -311,6 +323,8 @@ if run_kishore:
             train_data_file=os.path.join(kishore_model_root, 'chal_train_data.npz'),
             clip_ids=clip_id)
 
+        print 'executing cmd:'
+        print cmd_line
         subprocess.check_call(cmd_line, shell=True)
 
         # The output will be a one-liner file in the current directory
@@ -340,6 +354,8 @@ if run_bomf:
             pred_dir=PREDICTION_DIR,
             batch_size=50,
             clip_ids=clip_id)
+        print 'executing cmd:'
+        print cmd_line
         subprocess.check_call(cmd_line, shell=True)
         shutil.move(os.path.join(PREDICTION_DIR, 'BoMF_test_probabilities.npy'),
                     os.path.join(PREDICTION_DIR, 'bomf_pred_%s.npy' % clip_id))
@@ -361,4 +377,6 @@ if run_xavier:
                 convnet = os.path.join(PREDICTION_DIR, 'svm_convnet_pred_%s.mat' % clip_id),
                 convnet_audio = os.path.join(PREDICTION_DIR, 'svm_convnet_audio_pred_%s.mat' % clip_id),
                 output = os.path.join(PREDICTION_DIR, 'xavier_output_%s.npy' % clip_id))
+        print 'executing cmd:'
+        print cmd_line
         subprocess.check_call(cmd_line, shell = True)
