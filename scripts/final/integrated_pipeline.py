@@ -17,10 +17,10 @@ extract_bbox = 0
 smooth_facetubes = 0
 run_svm_convnet = 0
 
-alt_path1 = 1
+alt_path1 = 0
 alt_path2 = 1
 
-run_audio = 1
+run_audio = 0
 run_svm_convnet_audio = 0
 
 run_kishore = 0
@@ -219,18 +219,27 @@ if alt_path1:
 ### Phase 2.2b: bbox coordinates if Picasa did not find anything
 # TODO: Raul, finish
 if alt_path2:
+    print '\n', '\n', "phase 2.2b",  '\n', '\n',
+    #script_name = os.path.join(SCRIPTS_PATH, 'chandiar/missing_clips', 'get_bbox.py')
+    #print script_name, type(script_name), str(script_name)
+
     backup_bboxes_dir = os.path.join(backup_faces_dir, 'bboxes')
     if not os.path.exists(backup_bboxes_dir):
         os.mkdir(backup_bboxes_dir)
 
     for clip_id in CLIP_IDS:
         this_clip_frame_dir = os.path.join(frame_dir, clip_id)
-    #    this_clip_backup_faces_dir = os.path.join(backup_faces_dir, clip_id)
-        this_clip_backup_faces_dir = backup_faces_dir
+        if not os.path.exists(this_clip_frame_dir):
+            os.mkdir(this_clip_frame_dir)
+        this_clip_backup_faces_dir = os.path.join(backup_faces_dir, clip_id)
         if not os.path.exists(this_clip_backup_faces_dir):
             os.mkdir(this_clip_backup_faces_dir)
-        print 'getbbox inputs = ', this_clip_frame_dir, this_clip_backup_faces_dir, backup_bboxes_dir
-        get_bbox(this_clip_frame_dir, this_clip_backup_faces_dir, backup_bboxes_dir, backup_bboxes_dir)
+        this_clip_backup_bboxes_dir = os.path.join(backup_bboxes_dir, clip_id)
+        if not os.path.exists(this_clip_backup_bboxes_dir):
+           os.mkdir(this_clip_backup_bboxes_dir)
+        print 'getbbox inputs = ', this_clip_frame_dir, this_clip_backup_faces_dir, this_clip_backup_bboxes_dir
+        get_bbox(this_clip_frame_dir, this_clip_backup_faces_dir, this_clip_backup_bboxes_dir, this_clip_backup_bboxes_dir)
+
 
 
 
