@@ -59,7 +59,7 @@ for i=1:length(imagedir)
     
     if size(bs,1)>0
         % show highest scoring one
-        [xs,ys]=showboxes(im, bs,posemap);title('Highest scoring detection');
+        [xs,ys]=showboxes(im, bs(1), posemap);title('Highest scoring detection');
         xs = xs/scl; ys = ys/scl;
         path_res=[path_out '/' k];
         save(strcat(path_res(1:end-4),'.mat'),'xs','ys','bs','dettime','posemap');
