@@ -6,6 +6,8 @@ import subprocess
 import sys
 import time
 
+from get_bbox import get_bbox 
+
 from mlabwrap import mlab
 
 ### Define environment variables for configuration
@@ -70,27 +72,53 @@ frame_dir = os.path.join(DATA_ROOT_DIR, 'extracted_frames')
 
 ### Phase 2b: Fallback if Picasa did not find anything
 
+## Phase 2.1b
 # Use Ramanan keypoints algorithm... finds and saves detections. 
 # Needs to check it PICASSA failed!
-# How to deal with multiple detections? 
+# How to deal with multiple detections? (currently only saves the best)
 backup_faces_dir = os.path.join(DATA_ROOT_DIR, 'ramanan_keypoints_picassa_backup')
 if not os.path.exists(backup_faces_dir):
     os.mkdir(backup_faces_dir)
 
+count = 0
+
 for clip_id in CLIP_IDS:
-    clip_frame_dir = os.path.join(frame_dir, clip_id)
+    this_clip_frame_dir = os.path.join(frame_dir, clip_id)
+    this_clip_backup_faces_dir = os.path.join(backup_faces_dir, clip_id)
     clips = []
-    for i,j,c in os.walk(clip_frame_dir):
+    for i,j,c in os.walk(this_clip_frame_dir):
         clips = c
     for clip in clips:
-        print '\n', clip, clip_frame_dir, backup_faces_dir, '\n'
-        dest = backup_faces_dir + '/' + clip[:-4] + '__ramanan.mat'
-        clip = clip_frame_dir + '/' + clip
-        print clip, dest, '\n'
-        #model can be 0 (used for challenge), 1, or 2.  
-        #Lower numbered models are better and slower.
-        mlab.ramanan1(clip, dest, 0)
-    
+        if count == 0:
+            print '\n', clip, this_clip_frame_dir, this_clip_backup_faces_dir, '\n'
+            dest_dir = this_clip_backup_faces_dir + '/' + clip[:-4] + '__ramanan.mat'
+            clip_dir = this_clip_frame_dir + '/' + clip
+            print clip_dir, dest_dir, '\n'
+            #model can be 0 (used for challenge), 1, or 2.  
+            #Lower numbered models are better and slower.
+            mlab.ramanan1(clip_dir, dest_dir, 0)
+        #count += 1
+
+
+
+## Phase 2.2b
+print "phase 2.2b"
+#script_name = os.path.join(SCRIPTS_PATH, 'chandiar/missing_clips', 'get_bbox.py')
+#print script_name, type(script_name), str(script_name)
+
+backup_bboxes_dir = os.path.join(backup_faces_dir, 'bboxes')
+if not os.path.exists(backup_bboxes_dir):
+    os.mkdir(backup_bboxes_dir)
+
+for clip_id in CLIP_IDS:
+    this_clip_frame_dir = os.path.join(frame_dir, clip_id)
+#    this_clip_backup_faces_dir = os.path.join(backup_faces_dir, clip_id)
+    this_clip_backup_faces_dir = backup_faces_dir
+    print 'getbbox inputs = ', this_clip_frame_dir, this_clip_backup_faces_dir, backup_bboxes_dir
+    get_bbox(this_clip_frame_dir, this_clip_backup_faces_dir, backup_bboxes_dir)
+
+
+
 
 
 

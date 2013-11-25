@@ -22,7 +22,6 @@ run_svm_convnet_audio = 0
 
 run_kishore = 0
 run_bomf = 0
-
 run_xavier = 0
 
 
@@ -206,7 +205,7 @@ if extract_bbox:
 ### Phase 2.2b: bbox coordinates if Picasa did not find anything
 # TODO: Raul, finish
 if extract_bbox:
-    pass
+    pass<
 
 
 ## Phase 2.3:
