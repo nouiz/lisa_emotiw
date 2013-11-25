@@ -1,0 +1,22 @@
+Changed in INFace toolbox version 2.0, date: 14.9.2011
+
+- added gamma correction
+- added image range adjustment
+- added threshold filtering
+- unified return values in case of error
+- added DoG filtering
+- added Triggs and Tan method
+- made histogram truncation after normalization optional
+- added robust postprocessing technique from Triggs and Tan paper
+- added Weberfaces technique
+- added multi-scale Weberfaces technique
+- added modified version of the anisotropic smoothing technique
+- added option for retrieving the luminance function for most of the retinex techniques 
+- fixed a bug in the DCT normalization technique
+- added several new demo scripts
+- update help sections of most of the functions
+- added a script for install validation
+- updated "other" folder with new references
+- added new "postprocessing" folder to toolbox hierarchy
+- created new toolbox web page
+- updated user manual
