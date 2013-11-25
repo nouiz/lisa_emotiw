@@ -19,7 +19,7 @@ smooth_facetubes = 0
 run_audio = 0
 
 run_kishore = 0
-run_bomf = 1
+run_bomf = 0
 
 
 ### Define environment variables for configuration
