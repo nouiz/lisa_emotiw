@@ -64,9 +64,9 @@ CLIP_IDS = [
 #    '000247920',
 #    '000257240',
 #    '000311160',
+#    '002350040',   ## tested for convnet
     ]
 
-# TODO: Jean-Philippe, which directories to use?
 # Picasa incoming directory
 PICASA_PROCESSING_DIR = '/data/lisatmp/faces/picasa_process'
 
@@ -254,7 +254,6 @@ if run_svm_convnet:
 ###
 ### audio module
 if run_audio:
-    # TODO Caglar: put script in git, model in /data/lisa/exp/...
     caglar_audio_model_dir = '/data/lisa/exp/faces/emotiw_final/caglar_audio'
     cmd_line_template = "%(python)s %(audio_script)s %(data)s %(feats)s %(output)s %(model_dir)s %(clip_id)s"
     for clip_id in CLIP_IDS:
@@ -328,8 +327,6 @@ if run_kishore:
         subprocess.check_call(cmd_line, shell=True)
 
         # The output will be a one-liner file in the current directory
-        # TODO: check if it makes a difference to run all the clips at once,
-        #       Kishore did that, and the results could be different
         shutil.move(os.path.join('activity_recognition_test_results.txt'),
                     os.path.join(PREDICTION_DIR, 'kishore_pred_%s.txt' % clip_id))
 
