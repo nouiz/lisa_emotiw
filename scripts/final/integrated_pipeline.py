@@ -249,19 +249,23 @@ if run_svm_convnet:
 ### audio module
 if run_audio:
     # TODO Caglar: put script in git, model in /data/lisa/exp/...
-    cmd_line_template = "%(python)s %(audio_wrapper)s %(data)s %(feats)s %(output)s %(clip_id)s"
+    caglar_audio_model_dir = '/data/lisa/exp/faces/emotiw_final/caglar_audio'
+    cmd_line_template = "%(python)s %(audio_script)s %(data)s %(feats)s %(output)s %(model_dir)s %(clip_id)s"
     for clip_id in CLIP_IDS:
         cmd_line = cmd_line_template % dict(
             python=sys.executable,
-            audio_wrapper=os.path.join(SCRIPTS_PATH, 'final', 'audio_wrapper.py'),
+            audio_script=os.path.join(SCRIPTS_PATH, 'caglar', 'save_features_pascal_pipeline.py'),
             data=os.path.join(DATA_ROOT_DIR, 'Test_Vid_Distr', 'Data'),
             feats=os.path.join(DATA_ROOT_DIR, 'audio_feats'),
             output=PREDICTION_DIR,
+            model_dir=caglar_audio_model_dir,
             clip_id=clip_id)
         subprocess.check_call(cmd_line, shell=True)
 
         os.rename(os.path.join(PREDICTION_DIR, 'audio_mlp_learned_on_train_predict_on_test_scores.npy'),
                   os.path.join(PREDICTION_DIR, 'audio_pred_%s.npy' % clip_id))
+        os.rename(os.path.join(PREDICTION_DIR, 'audio_mlp_learned_on_train_predict_on_test_scores.txt'),
+                  os.path.join(PREDICTION_DIR, 'audio_pred_%s.txt' % clip_id))
 
 
 ###
