@@ -29,16 +29,16 @@ path7="'$data_root_dir/module_predictions'"
 
 matlab -nodesktop << EOF       #starts Matlab
 warning off
-mkdir $data_root_dir/Ramanan
-mkdir $data_root_dir/Ramanan/$1
-cd $script_dir/RamananCodes
-demoneimagewhole_scaled($path1, $path2)
+%mkdir $data_root_dir/Ramanan
+%mkdir $data_root_dir/Ramanan/$1
+%cd $script_dir/RamananCodes
+%demoneimagewhole_scaled($path1, $path2)
 
 '..........Registeration..........'
 mkdir $data_root_dir/Registeration
 mkdir $data_root_dir/Registeration/$1
 cd $script_dir/RegisterationCodes
-FindAveragePointsDK($path2, $path3)
+%FindAveragePointsDK($path2, $path3)
 mapTFD2ICML($path1, $path3)
 
 '..........Preprocessing..........'
