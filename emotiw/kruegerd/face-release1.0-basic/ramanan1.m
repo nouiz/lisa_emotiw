@@ -32,6 +32,14 @@ end
 % END SETUP
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
+imsize = size(im);
+scl =  300/min(imsize(1),imsize(2))
+%scl = 2;
+im = imresize(im,scl);
+size(im)
+
+
+
 
 bs = detect(im, model, model.thresh);
 bs = clipboxes(im, bs);
@@ -47,12 +55,12 @@ end
 
 %disp('calling xyboxes...')
 
-[xs,ys] = xyboxes(im, bs1, posemap);
+[xs,ys] = xyboxes(im, bs, posemap);
 
 %disp(transpose(xs))
 %disp(transpose(ys))
 
-save(savepath,'xs','ys');
+save(savepath,'xs','ys','bs');
 
 
 

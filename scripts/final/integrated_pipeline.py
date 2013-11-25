@@ -17,11 +17,15 @@ extract_bbox = 0
 smooth_facetubes = 0
 run_svm_convnet = 0
 
-run_audio = 1
+alt_path1 = 0
+alt_path2 = 1
+
+run_audio = 0
 run_svm_convnet_audio = 0
 
 run_kishore = 0
 run_bomf = 0
+
 run_xavier = 0
 
 
@@ -181,31 +185,62 @@ backup_faces_dir = os.path.join(DATA_ROOT_DIR, 'ramanan_keypoints_picassa_backup
 if not os.path.exists(backup_faces_dir):
     os.mkdir(backup_faces_dir)
 
-if extract_bbox:
-    for clip_id in CLIP_IDS:
-        clip_faces_dir = os.path.join(faces_dir, clip_id)
-        nb_faces = len([f for f in os.listdir(clip_faces_dir) if f.endswith('.jpg')])
-        if nb_faces > 0:
-            # Picasa detected faces, no need for the backup plan
-            continue
+script_dir = os.path.join(SCRIPTS_PATH, 'samira/RamananCodes')
 
-        clip_frame_dir = os.path.join(frame_dir, clip_id)
+if alt_path1:
+    print "Phase 2.1b", '\n', "script_dir = ", script_dir
+    for clip_id in CLIP_IDS:
+        this_clip_frame_dir = os.path.join(frame_dir, clip_id)
+        this_clip_backup_faces_dir = os.path.join(backup_faces_dir, clip_id)
         clips = []
-        for i, j, c in os.walk(clip_frame_dir):
+        for i,j,c in os.walk(this_clip_frame_dir):
             clips = c
-        for clip in clips:
-            print '\n', clip, clip_frame_dir, backup_faces_dir
-            dest = os.path.join(backup_faces_dir, clip[:-4] + '__ramanan.mat')
-            clip = os.path.join(clip_frame_dir, clip)
-            print clip, dest
-            # model can be 0 (used for challenge), 1, or 2.
-            # Lower numbered models are better and slower.
-            mlab.ramanan1(clip, dest, 0)
+            #print '\n', clips, this_clip_frame_dir, this_clip_backup_faces_dir, '\n'
+            if not os.path.exists(this_clip_frame_dir):
+                os.mkdir(this_clip_frame_dir)
+            if not os.path.exists(this_clip_backup_faces_dir):
+                os.mkdir(this_clip_backup_faces_dir)
+            print "demoneim filepaths = ", this_clip_frame_dir, this_clip_backup_faces_dir, '\n'
+            current_dir = os.getcwd()
+            samira_model_dir = '/data/lisa/exp/faces/emotiw_final/Samira'
+            cmd_line_template = 'bash %(script)s %(frame_dir)s %(backup_faces_dir)s %(scriptdir)s %(currentdir)s'
+            print "script_dir = ", script_dir
+            for clip_id in CLIP_IDS:
+                cmd_line = cmd_line_template % dict(
+                    script=os.path.join(SCRIPTS_PATH, 'samira/RamananCodes', 'demoneimagewhole_alt.bash'),
+                    frame_dir=this_clip_frame_dir,
+                    backup_faces_dir=this_clip_backup_faces_dir,
+                    scriptdir = script_dir,
+                    currentdir = current_dir)
+            print '\n', 'executing cmd:'
+            print cmd_line, '\n', '\n', '\n', '\n'
+            subprocess.check_call(cmd_line, shell=True)
 
 ### Phase 2.2b: bbox coordinates if Picasa did not find anything
 # TODO: Raul, finish
-if extract_bbox:
-    pass<
+if alt_path2:
+    print '\n', '\n', "phase 2.2b",  '\n', '\n',
+    #script_name = os.path.join(SCRIPTS_PATH, 'chandiar/missing_clips', 'get_bbox.py')
+    #print script_name, type(script_name), str(script_name)
+
+    backup_bboxes_dir = os.path.join(backup_faces_dir, 'bboxes')
+    if not os.path.exists(backup_bboxes_dir):
+        os.mkdir(backup_bboxes_dir)
+
+    for clip_id in CLIP_IDS:
+        this_clip_frame_dir = os.path.join(frame_dir, clip_id)
+        if not os.path.exists(this_clip_frame_dir):
+            os.mkdir(this_clip_frame_dir)
+        this_clip_backup_faces_dir = os.path.join(backup_faces_dir, clip_id)
+        if not os.path.exists(this_clip_backup_faces_dir):
+            os.mkdir(this_clip_backup_faces_dir)
+        this_clip_backup_bboxes_dir = os.path.join(backup_bboxes_dir, clip_id)
+        if not os.path.exists(this_clip_backup_bboxes_dir):
+           os.mkdir(this_clip_backup_bboxes_dir)
+        print 'getbbox inputs = ', this_clip_frame_dir, this_clip_backup_faces_dir, this_clip_backup_bboxes_dir
+        get_bbox(this_clip_frame_dir, this_clip_backup_faces_dir, this_clip_backup_bboxes_dir, this_clip_backup_bboxes_dir)
+
+
 
 
 ## Phase 2.3:

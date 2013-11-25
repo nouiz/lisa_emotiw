@@ -31,11 +31,12 @@ def get_bbox(extracted_frames_path, ramanan_keypts_path, bbox_path, bbox_on_img_
 	name = basename.split('/')[-1]
 	img = cv2.imread(frame_path)
 	# TODO: c'est quoi la convention de nommer les fichiers mat?
-	ramanan_path = ramanan_keypts_path + name + '__ramanan.mat'#+ '_ramanan.mat'
+	ramanan_path = os.path.join(ramanan_keypts_path, name + '.mat')
 	if not os.path.exists(ramanan_path):
 	    # TODO: si pas de ramanan donc pas de bounding box pour la frame.
 	    continue
 	matfile = sio.loadmat(ramanan_path)
+        #import pdb; pdb.set_trace()
 
 	xs_and_ys = []
 	xoffset = 0
@@ -57,7 +58,7 @@ def get_bbox(extracted_frames_path, ramanan_keypts_path, bbox_path, bbox_on_img_
 	xs_and_ys.append((first_xs+xoffset, first_ys+yoffset))
 
 	# TODO: est-ce que ca nous concerne? on a tu des fichiers mat qui terminent par 'ramanan_face*'
-	if ramanan_path[-18:-6]!='ramanan_face':
+	if ramanan_path[-18:-6]!='ramanan_face' and False:
 	    bs = matfile['bs']
 	    bs_n, bs_m = bs.shape
 	    for i in range(bs_m):
