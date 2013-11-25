@@ -28,7 +28,8 @@ def make_weighted_prediction(weightFile, *modelFiles):
             txt_file = open(path,'r')
             preds = []
             for line in txt_file.readlines():
-                preds.append([float(prob) for prob in line.strip().split(" ")])
+                # The 7 probabilities should be at the end of the line
+                preds.append([float(prob) for prob in line.strip().split()[-7:]])
             model_preds.append(np.array(preds))
         else:
             raise ValueError("The file must be .npy (numpy) or .mat (matlab)")
