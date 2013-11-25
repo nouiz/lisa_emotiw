@@ -236,7 +236,7 @@ if smooth_facetubes:
 #  from convnet's output
 if run_svm_convnet:
     samira_model_dir = '/data/lisa/exp/faces/emotiw_final/Samira'
-    cmd_line_template = 'bash $(script)s $(clip_id)s $(model_dir)s $(data_root_dir)s'
+    cmd_line_template = 'bash %(script)s %(clip_id)s %(model_dir)s %(data_root_dir)s'
     for clip_id in CLIP_IDS:
         cmd_line = cmd_line_template % dict(
             script=os.path.join(SCRIPTS_PATH, 'samira', 'Dmodel1.bash'),
@@ -273,7 +273,7 @@ if run_audio:
 # NB: The script is "Smodel1.bash", the first one was "Dmodel1.bash".
 if run_svm_convnet_audio:
     samira_model_dir = '/data/lisa/exp/faces/emotiw_final/Samira'
-    cmd_line_template = 'bash $(script)s $(clip_id)s $(model_dir)s $(data_root_dir)s'
+    cmd_line_template = 'bash %(script)s %(clip_id)s %(model_dir)s %(data_root_dir)s'
     for clip_id in CLIP_IDS:
         cmd_line = cmd_line_template % dict(
             script=os.path.join(SCRIPTS_PATH, 'samira', 'Smodel1.bash'),
