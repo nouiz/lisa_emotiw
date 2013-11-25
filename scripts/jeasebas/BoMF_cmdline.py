@@ -32,8 +32,9 @@ import Image
 if (os.path.isdir(target_dir) == False):
     os.makedirs(target_dir)
 
-    #for j in sorted(os.listdir(original_dir)):
-    for j in clip_ids:
+#for j in sorted(os.listdir(original_dir)):
+for j in clip_ids:
+    if not os.path.isdir(os.path.join(target_dir, j)):
         os.makedirs(os.path.join(target_dir,j))
         for k in sorted(os.listdir(os.path.join(original_dir,j))):
             cur_image = Image.open(os.path.join(original_dir,j,k))
