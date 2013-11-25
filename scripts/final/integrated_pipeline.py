@@ -15,8 +15,10 @@ extract_frames = 0
 run_picasa = 0
 extract_bbox = 0
 smooth_facetubes = 0
+run_svm_convnet = 0
 
 run_audio = 1
+run_svm_convnet_audio = 0
 
 run_kishore = 0
 run_bomf = 0
@@ -176,28 +178,32 @@ backup_faces_dir = os.path.join(DATA_ROOT_DIR, 'ramanan_keypoints_picassa_backup
 if not os.path.exists(backup_faces_dir):
     os.mkdir(backup_faces_dir)
 
-for clip_id in CLIP_IDS:
-    clip_faces_dir = os.path.join(faces_dir, clip_id)
-    nb_faces = len([f for f in os.listdir(clip_faces_dir) if f.endswith('.jpg')])
-    if nb_faces > 0:
-        # Picasa detected faces, no need for the backup plan
-        continue
+if extract_bbox:
+    for clip_id in CLIP_IDS:
+        clip_faces_dir = os.path.join(faces_dir, clip_id)
+        nb_faces = len([f for f in os.listdir(clip_faces_dir) if f.endswith('.jpg')])
+        if nb_faces > 0:
+            # Picasa detected faces, no need for the backup plan
+            continue
 
-    clip_frame_dir = os.path.join(frame_dir, clip_id)
-    clips = []
-    for i, j, c in os.walk(clip_frame_dir):
-        clips = c
-    for clip in clips:
-        print '\n', clip, clip_frame_dir, backup_faces_dir
-        dest = os.path.join(backup_faces_dir, clip[:-4] + '__ramanan.mat')
-        clip = os.path.join(clip_frame_dir, clip)
-        print clip, dest
-        # model can be 0 (used for challenge), 1, or 2.
-        # Lower numbered models are better and slower.
-        mlab.ramanan1(clip, dest, 0)
+        clip_frame_dir = os.path.join(frame_dir, clip_id)
+        clips = []
+        for i, j, c in os.walk(clip_frame_dir):
+            clips = c
+        for clip in clips:
+            print '\n', clip, clip_frame_dir, backup_faces_dir
+            dest = os.path.join(backup_faces_dir, clip[:-4] + '__ramanan.mat')
+            clip = os.path.join(clip_frame_dir, clip)
+            print clip, dest
+            # model can be 0 (used for challenge), 1, or 2.
+            # Lower numbered models are better and slower.
+            mlab.ramanan1(clip, dest, 0)
 
 ### Phase 2.2b: bbox coordinates if Picasa did not find anything
 # TODO: Raul, finish
+if extract_bbox:
+    pass
+
 
 ## Phase 2.3:
 facetubes_dir = os.path.join(DATA_ROOT_DIR, 'facetubes_96x96')
@@ -225,6 +231,43 @@ if smooth_facetubes:
         print cmd_line
         subprocess.check_call(cmd_line, shell=True)
 
+
+### Phase 3: Poly's part of the pipeline, from smoothed facetubes to SVM prediction
+#  from convnet's output
+if run_svm_convnet:
+    samira_model_dir = '/data/lisa/exp/faces/emotiw_final/Samira'
+    cmd_line_template = 'bash $(script)s $(clip_id)s $(model_dir)s $(data_root_dir)s'
+    for clip_id in CLIP_IDS:
+        cmd_line = cmd_line_template % dict(
+            script=os.path.join(SCRIPTS_PATH, 'samira', 'Dmodel1.bash'),
+            clip_id=clip_id,
+            model_dir=samira_model_dir,
+            data_root_dir=DATA_ROOT_DIR)
+        subprocess.check_call(cmd_line, shell=True)
+
+###
+### audio module
+if run_audio:
+    # TODO Caglar: put script in git, model in /data/lisa/exp/...
+    cmd_line_template = "%(python)s %(audio_wrapper)s %(data)s %(feats)s %(output)s %(clip_id)s"
+    for clip_id in CLIP_IDS:
+        cmd_line = cmd_line_template % dict(
+            python=sys.executable,
+            audio_wrapper=os.path.join(SCRIPTS_PATH, 'final', 'audio_wrapper.py'),
+            data=os.path.join(DATA_ROOT_DIR, 'Test_Vid_Distr', 'Data'),
+            feats=os.path.join(DATA_ROOT_DIR, 'audio_feats'),
+            output=PREDICTION_DIR,
+            clip_id=clip_id)
+        subprocess.check_call(cmd_line, shell=True)
+
+        os.rename(os.path.join(PREDICTION_DIR, 'audio_mlp_learned_on_train_predict_on_test_scores.npy'),
+                  os.path.join(PREDICTION_DIR, 'audio_pred_%s.npy' % clip_id))
+
+
+###
+### Second SVM script from Poly, works on top of first SVM prediction and audio
+if run_svm_convnet_audio:
+    pass
 
 ###
 ### Kishore's module (activity recognition)
@@ -288,20 +331,6 @@ if run_bomf:
                     os.path.join(PREDICTION_DIR, 'bomf_pred_%s.npy' % clip_id))
 
 
-# audio module
-if run_audio:
-    # TODO Caglar: put script in git, model in /data/lisa/exp/...
-    cmd_line_template = "%(python)s %(audio_wrapper)s %(data)s %(feats)s %(output)s %(clip_id)s"
-    for clip_id in CLIP_IDS:
-        cmd_line = cmd_line_template % dict(
-            python=sys.executable,
-            audio_wrapper=os.path.join(SCRIPTS_PATH, 'final', 'audio_wrapper.py'),
-            data=os.path.join(DATA_ROOT_DIR, 'Test_Vid_Distr', 'Data'),
-            feats=os.path.join(DATA_ROOT_DIR, 'audio_feats'),
-            output=PREDICTION_DIR,
-            clip_id=clip_id)
-        subprocess.check_call(cmd_line, shell=True)
-
 # Xavier's weighted prediction
 if run_xavier:
 
@@ -313,9 +342,9 @@ if run_xavier:
                 xavier_cmdline = os.path.join(SCRIPTS_PATH, 'bouthilx', 'weighted_average.py'),
                 weights = weights_file,
                 activity = os.path.join(PREDICTION_DIR, 'kishore_pred_%s.txt' % clip_id),
-                audio = os.path.join(PREDICTION_DIR, 'audio_mlp_learned_on_train_predict_on_test_scores.npy'),
+                audio = os.path.join(PREDICTION_DIR, 'audio_pred_%s.npy' % clip_id),
                 bagofmouth = os.path.join(PREDICTION_DIR, 'bomf_pred_%s.npy' % clip_id),
-                convnet = os.path.join(PREDICTION_DIR, 'garbage2.npy'),
+                convnet = os.path.join(PREDICTION_DIR, 'svm_convnet_pred_%s.mat' % clip_id),
                 convnet_audio = os.path.join(PREDICTION_DIR, 'garbage3.npy'),
                 output = os.path.join(PREDICTION_DIR, 'xavier_output.npy'))
         subprocess.check_call(cmd_line, shell = True)
