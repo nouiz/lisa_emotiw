@@ -7,11 +7,10 @@ load(fullfile(prediction_path, ['svm_convnet_pred_' clip_id '.mat']));
 
 [videoIDTestAudio,preds,f1,f2,f3,f4,f5,f6,f7]  = ...
     textread(fullfile(prediction_path, ['audio_pred_' clip_id '.txt']),'%s %s %f %f %f %f %f %f %f')
-%labelTestAudio = labelTest
-labelTestAudio = [0]
+labelTestAudio = labelTest
 featuretestaudio = [f1 f2 f3 f4 f5 f6 f7]
-featureTestAll = concate(videoIDTest,prob_values_test,...
-    videoIDTestAudio,featuretestaudio)
+featureTestAll = concate(videoIDTest, prob_values_test,...
+    videoIDTestAudio, featuretestaudio)
 
 [predict_label_test, accuracy_test, prob_values_test] = ...
     svmpredict(labelTestAudio,featureTestAll, model, '-b 1')
