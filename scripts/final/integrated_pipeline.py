@@ -6,7 +6,7 @@ import subprocess
 import sys
 import time
 
-from mlabwrap import mlab
+#from mlabwrap import mlab
 
 
 ###
@@ -92,10 +92,12 @@ if extract_frames:
         clip_dir = AVI_DIR
         clip_frame_dir = os.path.join(frame_dir, clip_id)
         if os.path.exists(clip_frame_dir):
-            raise Exception(
-                "Directory for extracting frames of clip id %s already exists: "
-                "%s" % (clip_id, clip_frame_dir))
-        os.mkdir(clip_frame_dir)
+            #raise Exception(
+            #    "Directory for extracting frames of clip id %s already exists: "
+            #    "%s" % (clip_id, clip_frame_dir))
+            pass
+        else:
+            os.mkdir(clip_frame_dir)
 
         # sys.executable is the full path to python
         cmd_line = '%s %s %s %s %s' % (
@@ -146,7 +148,15 @@ if run_picasa:
 
         assert os.path.exists(clip_picasa_faces_dir)
         clip_faces_dir = os.path.join(faces_dir, clip_id)
+        if os.path.exists(clip_faces_dir):
+            # It may or may not be correct, remove it
+            shutil.rmtree(clip_faces_dir)
         shutil.copytree(clip_picasa_faces_dir, clip_faces_dir)
+
+        # Clean up, so the Windows script does not crash if the same
+        # clip gets extracted again
+        shutil.rmtree(clip_picasa_processed_dir)
+        shutil.rmtree(clip_picasa_faces_dir)
 
 
 ## Phase 2.2: get bounding boxes
@@ -156,9 +166,10 @@ if extract_bbox:
     for clip_id in CLIP_IDS:
         save_path = os.path.join(bbox_dir, clip_id)
         if os.path.exists(save_path):
-            raise Exception(
-                "Directory for extracting bbox coordinates for clip id %s "
-                "already exists: %s" % (clip_id, save_path))
+            #raise Exception(
+            #    "Directory for extracting bbox coordinates for clip id %s "
+            #    "already exists: %s" % (clip_id, save_path))
+            pass
         else:
             os.mkdir(save_path)
 
@@ -205,7 +216,7 @@ if extract_bbox:
 ### Phase 2.2b: bbox coordinates if Picasa did not find anything
 # TODO: Raul, finish
 if extract_bbox:
-    pass<
+    pass
 
 
 ## Phase 2.3:
@@ -218,9 +229,10 @@ if smooth_facetubes:
     for clip_id in CLIP_IDS:
         save_path = os.path.join(facetubes_dir, clip_id)
         if os.path.exists(save_path):
-            raise Exception(
-                "Directory for exporting smooth facetube images "
-                "for clip id %s already exists: %s" % (clip_id, save_path))
+            #raise Exception(
+            #    "Directory for exporting smooth facetube images "
+            #    "for clip id %s already exists: %s" % (clip_id, save_path))
+            pass
         else:
             os.mkdir(save_path)
 
