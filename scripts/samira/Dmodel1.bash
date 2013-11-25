@@ -24,7 +24,7 @@ path3="'$data_root_dir/Registeration/$1/'"
 path4="'$data_root_dir/IS/$1/'"
 path5="$data_root_dir/IS/$1"
 path6="$data_root_dir/batches/$1"
-path7="'$data_root_dir/SVM/$1/'"
+path7="'$data_root_dir/module_predictions'"
 
 
 matlab -nodesktop << EOF       #starts Matlab
@@ -70,17 +70,20 @@ cp $model_dir/mean_over_initial_test_batches.meta $path6/batches.meta
 cd ../
 python pif_export.py -f ./data/tmp/ConvNet__2013-07-17_13.27.15 --export=afew --show-preds=probs --test-range=1-1 --test-data-path=$path6
 
+# Move the prediction from the model directory
+mkdir $data_root_dir/convnet_out
+cp ./data/tmp/ConvNet__2013-07-17_13.27.15_segments.csv $data_root_dir/convnet_out/$1_segments.csv
+cd $script_dir
+
 # svm EXPERIMENT 4
-'..........SVM..........'
+#'..........SVM..........'
 matlab -nodesktop << EOF       #starts Matlab
 warning off
-mkdir $data_root_dir/SVM
-mkdir $data_root_dir/SVM/$1
 cd $script_dir/SVMCodes
 addpath(genpath('./libsvm-3.17'))
 %path
 %This part does not work in parallel (overwritting convnet output)
-useSVM4($path7)
+useSVM4('$data_root_dir/convnet_out', $path7, '$clip_id')
 exit
 EOF
 
