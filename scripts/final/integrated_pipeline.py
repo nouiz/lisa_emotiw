@@ -37,7 +37,7 @@ run_xavier = 0
 REMOTE_RAMANAN = 1                                    # use remote ramanan computation
 REMOTE_USER_HOST='bornj@cudahead.rdgi.polymtl.ca'     # cluster account to use
 REMOTE_DATA_PATH='tmp/jobdata/'                       # directory there the workpackages will be copied
-REMOTE_NO_WORKER='20'                                 # number of parallel workers on the cluster
+REMOTE_NO_WORKER='24'                                 # number of parallel workers on the cluster
 REMOTE_POLLING_TIMEOUT=10                             # polling interval in seconds
 REMOTE_SUBMIT_SCIPT='lisa_emotiw/scripts/jorg/remote/submit-worker.py' 
 
