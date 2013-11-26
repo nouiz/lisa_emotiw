@@ -41,6 +41,7 @@ REMOTE_POLLING_TIMEOUT=10
 
 
 import jorg.remote as remote
+remote.REMOTE_USER_HOST = REMOTE_USER_HOST
 
 
 ### Define environment variables for configuration
@@ -245,6 +246,9 @@ if alt_path1:
 
             print "Copy results back to local machine.,."
             remote.rsync_remote_local(REMOTE_DATA_PATH+clip_id, this_clip_backup_faces_dir)
+
+            print "Copied! -- deleting remote dir"
+            remote.run_remote(['rm', '-Rf', REMOTE_DATA_PATH+clip_id])
         else:
             print "2.1b: demoneim filepaths = ", this_clip_frame_dir, this_clip_backup_faces_dir, '\n'
 
