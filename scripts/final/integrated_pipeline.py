@@ -1,19 +1,19 @@
 #!/usr/bin/env python
 
 import os
+import sys
 import shutil
 import subprocess
-import sys
+import logging
 import time
 
 from get_bbox import get_bbox
 
-sys.path.append('../')
-sys.path.append('libsvm-3.13/python')
-sys.path.append('/data/lisa/exp/faces/emotiw_final/Kishore/inference_line/')
+#LOG_LEVEL = logging.DEBUG
+LOG_LEVEL = logging.INFO
 
+logging.basicConfig(format="%(asctime)s: %(message)s", level=LOG_LEVEL)
 
-###
 ### PIPELINE STAGES
 extract_frames = 0
 run_picasa = 0
@@ -21,8 +21,8 @@ extract_bbox = 0
 smooth_facetubes = 0
 run_svm_convnet = 0
 
-alt_path1 = 1     # run Ramanan on full frames if picasa did not find anything
-alt_path2 = 1     # postprocess alt_path1 output
+alt_path1 = 1       # run Ramanan on full frames if picasa did not find anything
+alt_path2 = 1       # postprocess alt_path1 output
 
 run_audio = 0
 run_svm_convnet_audio = 0
@@ -44,12 +44,14 @@ REMOTE_SUBMIT_SCIPT='lisa_emotiw/scripts/jorg/remote/submit-worker.py'
 # Picasa incoming directory
 PICASA_PROCESSING_DIR = '/data/lisatmp/faces/picasa_process'
 
+# More imports
 
+sys.path.append('../')
+sys.path.append('libsvm-3.13/python')
+sys.path.append('/data/lisa/exp/faces/emotiw_final/Kishore/inference_line/')
 
 import jorg.remote as remote
 remote.REMOTE_USER_HOST = REMOTE_USER_HOST
-
-
 
 # Root directory for the data read and generated
 #DATA_ROOT_DIR = '/u/ebrahims/emotiw_pipeline/test1'
@@ -83,24 +85,24 @@ CLIP_IDS = [
 #    '000257240',
 #    '000311160',
 #    '002350040',   ## tested for convnet
+     'our-little-one'
     ]
 
 
 ## Path of current script and "scripts" directory
 SELF_PATH = __file__
-print 'SELF_PATH:', SELF_PATH
+logging.debug('SELF_PATH:'+SELF_PATH)
 
 SCRIPTS_PATH = os.path.abspath(os.path.join(
     os.path.dirname(SELF_PATH), os.pardir))
 
-
-# Names of clip
 
 ### Phase 1:  Extract frames from clips as individual files
 script_name = os.path.join(SCRIPTS_PATH, 'mirzamom', 'test_frame_extractor.py')
 frame_dir = os.path.join(DATA_ROOT_DIR, 'extracted_frames')
 
 if extract_frames:
+    logging.info("Phase 1 -- Extract frames from clips")
     if not os.path.exists(frame_dir):
         os.mkdir(frame_dir)
 
@@ -135,6 +137,7 @@ if not os.path.exists(bbox_dir):
 ## Phase 2.1: put the files at the right place, and wait for Picasa to
 #  complete
 if run_picasa:
+    logging.info("Phase 2.1 -- Run Picasa on clips")
     for clip_id in CLIP_IDS:
         # Copy the directory containing frames to Picasa's incoming directory
         clip_frame_dir = os.path.join(frame_dir, clip_id)
@@ -177,16 +180,12 @@ if run_picasa:
 
 ## Phase 2.2: get bounding boxes
 if extract_bbox:
+    logging.info("Phase 2.2 -- Compute bounding boxes from Picasa output")
     find_match_script = os.path.join(SCRIPTS_PATH, 'mirzamom', 'find_match.py')
     cmd_line_template = '%(python)s %(script)s %(orig_path)s %(cropped_path)s %(save_path)s'
     for clip_id in CLIP_IDS:
         save_path = os.path.join(bbox_dir, clip_id)
-        if os.path.exists(save_path):
-            #raise Exception(
-            #    "Directory for extracting bbox coordinates for clip id %s "
-            #    "already exists: %s" % (clip_id, save_path))
-            pass
-        else:
+        if not os.path.exists(save_path):
             os.mkdir(save_path)
 
         cmd_line = cmd_line_template % dict(
@@ -211,9 +210,9 @@ if not os.path.exists(backup_faces_dir):
 script_dir = os.path.join(SCRIPTS_PATH, 'samira/RamananCodes')
 
 if alt_path1:
-    print "Phase 2.1b", '\n', "script_dir = ", script_dir
+    logging.info("Phase 2.1b -- Run Ramanan on full frames if Picasa did not find anythin")
     for clip_id in CLIP_IDS:
-        print "2.1b: processing clip_id %s" % clip_id
+        logging.debug("2.1b: processing clip_id %s" % clip_id)
         this_clip_frame_dir = os.path.join(frame_dir, clip_id)
         this_clip_backup_faces_dir = os.path.join(backup_faces_dir, clip_id)
 
@@ -228,25 +227,23 @@ if alt_path1:
             # ensure remote directory exists
             remote.run_remote(['mkdir', '-p', REMOTE_DATA_PATH])
 
-            print "rsync '%s' to cluster... " % this_clip_frame_dir
+            logging.info("rsync '%s' to cluster... " % this_clip_frame_dir)
             remote.rsync_local_remote(this_clip_frame_dir, REMOTE_DATA_PATH )
 
-            print "Submitting jobs to queuing system on cluster..." 
+            logging.info("Submitting jobs to queuing system on cluster...")
             remote.run_remote([REMOTE_SUBMIT_SCIPT, REMOTE_NO_WORKER, REMOTE_DATA_PATH, clip_id])
             
             # Check for all jobs finished
-            print "Waiting for workpackage to be completed..."
             test_cmd = ['test', '-e', REMOTE_DATA_PATH+clip_id+'/DONE.txt' ]
             while remote.run_remote(test_cmd, except_on_error=False) == 1:
+                logging.info("... waiting for workpackage ...")
                 time.sleep(REMOTE_POLLING_TIMEOUT)
 
-            print "Copy results back to local machine.,."
+            logging.info("Copy results back to local machine and deleting remote dir...")
             remote.rsync_remote_local(REMOTE_DATA_PATH+clip_id, this_clip_backup_faces_dir)
-
-            print "Copied! -- deleting remote dir"
             remote.run_remote(['rm', '-Rf', REMOTE_DATA_PATH+clip_id])
         else:
-            print "2.1b: demoneim filepaths = ", this_clip_frame_dir, this_clip_backup_faces_dir, '\n'
+            logging.info("2.1b: demoneim filepaths = ", this_clip_frame_dir, this_clip_backup_faces_dir, '\n')
 
             current_dir = os.getcwd()
             cmd_line_template = 'bash %(script)s %(frame_dir)s %(backup_faces_dir)s %(scriptdir)s %(currentdir)s'
@@ -264,7 +261,7 @@ if alt_path1:
 ### Phase 2.2b: bbox coordinates if Picasa did not find anything
 # TODO: Raul, finish
 if alt_path2:
-    print '\n', '\n', "phase 2.2b",  '\n', '\n',
+    logging.info("Phase 2.2 -- Compute bounding boxes from Ramanan runs on full frames")
     #script_name = os.path.join(SCRIPTS_PATH, 'chandiar/missing_clips', 'get_bbox.py')
     #print script_name, type(script_name), str(script_name)
 
@@ -293,6 +290,7 @@ if not os.path.exists(facetubes_dir):
     os.mkdir(facetubes_dir)
 
 if smooth_facetubes:
+    logging.info("Phase 2.3 -- Smooth facetubes")
     cmd_template = "%(python)s %(script)s %(orig_path)s %(bbox_path)s %(save_path)s"
     for clip_id in CLIP_IDS:
         save_path = os.path.join(facetubes_dir, clip_id)
@@ -318,6 +316,7 @@ if smooth_facetubes:
 ### Phase 3: Poly's part of the pipeline, from smoothed facetubes to SVM prediction
 #  from convnet's output
 if run_svm_convnet:
+    logging.info("Phase 3")
     samira_model_dir = '/data/lisa/exp/faces/emotiw_final/Samira'
     cmd_line_template = 'bash %(script)s %(clip_id)s %(model_dir)s %(data_root_dir)s'
     for clip_id in CLIP_IDS:
@@ -333,6 +332,7 @@ if run_svm_convnet:
 ###
 ### audio module
 if run_audio:
+    logging.info("Phase 4 -- Audio")
     caglar_audio_model_dir = '/data/lisa/exp/faces/emotiw_final/caglar_audio'
     cmd_line_template = "%(python)s %(audio_script)s %(data)s %(feats)s %(output)s %(model_dir)s %(clip_id)s"
     for clip_id in CLIP_IDS:
@@ -358,6 +358,7 @@ if run_audio:
 ### Second SVM script from Poly, works on top of first SVM prediction and audio
 # NB: The script is "Smodel1.bash", the first one was "Dmodel1.bash".
 if run_svm_convnet_audio:
+    logging.info("Phase 4 -- Second SVM")
     samira_model_dir = '/data/lisa/exp/faces/emotiw_final/Samira'
     cmd_line_template = 'bash %(script)s %(clip_id)s %(model_dir)s %(data_root_dir)s'
     for clip_id in CLIP_IDS:

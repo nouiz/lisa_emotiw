@@ -1,9 +1,7 @@
 #!/usr/bin/env python
 
-import os
-import shutil
+import logging
 import subprocess
-import sys
 from time import sleep
 
 #=============================================================================
@@ -19,6 +17,7 @@ def run_remote(cmd, except_on_error=True):
     if isinstance(cmd, str):
         cmd = [cmd]
     cmd = ['ssh', REMOTE_USER_HOST] + cmd
+    logging.debug("Calling %s", cmd)
     retcode = subprocess.call(cmd)
 
     if except_on_error and retcode != 0:
@@ -28,6 +27,7 @@ def run_remote(cmd, except_on_error=True):
 def rsync_local_remote(local_path, remote_path):
     remote = "%s:%s" % (REMOTE_USER_HOST, remote_path)
     cmd = ['rsync', '-r', local_path, remote]
+    logging.debug("Calling %s", cmd)
     retcode = subprocess.call(cmd)
     if retcode != 0:
         raise RemoteExecutionError(cmd, retcode)
@@ -35,9 +35,8 @@ def rsync_local_remote(local_path, remote_path):
 def rsync_remote_local(remote_path, local_path):
     remote = "%s:%s" % (REMOTE_USER_HOST, remote_path)
     cmd = ['rsync', '-r', remote, local_path]
+    logging.debug("Calling %s", cmd)
     retcode = subprocess.call(cmd)
     if retcode != 0:
         raise RemoteExecutionError(cmd, retcode)
 
-if __name__  == "__main__":
-    submit_workpackage('test.lala')
