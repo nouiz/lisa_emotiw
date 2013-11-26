@@ -10,7 +10,7 @@ from time import sleep
 # Remote execution and copying 
 class RemoteExecutionError(RuntimeError):
     def __init__(self, cmd, retcode):
-        RuntimeError.__init__('Execution of "%s" returned %d' % (' '.join(cmd), retcode))
+        RuntimeError.__init__(self, 'Execution of "%s" returned %d' % (' '.join(cmd), retcode))
 
 def run_remote(cmd, except_on_error=True):
     """ Use ssh to run the specified cmd on REMOTE_USER_HOST.
