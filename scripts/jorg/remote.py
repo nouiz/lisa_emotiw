@@ -33,7 +33,7 @@ def submit_workpackage(local_dir):
 
     # wait for workpackage to be completed
     print "Waiting for workpackage to be completed..."
-    test_cmd = ['test', '-e', remote_dir+'.done']
+    test_cmd = ['test', '-e', REMOTE_DATA_PATH+local_dir+'/DONE' ]
     while run_remote(test_cmd, except_on_error=False) == 1:
         sleep(REMOTE_POLLING_TIMEOUT)
 
@@ -62,14 +62,15 @@ def run_remote(cmd, except_on_error=True):
 
 def rsync_local_remote(local_path, remote_path):
     remote = "%s:%s" % (REMOTE_USER_HOST, remote_path)
-    cmd = ['rsync', '-Ra', local_path, remote]
+    cmd = ['rsync', '-r', local_path, remote]
+    print cmd
     retcode = subprocess.call(cmd)
     if retcode != 0:
         raise RemoteExecutionError(cmd, retcode)
 
 def rsync_remote_local(remote_path, local_path):
     remote = "%s:%s" % (REMOTE_USER_HOST, remote_path)
-    cmd = ['rsync', '-Ra', remote, local_path]
+    cmd = ['rsync', '-r', remote, local_path]
     retcode = subprocess.call(cmd)
     if retcode != 0:
         raise RemoteExecutionError(cmd, retcode)

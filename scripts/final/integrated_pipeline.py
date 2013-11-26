@@ -6,19 +6,21 @@ import subprocess
 import sys
 import time
 
-from mlabwrap import mlab
+import pdb
+
+sys.path.append("../")
 
 
 ###
-### DEBUG THING
+### PIPELINE STAGES
 extract_frames = 0
 run_picasa = 0
 extract_bbox = 0
 smooth_facetubes = 0
 run_svm_convnet = 0
 
-alt_path1 = 0
-alt_path2 = 1
+alt_path1 = 1     # run Ramanan on full frames if picasa did not find anything
+alt_path2 = 1     # postprocess alt_path1 output
 
 run_audio = 0
 run_svm_convnet_audio = 0
@@ -27,6 +29,18 @@ run_kishore = 0
 run_bomf = 0
 
 run_xavier = 0
+
+### Configureation ###
+
+REMOTE_RAMANAN = 1
+REMOTE_USER_HOST='bornj@cudahead.rdgi.polymtl.ca'
+REMOTE_DATA_PATH='tmp/jobdata/'                               # directory there the workpackages will be copied
+REMOTE_SUBMIT_SCIPT='lisa_emotiw/scripts/jorg/remote/submit-worker.py' 
+REMOTE_NO_WORKER='20'
+REMOTE_POLLING_TIMEOUT=10
+
+
+import jorg.remote as remote
 
 
 ### Define environment variables for configuration
@@ -38,7 +52,8 @@ os.environ['PYTHONPATH'] = (
 
 
 # Root directory for the data read and generated
-DATA_ROOT_DIR = '/u/ebrahims/emotiw_pipeline/test1'
+#DATA_ROOT_DIR = '/u/ebrahims/emotiw_pipeline/test1'
+DATA_ROOT_DIR = '/u/bornj/emotiw_pipeline/test1'
 
 # Initial directory containing the *.avi files,
 # relative to DATA_ROOT_DIR
@@ -57,7 +72,7 @@ if not os.path.exists(PREDICTION_DIR):
 
 # Names of clips to process
 CLIP_IDS = [
-    '000143240',
+#    '000143240',
 #    '000152960',
 #    '000157760',
 #    '000201320',
@@ -67,6 +82,7 @@ CLIP_IDS = [
 #    '000247920',
 #    '000257240',
 #    '000311160',
+    'our-little-one',
     ]
 
 # TODO: Jean-Philippe, which directories to use?
@@ -190,28 +206,47 @@ script_dir = os.path.join(SCRIPTS_PATH, 'samira/RamananCodes')
 if alt_path1:
     print "Phase 2.1b", '\n', "script_dir = ", script_dir
     for clip_id in CLIP_IDS:
+        print "2.1b: processing clip_id %s" % clip_id
         this_clip_frame_dir = os.path.join(frame_dir, clip_id)
         this_clip_backup_faces_dir = os.path.join(backup_faces_dir, clip_id)
-        clips = []
-        for i,j,c in os.walk(this_clip_frame_dir):
-            clips = c
-            #print '\n', clips, this_clip_frame_dir, this_clip_backup_faces_dir, '\n'
-            if not os.path.exists(this_clip_frame_dir):
-                os.mkdir(this_clip_frame_dir)
-            if not os.path.exists(this_clip_backup_faces_dir):
-                os.mkdir(this_clip_backup_faces_dir)
-            print "demoneim filepaths = ", this_clip_frame_dir, this_clip_backup_faces_dir, '\n'
+
+        if not os.path.exists(this_clip_frame_dir):
+             os.mkdir(this_clip_frame_dir)
+        if not os.path.exists(this_clip_backup_faces_dir):
+             os.mkdir(this_clip_backup_faces_dir)
+ 
+        # XXX Somebody check if picasa found a face in this clip skip it completely XXX
+
+        if REMOTE_RAMANAN:
+            # ensure remote directory exists
+            remote.run_remote(['mkdir', '-p', REMOTE_DATA_PATH])
+
+            print "rsync '%s' to cluster... " % this_clip_frame_dir
+            remote.rsync_local_remote(this_clip_frame_dir, REMOTE_DATA_PATH )
+
+            print "Submitting jobs to queuing system on cluster..." 
+            remote.run_remote([REMOTE_SUBMIT_SCIPT, REMOTE_NO_WORKER, REMOTE_DATA_PATH, clip_id])
+            
+            # Check for all jobs finished
+            print "Waiting for workpackage to be completed..."
+            test_cmd = ['test', '-e', REMOTE_DATA_PATH+clip_id+'/DONE.txt' ]
+            while remote.run_remote(test_cmd, except_on_error=False) == 1:
+                time.sleep(REMOTE_POLLING_TIMEOUT)
+
+            print "Copy results back to local machine.,."
+            remote.rsync_remote_local(REMOTE_DATA_PATH+clip_id, this_clip_backup_faces_dir)
+        else:
+            print "2.1b: demoneim filepaths = ", this_clip_frame_dir, this_clip_backup_faces_dir, '\n'
+
             current_dir = os.getcwd()
-            samira_model_dir = '/data/lisa/exp/faces/emotiw_final/Samira'
             cmd_line_template = 'bash %(script)s %(frame_dir)s %(backup_faces_dir)s %(scriptdir)s %(currentdir)s'
             print "script_dir = ", script_dir
-            for clip_id in CLIP_IDS:
-                cmd_line = cmd_line_template % dict(
-                    script=os.path.join(SCRIPTS_PATH, 'samira/RamananCodes', 'demoneimagewhole_alt.bash'),
-                    frame_dir=this_clip_frame_dir,
-                    backup_faces_dir=this_clip_backup_faces_dir,
-                    scriptdir = script_dir,
-                    currentdir = current_dir)
+            cmd_line = cmd_line_template % dict(
+                script=os.path.join(SCRIPTS_PATH, 'samira/RamananCodes', 'demoneimagewhole_alt.bash'),
+                frame_dir=this_clip_frame_dir,
+                backup_faces_dir=this_clip_backup_faces_dir,
+                scriptdir = script_dir,
+                currentdir = current_dir)
             print '\n', 'executing cmd:'
             print cmd_line, '\n', '\n', '\n', '\n'
             subprocess.check_call(cmd_line, shell=True)
