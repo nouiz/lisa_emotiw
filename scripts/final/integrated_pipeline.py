@@ -8,7 +8,9 @@ import time
 
 from get_bbox import get_bbox
 
-sys.path.append("../")
+sys.path.append('../')
+sys.path.append('libsvm-3.13/python')
+sys.path.append('/data/lisa/exp/faces/emotiw_final/Kishore/inference_line/')
 
 
 ###
@@ -32,24 +34,21 @@ run_xavier = 0
 
 ### Configureation ###
 
-REMOTE_RAMANAN = 1
-REMOTE_USER_HOST='bornj@cudahead.rdgi.polymtl.ca'
-REMOTE_DATA_PATH='tmp/jobdata/'                               # directory there the workpackages will be copied
+REMOTE_RAMANAN = 1                                    # use remote ramanan computation
+REMOTE_USER_HOST='bornj@cudahead.rdgi.polymtl.ca'     # cluster account to use
+REMOTE_DATA_PATH='tmp/jobdata/'                       # directory there the workpackages will be copied
+REMOTE_NO_WORKER='20'                                 # number of parallel workers on the cluster
+REMOTE_POLLING_TIMEOUT=10                             # polling interval in seconds
 REMOTE_SUBMIT_SCIPT='lisa_emotiw/scripts/jorg/remote/submit-worker.py' 
-REMOTE_NO_WORKER='20'
-REMOTE_POLLING_TIMEOUT=10
+
+# Picasa incoming directory
+PICASA_PROCESSING_DIR = '/data/lisatmp/faces/picasa_process'
+
 
 
 import jorg.remote as remote
 remote.REMOTE_USER_HOST = REMOTE_USER_HOST
 
-
-### Define environment variables for configuration
-
-# For libsvm
-os.environ['PYTHONPATH'] = (
-    '/data/lisa/exp/faces/emotiw_final/Kishore/inference_line/'
-    'libsvm-3.13/python:') + os.environ['PYTHONPATH']
 
 
 # Root directory for the data read and generated
@@ -85,9 +84,6 @@ CLIP_IDS = [
 #    '000311160',
 #    '002350040',   ## tested for convnet
     ]
-
-# Picasa incoming directory
-PICASA_PROCESSING_DIR = '/data/lisatmp/faces/picasa_process'
 
 
 ## Path of current script and "scripts" directory
