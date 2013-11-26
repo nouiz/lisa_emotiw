@@ -161,7 +161,7 @@ def run_nnet(clip_ids, features_dir, scores_out_dir, params_dir, **kwargs):
 
 if __name__ == "__main__" :
     #run_pipeline(file_dir="../Test_Vid_Distr/Data/",
-    #             clip_ids=["000152960.avi"],
+    #             clip_ids=["000152960"],
     #             features_dir="./audio_feats2/",
     #             scores_out_dir="./scores/")
 
