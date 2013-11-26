@@ -6,7 +6,7 @@ import subprocess
 import sys
 import time
 
-import pdb
+from get_bbox import get_bbox
 
 sys.path.append("../")
 
@@ -82,10 +82,9 @@ CLIP_IDS = [
 #    '000247920',
 #    '000257240',
 #    '000311160',
-    'our-little-one',
+#    '002350040',   ## tested for convnet
     ]
 
-# TODO: Jean-Philippe, which directories to use?
 # Picasa incoming directory
 PICASA_PROCESSING_DIR = '/data/lisatmp/faces/picasa_process'
 
@@ -112,10 +111,12 @@ if extract_frames:
         clip_dir = AVI_DIR
         clip_frame_dir = os.path.join(frame_dir, clip_id)
         if os.path.exists(clip_frame_dir):
-            raise Exception(
-                "Directory for extracting frames of clip id %s already exists: "
-                "%s" % (clip_id, clip_frame_dir))
-        os.mkdir(clip_frame_dir)
+            #raise Exception(
+            #    "Directory for extracting frames of clip id %s already exists: "
+            #    "%s" % (clip_id, clip_frame_dir))
+            pass
+        else:
+            os.mkdir(clip_frame_dir)
 
         # sys.executable is the full path to python
         cmd_line = '%s %s %s %s %s' % (
@@ -166,7 +167,15 @@ if run_picasa:
 
         assert os.path.exists(clip_picasa_faces_dir)
         clip_faces_dir = os.path.join(faces_dir, clip_id)
+        if os.path.exists(clip_faces_dir):
+            # It may or may not be correct, remove it
+            shutil.rmtree(clip_faces_dir)
         shutil.copytree(clip_picasa_faces_dir, clip_faces_dir)
+
+        # Clean up, so the Windows script does not crash if the same
+        # clip gets extracted again
+        shutil.rmtree(clip_picasa_processed_dir)
+        shutil.rmtree(clip_picasa_faces_dir)
 
 
 ## Phase 2.2: get bounding boxes
@@ -176,9 +185,10 @@ if extract_bbox:
     for clip_id in CLIP_IDS:
         save_path = os.path.join(bbox_dir, clip_id)
         if os.path.exists(save_path):
-            raise Exception(
-                "Directory for extracting bbox coordinates for clip id %s "
-                "already exists: %s" % (clip_id, save_path))
+            #raise Exception(
+            #    "Directory for extracting bbox coordinates for clip id %s "
+            #    "already exists: %s" % (clip_id, save_path))
+            pass
         else:
             os.mkdir(save_path)
 
@@ -277,7 +287,6 @@ if alt_path2:
 
 
 
-
 ## Phase 2.3:
 facetubes_dir = os.path.join(DATA_ROOT_DIR, 'facetubes_96x96')
 if not os.path.exists(facetubes_dir):
@@ -288,9 +297,10 @@ if smooth_facetubes:
     for clip_id in CLIP_IDS:
         save_path = os.path.join(facetubes_dir, clip_id)
         if os.path.exists(save_path):
-            raise Exception(
-                "Directory for exporting smooth facetube images "
-                "for clip id %s already exists: %s" % (clip_id, save_path))
+            #raise Exception(
+            #    "Directory for exporting smooth facetube images "
+            #    "for clip id %s already exists: %s" % (clip_id, save_path))
+            pass
         else:
             os.mkdir(save_path)
 
@@ -323,7 +333,6 @@ if run_svm_convnet:
 ###
 ### audio module
 if run_audio:
-    # TODO Caglar: put script in git, model in /data/lisa/exp/...
     caglar_audio_model_dir = '/data/lisa/exp/faces/emotiw_final/caglar_audio'
     cmd_line_template = "%(python)s %(audio_script)s %(data)s %(feats)s %(output)s %(model_dir)s %(clip_id)s"
     for clip_id in CLIP_IDS:
@@ -397,8 +406,6 @@ if run_kishore:
         subprocess.check_call(cmd_line, shell=True)
 
         # The output will be a one-liner file in the current directory
-        # TODO: check if it makes a difference to run all the clips at once,
-        #       Kishore did that, and the results could be different
         shutil.move(os.path.join('activity_recognition_test_results.txt'),
                     os.path.join(PREDICTION_DIR, 'kishore_pred_%s.txt' % clip_id))
 

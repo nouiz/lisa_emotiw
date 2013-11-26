@@ -5,7 +5,8 @@ indx = [1:51];
 ICMLavg5 = 'avgpointsICML5x.mat';
 load(ICMLavg5); base_points = avg(indx,:)/5;
 
-TFDavg = [path_out(1:end-1) '.mat'];%'avgpointsmissingvideos.mat';
+%TFDavg = [path_out(1:end-1) '.mat']; %'avgpointsmissingvideos.mat';
+TFDavg = ['AFEW_test_meanshape.mat'];
 load(TFDavg); input_points = avg(indx,:)+32;%add border
 
 TFORM = cp2tform(input_points, base_points, 'similarity');
