@@ -24,9 +24,9 @@ def run_pipeline(file_dir,
 
     audiofiles = []
 
-    for video_file in clip_ids:
-        video_file_path = os.path.join(file_dir, video_file)
-        audio_file = os.path.splitext(video_file)[0] + ".mp3"
+    for clip_id in clip_ids:
+        video_file_path = os.path.join(file_dir, clip_id + '.avi')
+        audio_file = clip_id + ".mp3"
         audio_file_path = os.path.join(file_dir, audio_file)
         audiofiles.append(audio_file)
 
@@ -154,7 +154,7 @@ def run_nnet(clip_ids, features_dir, scores_out_dir, params_dir, **kwargs):
     test_preds_txt = open(os.path.join(scores_out_dir, "audio_mlp_learned_on_train_predict_on_test_scores.txt"), 'w')
     for item, pred in zip(clip_ids, test_preds):
         label = LABELS[pred.argmax()]
-        print >>test_preds_txt, item, label, ('%f ' * 7) % tuple([p for p in pred[0]])
+        print >>test_preds_txt, item, label, ('%f ' * 7) % tuple([p for p in pred])
     test_preds_txt.close()
 
 
