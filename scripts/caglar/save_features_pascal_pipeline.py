@@ -104,6 +104,7 @@ def run_nnet(clip_ids, features_dir, scores_out_dir, params_dir, **kwargs):
     test_file_h.writelines(["%s\n" % item for item in test_filenames])
 
     test_means = numpy.load(os.path.join(final_audio_path, "test_means.npy"))
+    test_means = numpy.cast[theano.config.floatX](test_means)
 
     print "Building model..."
 
