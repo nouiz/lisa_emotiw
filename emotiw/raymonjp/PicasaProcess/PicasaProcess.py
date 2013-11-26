@@ -84,9 +84,26 @@ if __name__ == '__main__':
     observer.start()
     
     try:
+        # This file will appear if we need to clean up and restart
+        restart_file = os.path.join(WORKING_DIRECTORY, 'RESTART')
         while True:
-            time.sleep(1)
+            try:
+                time.sleep(10)
+                if os.path.exists(restart_file):
+                    shutil.rmtree(PROCESSING_DIRECTORY, ignore_errors=1)
+                    shutil.rmtree(FACES_DIRECTORY, ignore_errors=1)
+                    raise Exception("Restart required")
+            except Exception, e:
+                print "Exception encountered:", e
+                observer.stop()
+                # Create a new observer
+                observer = Observer()
+                observer.schedule(event_handler, WORKING_DIRECTORY, False)
+                observer.start()
+                if os.path.exists(restart_file):
+                    os.remove(restart_file)
+
     except KeyboardInterrupt:
         observer.stop()
-    
+
     observer.join()
