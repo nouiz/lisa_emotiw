@@ -252,6 +252,15 @@ script_dir = os.path.join(SCRIPTS_PATH, 'samira/RamananCodes')
 if alt_path1:
     logging.info("Phase 2.1b -- Run Ramanan on full frames if Picasa did not find anythin")
     for clip_id in CLIP_IDS:
+        # If picasa found a face in this clip, skip it completely
+        this_clip_picasa_faces_dir = os.path.join(faces_dir, clip_id)
+        nb_picasa_faces = len([f
+                               for f in os.listdir(this_clip_picasa_faces_dir)
+                               if f.endswith('.jpg')])
+        if nb_picasa_faces > 0:
+            logging.debug("2.1b: skipping clip_id %s" % clip_id)
+            continue
+
         logging.debug("2.1b: processing clip_id %s" % clip_id)
         this_clip_frame_dir = os.path.join(frame_dir, clip_id)
         this_clip_backup_faces_dir = os.path.join(backup_faces_dir, clip_id)
@@ -261,7 +270,6 @@ if alt_path1:
         if not os.path.exists(this_clip_backup_faces_dir):
              os.mkdir(this_clip_backup_faces_dir)
  
-        # XXX Somebody check if picasa found a face in this clip skip it completely XXX
 
         if REMOTE_RAMANAN:
             # ensure remote directory exists
@@ -310,6 +318,14 @@ if alt_path2:
         os.mkdir(backup_bboxes_dir)
 
     for clip_id in CLIP_IDS:
+        # If picasa found a face in this clip, skip it completely
+        this_clip_picasa_faces_dir = os.path.join(faces_dir, clip_id)
+        nb_picasa_faces = len([f
+                               for f in os.listdir(this_clip_picasa_faces_dir)
+                               if f.endswith('.jpg')])
+        if nb_picasa_faces > 0:
+            continue
+
         this_clip_frame_dir = os.path.join(frame_dir, clip_id)
         if not os.path.exists(this_clip_frame_dir):
             os.mkdir(this_clip_frame_dir)
