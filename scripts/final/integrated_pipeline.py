@@ -15,22 +15,23 @@ LOG_LEVEL = logging.INFO
 logging.basicConfig(format="%(asctime)s: %(message)s", level=LOG_LEVEL)
 
 ### PIPELINE STAGES
-extract_frames = 0
-run_picasa = 0
-extract_bbox = 0
-smooth_facetubes = 0
-run_svm_convnet = 0
+extract_frames = 1
+run_picasa = 1
+extract_bbox = 1
+smooth_facetubes = 1
+run_svm_convnet = 1
 
 alt_path1 = 1       # run Ramanan on full frames if picasa did not find anything
 alt_path2 = 1       # postprocess alt_path1 output
 
-run_audio = 0
-run_svm_convnet_audio = 0
+run_audio = 1
+run_svm_convnet_audio = 1
 
-run_kishore = 0
-run_bomf = 0
+run_kishore = 1
+run_bomf = 1
 
-run_xavier = 0
+run_xavier = 1
+export_final = 1
 
 ### Configureation ###
 
@@ -56,16 +57,15 @@ import jorg.remote as remote
 remote.REMOTE_USER_HOST = REMOTE_USER_HOST
 
 # Root directory for the data read and generated
-#DATA_ROOT_DIR = '/u/ebrahims/emotiw_pipeline/test1'
-DATA_ROOT_DIR = '/u/bornj/emotiw_pipeline/test1'
+DATA_ROOT_DIR = '/u/ebrahims/emotiw_pipeline/workshop_demo'
 
 # Initial directory containing the *.avi files,
 # relative to DATA_ROOT_DIR
-AVI_DIR = 'Test_Vid_Distr/Data'
+AVI_DIR = 'Vid_Distr/Data'
 AVI_DIR = os.path.join(DATA_ROOT_DIR, AVI_DIR)
 
 # Initial directory containing faces aligned by the organizers
-ALIGNED_DIR = 'Faces_Aligned_Test'
+ALIGNED_DIR = 'Faces_Aligned'
 ALIGNED_DIR = os.path.join(DATA_ROOT_DIR, ALIGNED_DIR)
 
 # Data where we put the individual predictions
@@ -74,8 +74,14 @@ PREDICTION_DIR = os.path.join(DATA_ROOT_DIR, PREDICTION_DIR)
 if not os.path.exists(PREDICTION_DIR):
     os.mkdir(PREDICTION_DIR)
 
+# Directory where we export the final prediction and probabilities for each clip
+FINAL_PREDICTION_DIR = 'final_prediction'
+FINAL_PREDICTION_DIR = os.path.join(DATA_ROOT_DIR, FINAL_PREDICTION_DIR)
+if not os.path.exists(FINAL_PREDICTION_DIR):
+    os.mkdir(FINAL_PREDICTION_DIR)
+
 # Names of clips to process
-CLIP_IDS = [
+#CLIP_IDS = [
 #    '000143240',
 #    '000152960',
 #    '000157760',
@@ -86,10 +92,20 @@ CLIP_IDS = [
 #    '000247920',
 #    '000257240',
 #    '000311160',
-#    '002350040',   ## tested for convnet
-     'our-little-one'
-    ]
+#    '002350040',
+#    'our-little-one'
+#    ]
+CLIP_IDS = sys.argv[1:]
+if not CLIP_IDS:
+    logging.error("No clip IDs provided on the command line.")
+    sys.exit(-1)
 
+#### Hack to process all the clips at the same time
+#if not CLIP_IDS:
+#    # The whole content of AVI_DIR
+#    import glob
+#    CLIP_IDS = [os.path.basename(f).rsplit('.', 1)[0]
+#                for f in sorted(glob.glob(os.path.join(AVI_DIR, '*.avi')))]
 
 ### Print general information ###
 logging.info("Processing %d clips: %s", len(CLIP_IDS), CLIP_IDS)
@@ -564,3 +580,20 @@ if run_xavier:
             subprocess.check_call(cmd_line, shell = True)
         except subprocess.CalledProcessError:
             logging.warn('WARNING: Weighted prediction crashed on %s -- FINAL OUTPUT NOT GENERATED', clip_id)
+
+### Final label prediction and probabilities in the format the organizers expected
+if export_final:
+    logging.info("Exporting final label and probabilities")
+    cmd_line_template = "%(python)s %(export_script)s %(pred_dir)s %(final_pred_dir)s %(clip_id)s"
+    for clip_id in CLIP_IDS:
+        cmd_line = cmd_line_template % dict(
+            python=sys.executable,
+            export_script=os.path.join(SCRIPTS_PATH, 'final', 'export_labels_and_probs.py'),
+            pred_dir=PREDICTION_DIR,
+            final_pred_dir=FINAL_PREDICTION_DIR,
+            clip_id=clip_id)
+        try:
+            logging.debug('executing cmd: %s', cmd_line)
+            subprocess.check_call(cmd_line, shell=True)
+        except subprocess.CalledProcessError:
+            logging.warn('WARNING: Export crashed on %s -- FINAL PREDICTION NOT EXPORTED', clip_id)
