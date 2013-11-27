@@ -522,9 +522,25 @@ if run_bomf:
             shutil.move(os.path.join(PREDICTION_DIR, 'BoMF_test_probabilities.npy'),
                         os.path.join(PREDICTION_DIR, 'bomf_pred_%s.npy' % clip_id))
         except subprocess.CalledProcessError:
-            logging.warn('WARNING: Bag-of-mouth module crashed on %s -- USING DEFAULT PREDICTIONS', clip_id)
-            shutil.copy(os.path.join(DEFAULT_PREDICITION_DIR, 'bomf_pred.npy'),
-                        os.path.join(PREDICTION_DIR, 'bomf_pred_%s.txt' % clip_id))
+            logging.warn('WARNING: Bag-of-mouth module crashed on %s with batch_size 50 -- retrying with 51', clip_id)
+            cmd_line = cmd_line_template % dict(
+                python=sys.executable,
+                bomf_cmdline=os.path.join(SCRIPTS_PATH, 'jeasebas', 'BoMF_cmdline.py'),
+                aligned_faces_dir=ALIGNED_DIR,
+                small_faces_outdir=small_faces_outdir,
+                model_dir=bomf_model_dir,
+                pred_dir=PREDICTION_DIR,
+                batch_size=51,
+                clip_ids=clip_id)
+            try:
+                logging.debug('executing cmd: %s', cmd_line)
+                subprocess.check_call(cmd_line, shell=True)
+                shutil.move(os.path.join(PREDICTION_DIR, 'BoMF_test_probabilities.npy'),
+                            os.path.join(PREDICTION_DIR, 'bomf_pred_%s.npy' % clip_id))
+            except subprocess.CalledProcessError:
+                logging.warn('WARNING: Bag-of-mouth module crashed again on %s -- USING DEFAULT PREDICTIONS', clip_id)
+                shutil.copy(os.path.join(DEFAULT_PREDICITION_DIR, 'bomf_pred.npy'),
+                            os.path.join(PREDICTION_DIR, 'bomf_pred_%s.txt' % clip_id))
 
 # Xavier's weighted prediction
 if run_xavier:
@@ -548,4 +564,3 @@ if run_xavier:
             subprocess.check_call(cmd_line, shell = True)
         except subprocess.CalledProcessError:
             logging.warn('WARNING: Weighted prediction crashed on %s -- FINAL OUTPUT NOT GENERATED', clip_id)
-
