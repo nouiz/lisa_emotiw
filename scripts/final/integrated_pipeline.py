@@ -395,7 +395,7 @@ if run_audio:
         cmd_line = cmd_line_template % dict(
             python=sys.executable,
             audio_script=os.path.join(SCRIPTS_PATH, 'caglar', 'save_features_pascal_pipeline.py'),
-            data=os.path.join(DATA_ROOT_DIR, 'Test_Vid_Distr', 'Data'),
+            data=AVI_DIR,
             feats=os.path.join(DATA_ROOT_DIR, 'audio_feats'),
             output=PREDICTION_DIR,
             model_dir=caglar_audio_model_dir,
