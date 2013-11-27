@@ -82,7 +82,7 @@ def run_nnet(clip_ids, features_dir, scores_out_dir, params_dir, **kwargs):
     rho=0.92
 
     print "Loading dataset..."
-    LABELS = ["Disgust",  "Fear",  "Happy",  "Neutral",  "Sad",  "Surprise", "Angry"]
+    LABELS = ["Angry","Disgust","Fear","Happy","Sad","Surprise", "Neutral"]
     nclasses = len(LABELS)
 
     numpy.random.seed(0x7265257d5f)
