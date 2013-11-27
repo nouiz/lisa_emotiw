@@ -21,6 +21,7 @@ from pca import pca, whiten
 #    os.path.join(
 #        os.path.realpath(os.path.abspath('.')),
 #        'libsvm-3.13/python'))
+sys.path.append('/data/lisa/exp/faces/emotiw_final/Kishore/inference_line/libsvm-3.13/python')
 
 import svmutil
 from chi2 import chi2

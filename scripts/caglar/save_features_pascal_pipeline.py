@@ -25,7 +25,7 @@ def run_pipeline(file_dir,
     audiofiles = []
 
     for clip_id in clip_ids:
-        video_file_path = os.path.join(file_dir, clip_id + ".avi")
+        video_file_path = os.path.join(file_dir, clip_id + '.avi')
         audio_file = clip_id + ".mp3"
         audio_file_path = os.path.join(file_dir, audio_file)
         audiofiles.append(audio_file)
@@ -58,7 +58,6 @@ def run_nnet(clip_ids, features_dir, scores_out_dir, params_dir, **kwargs):
     K=1
     state=None
     channel=None
-
     n_hiddens=310
     use_nesterov=1
     learning_rate=0.000502311626412
@@ -87,6 +86,7 @@ def run_nnet(clip_ids, features_dir, scores_out_dir, params_dir, **kwargs):
     nclasses = len(LABELS)
 
     numpy.random.seed(0x7265257d5f)
+    final_audio_path = "/data/lisa/exp/faces/emotiw_final/caglar_audio/"
 
     test_files = glob.glob("%s/*.pkl" % features_dir)
     test_x = []
@@ -103,7 +103,8 @@ def run_nnet(clip_ids, features_dir, scores_out_dir, params_dir, **kwargs):
     test_file_h = open("test_file.txt", "w")
     test_file_h.writelines(["%s\n" % item for item in test_filenames])
 
-    test_means = numpy.asarray(numpy.sum([x.sum(0) for x in test_x], 0) / sum([x.shape[0] for x in test_x]), dtype=theano.config.floatX)
+    test_means = numpy.load(os.path.join(final_audio_path, "test_means.npy"))
+    test_means = numpy.cast[theano.config.floatX](test_means)
 
     print "Building model..."
 
@@ -135,6 +136,8 @@ def run_nnet(clip_ids, features_dir, scores_out_dir, params_dir, **kwargs):
 
     test_feats = []
     test_preds = []
+
+    #Testing the means
     for minibatch in range(len(test_x)):
         x = test_x[minibatch] - test_means
         test_feats.append(model.pooled_output_features(x))
@@ -143,6 +146,7 @@ def run_nnet(clip_ids, features_dir, scores_out_dir, params_dir, **kwargs):
     test_feats = numpy.asarray(test_feats, dtype="float32")
     test_feats_dir = os.path.join(scores_out_dir, "audio_mlp_test_feats.npy")
     test_preds_dir = os.path.join(scores_out_dir, "audio_mlp_learned_on_train_predict_on_test_scores.npy")
+    test_preds = numpy.asarray(test_preds).flatten().reshape(-1, 7)[:, (6,0,1,2,4,5,3)]
 
     numpy.save(test_feats_dir, test_feats)
     numpy.save(test_preds_dir, test_preds)
@@ -150,12 +154,14 @@ def run_nnet(clip_ids, features_dir, scores_out_dir, params_dir, **kwargs):
     test_preds_txt = open(os.path.join(scores_out_dir, "audio_mlp_learned_on_train_predict_on_test_scores.txt"), 'w')
     for item, pred in zip(clip_ids, test_preds):
         label = LABELS[pred.argmax()]
-        print >>test_preds_txt, item, label, ('%f ' * 7) % tuple([p for p in pred[0]])
+        print >>test_preds_txt, item, label, ('%f ' * 7) % tuple([p for p in pred])
     test_preds_txt.close()
+
+
 
 if __name__ == "__main__" :
     #run_pipeline(file_dir="../Test_Vid_Distr/Data/",
-    #             video_files=["000846120.avi"],
+    #             clip_ids=["000152960"],
     #             features_dir="./audio_feats2/",
     #             scores_out_dir="./scores/")
 

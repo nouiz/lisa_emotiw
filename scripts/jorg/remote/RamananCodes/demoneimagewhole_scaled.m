@@ -35,7 +35,11 @@ else
     error('Can not recognize this model');
 end
 
-img=imread(img_fname);
+try 
+    img=imread(img_fname);
+catch err
+    return
+end
     
 if size(img,3)==1
     im = repmat(img,[1 1 3]);

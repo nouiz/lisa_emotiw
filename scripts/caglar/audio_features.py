@@ -10,6 +10,12 @@ import yaafelib
 
 # online PCA for large datasets
 class PCA:
+  def __init__(self):
+    self.ndim = -1
+    self.mean = None
+    self.covariance = None
+    self.num_frames = 0
+
   def start(self, ndim):
     self.ndim = ndim
     self.mean = numpy.zeros(self.ndim, dtype='float64')
@@ -18,7 +24,7 @@ class PCA:
 
   def add(self, x):
     #if not hasattr(self, 'ndim') or self.ndim != x.shape[1]:
-    if not hasattr(self, 'ndim'):
+    if self.ndim == -1:
       self.start(x.shape[1])
 
     mean = x.mean(axis=0)
@@ -54,7 +60,11 @@ def file_create(name):
 
 pca = None
 
-def export_features(path=None, audiofiles=None, out='../audio_features', train_file_path=None):
+def export_features(path=None,
+                    audiofiles=None,
+                    out='../audio_features', train_file_path=None,
+                    pca_params_path="/data/lisa/exp/faces/emotiw_final/caglar_audio/pca_params.pkl"):
+
   # prepare the FeaturePlan
   plan = yaafelib.FeaturePlan(sample_rate=48000, normalize=0.99)
   size_info = 'blockSize=1248 stepSize=624'
@@ -112,18 +122,32 @@ def export_features(path=None, audiofiles=None, out='../audio_features', train_f
     print "Training pca..."
     pca = defaultdict(PCA)
     audiofiles_ = glob.glob('%s/*/*.mp3' % train_file_path)
-    # extract features from audio files
-    for audiofile in audiofiles_:
-      processor.processFile(engine, audiofile)
-      features = engine.readAllOutputs()
-      for subset, keys in subsets.iteritems():
-        if keys == 'full':
-          keys = sorted(features.keys())
-        output = numpy.concatenate([features[k].T for k in keys]).T
+    if not(os.path.exists(pca_params_path)):
+        # extract features from audio files
+        for audiofile in audiofiles_:
+          processor.processFile(engine, audiofile)
+          features = engine.readAllOutputs()
+          for subset, keys in subsets.iteritems():
+            if keys == 'full':
+              keys = sorted(features.keys())
+            output = numpy.concatenate([features[k].T for k in keys]).T
 
-#        import ipdb; ipdb.set_trace()
-        if 'Train' in audiofile:
-            pca[subset].add(output)
+            if 'Train' in audiofile:
+                pca[subset].add(output)
+
+        pca_params = {}
+        pca_params["mean"] = pca["full"].mean
+        pca_params["covariance"] = pca["full"].covariance
+        pca_params["num_frames"] = pca["full"].num_frames
+        pca_params["ndim"] = pca["full"].ndim
+        cPickle.dump(pca_params, file_create(pca_params_path), cPickle.HIGHEST_PROTOCOL)
+    else:
+        pca_params = cPickle.load(open(pca_params_path, "rb"))
+        pca["full"].covariance = pca_params["covariance"]
+        pca["full"].mean = pca_params["mean"]
+        pca["full"].num_frames = pca_params["num_frames"]
+        pca["full"].ndim = pca_params["ndim"]
+
     print "PCA training finished."
     return pca
 

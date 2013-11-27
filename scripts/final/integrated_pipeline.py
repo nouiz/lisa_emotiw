@@ -47,7 +47,6 @@ PICASA_PROCESSING_DIR = '/data/lisatmp/faces/picasa_process'
 # More imports
 
 sys.path.append('../')
-sys.path.append('libsvm-3.13/python')
 sys.path.append('/data/lisa/exp/faces/emotiw_final/Kishore/inference_line/')
 
 import jorg.remote as remote
@@ -139,34 +138,71 @@ if not os.path.exists(bbox_dir):
 if run_picasa:
     logging.info("Phase 2.1 -- Run Picasa on clips")
     for clip_id in CLIP_IDS:
-        # Copy the directory containing frames to Picasa's incoming directory
         clip_frame_dir = os.path.join(frame_dir, clip_id)
         clip_picasa_incoming = os.path.join(PICASA_PROCESSING_DIR, clip_id)
-        shutil.copytree(clip_frame_dir, clip_picasa_incoming)
-
-        # Then, append '.process_me' to its name, to signal the Windows script
-        # that it can proceed
-        os.rename(clip_picasa_incoming, '%s.process_me' % clip_picasa_incoming)
-
-        # Wait for Picasa to return
         # This one contains the full frames, after processing
         clip_picasa_processed_dir = os.path.join(
             PICASA_PROCESSING_DIR, '%s.processed' % clip_id)
         # This one contains the extracted faces
         clip_picasa_faces_dir = os.path.join(
             PICASA_PROCESSING_DIR, '%s.faces' % clip_id)
+        # This is where we put the faces afterwards
+        clip_faces_dir = os.path.join(faces_dir, clip_id)
 
-        for i in xrange(300):
-            time.sleep(1)
-            if os.path.exists(clip_picasa_processed_dir):
+        if os.path.exists(clip_faces_dir):
+            print '%s skipping picasa processing' % clip_id
+            continue
+
+        n_attempts = 3
+        restart_file = os.path.join(PICASA_PROCESSING_DIR, 'RESTART')
+        picasa_succeeded = False
+        for attempt in xrange(n_attempts):
+            # Copy the directory containing frames to Picasa's incoming directory
+            shutil.copytree(clip_frame_dir, clip_picasa_incoming)
+
+            # Make sure there is always a face in there
+            shutil.copy('/data/lisa/exp/faces/emotiw_final/lamblinp/yoshua.jpg',
+                        clip_picasa_incoming)
+
+            # Then, append '.process_me' to its name, to signal the Windows script
+            # that it can proceed
+            print '%s enters picasa processing' % clip_id
+            os.rename(clip_picasa_incoming, '%s.process_me' % clip_picasa_incoming)
+
+            # Wait for Picasa to return
+            for i in xrange(300):
+                time.sleep(1)
+                if os.path.exists(clip_picasa_processed_dir):
+                    print '  done.'
+                    picasa_succeeded = True
+                    break
+
+            if picasa_succeeded:
                 break
+            else:
+                # Cleanup:
+                # Remove all directories we created or expected with
+                # the clip_id in its name
+                print "Picasa timed out %i times, cleaning up" % (attempt + 1)
+                shutil.rmtree(clip_picasa_incoming, ignore_errors=1)
+                shutil.rmtree('%s.process_me' % clip_picasa_incoming, ignore_errors=1)
+                shutil.rmtree(clip_picasa_processed_dir, ignore_errors=1)
+                shutil.rmtree(clip_picasa_faces_dir, ignore_errors=1)
+                if attempt == n_attempts - 1:
+                    raise Exception("Picasa script timed out too many times (%i), aborting" % n_attempts)
+                else:
+                    # Create an empty file named 'RESTART', to signal the script to start again
+                    open(restart_file, 'a').close()
+                    for i in xrange(10):
+                        time.sleep(5)
+                        if not os.path.exists(restart_file):
+                            break
+                    else:
+                        # executed if the "break" was not triggered
+                        raise Exception("Picasa script did not respond to RESTART request, aborting")
 
-        else:
-            # This is executed if the "break" was never executed
-            raise Exception("Picasa script timed out")
 
         assert os.path.exists(clip_picasa_faces_dir)
-        clip_faces_dir = os.path.join(faces_dir, clip_id)
         if os.path.exists(clip_faces_dir):
             # It may or may not be correct, remove it
             shutil.rmtree(clip_faces_dir)
@@ -176,6 +212,9 @@ if run_picasa:
         # clip gets extracted again
         shutil.rmtree(clip_picasa_processed_dir)
         shutil.rmtree(clip_picasa_faces_dir)
+
+        # Remove Yoshua's face
+        os.remove(os.path.join(clip_faces_dir, 'yoshua_picassa.jpg'))
 
 
 ## Phase 2.2: get bounding boxes
@@ -212,6 +251,15 @@ script_dir = os.path.join(SCRIPTS_PATH, 'samira/RamananCodes')
 if alt_path1:
     logging.info("Phase 2.1b -- Run Ramanan on full frames if Picasa did not find anythin")
     for clip_id in CLIP_IDS:
+        # If picasa found a face in this clip, skip it completely
+        this_clip_picasa_faces_dir = os.path.join(faces_dir, clip_id)
+        nb_picasa_faces = len([f
+                               for f in os.listdir(this_clip_picasa_faces_dir)
+                               if f.endswith('.jpg')])
+        if nb_picasa_faces > 0:
+            logging.debug("2.1b: skipping clip_id %s" % clip_id)
+            continue
+
         logging.debug("2.1b: processing clip_id %s" % clip_id)
         this_clip_frame_dir = os.path.join(frame_dir, clip_id)
         this_clip_backup_faces_dir = os.path.join(backup_faces_dir, clip_id)
@@ -221,7 +269,6 @@ if alt_path1:
         if not os.path.exists(this_clip_backup_faces_dir):
              os.mkdir(this_clip_backup_faces_dir)
  
-        # XXX Somebody check if picasa found a face in this clip skip it completely XXX
 
         if REMOTE_RAMANAN:
             # ensure remote directory exists
@@ -270,6 +317,14 @@ if alt_path2:
         os.mkdir(backup_bboxes_dir)
 
     for clip_id in CLIP_IDS:
+        # If picasa found a face in this clip, skip it completely
+        this_clip_picasa_faces_dir = os.path.join(faces_dir, clip_id)
+        nb_picasa_faces = len([f
+                               for f in os.listdir(this_clip_picasa_faces_dir)
+                               if f.endswith('.jpg')])
+        if nb_picasa_faces > 0:
+            continue
+
         this_clip_frame_dir = os.path.join(frame_dir, clip_id)
         if not os.path.exists(this_clip_frame_dir):
             os.mkdir(this_clip_frame_dir)
@@ -339,7 +394,7 @@ if run_audio:
         cmd_line = cmd_line_template % dict(
             python=sys.executable,
             audio_script=os.path.join(SCRIPTS_PATH, 'caglar', 'save_features_pascal_pipeline.py'),
-            data=os.path.join(DATA_ROOT_DIR, 'Test_Vid_Distr', 'Data'),
+            data=AVI_DIR,
             feats=os.path.join(DATA_ROOT_DIR, 'audio_feats'),
             output=PREDICTION_DIR,
             model_dir=caglar_audio_model_dir,
@@ -390,7 +445,7 @@ if run_kishore:
             inp=os.path.join(AVI_DIR, '%s.avi' % clip_id),
             out=os.path.join(mjpeg_dir, '%s.avi' % clip_id))
         print 'executing cmd:'
-        print cmd_line
+        print convert_line
         subprocess.check_call(convert_line, shell=True)
 
         cmd_line = cmd_line_template % dict(

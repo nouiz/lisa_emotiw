@@ -10,6 +10,11 @@ from scipy import io as sio
 # ConvNet+Audio - matlab probs must be under ['prob_values']
 # The function automatically adapts to numpy or matlab,
 # files names must have .npy, .txt or .mat extension
+
+mat_orders = [[2,4,6,5,3,0,1],
+              [0,1,2,3,6,4,5]]
+
+
 def make_weighted_prediction(weightFile, *modelFiles):
     weights = np.load(weightFile)
     model_preds = []
@@ -23,7 +28,7 @@ def make_weighted_prediction(weightFile, *modelFiles):
             preds = sio.loadmat(path)['prob_values_test']
             if np.prod(preds.shape) == 7:
                 preds = preds.reshape(1,7)
-            model_preds.append(preds)
+            model_preds.append(preds[:,mat_orders[i-3]])
         elif path.split(".")[-1]=="txt":
             txt_file = open(path,'r')
             preds = []
