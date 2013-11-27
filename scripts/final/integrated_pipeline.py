@@ -47,7 +47,6 @@ PICASA_PROCESSING_DIR = '/data/lisatmp/faces/picasa_process'
 # More imports
 
 sys.path.append('../')
-sys.path.append('libsvm-3.13/python')
 sys.path.append('/data/lisa/exp/faces/emotiw_final/Kishore/inference_line/')
 
 import jorg.remote as remote
@@ -446,7 +445,7 @@ if run_kishore:
             inp=os.path.join(AVI_DIR, '%s.avi' % clip_id),
             out=os.path.join(mjpeg_dir, '%s.avi' % clip_id))
         print 'executing cmd:'
-        print cmd_line
+        print convert_line
         subprocess.check_call(convert_line, shell=True)
 
         cmd_line = cmd_line_template % dict(
