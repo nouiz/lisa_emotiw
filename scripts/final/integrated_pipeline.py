@@ -44,8 +44,11 @@ REMOTE_SUBMIT_SCIPT='lisa_emotiw/scripts/jorg/remote/submit-worker.py'
 # Picasa incoming directory
 PICASA_PROCESSING_DIR = '/data/lisatmp/faces/picasa_process'
 
-# More imports
 
+# Default prediction if a module fails
+DEFAULT_PREDICITION_DIR = '/data/lisa/exp/faces/emotiw_final/default_pred/uniform/'
+
+# More imports
 sys.path.append('../')
 sys.path.append('/data/lisa/exp/faces/emotiw_final/Kishore/inference_line/')
 
@@ -88,6 +91,9 @@ CLIP_IDS = [
     ]
 
 
+### Print general information ###
+logging.info("Processing %d clips: %s", len(CLIP_IDS), CLIP_IDS)
+
 ## Path of current script and "scripts" directory
 SELF_PATH = __file__
 logging.debug('SELF_PATH:'+SELF_PATH)
@@ -108,12 +114,7 @@ if extract_frames:
     for clip_id in CLIP_IDS:
         clip_dir = AVI_DIR
         clip_frame_dir = os.path.join(frame_dir, clip_id)
-        if os.path.exists(clip_frame_dir):
-            #raise Exception(
-            #    "Directory for extracting frames of clip id %s already exists: "
-            #    "%s" % (clip_id, clip_frame_dir))
-            pass
-        else:
+        if not os.path.exists(clip_frame_dir):
             os.mkdir(clip_frame_dir)
 
         # sys.executable is the full path to python
@@ -121,9 +122,12 @@ if extract_frames:
             sys.executable, script_name, clip_dir, clip_frame_dir,
             '%s.avi' % clip_id)
 
-        print 'executing cmd:'
-        print cmd_line
-        subprocess.check_call(cmd_line, shell=True)
+        try:
+            logging.debug("executing cmd: %s", cmd_line)
+            subprocess.check_call(cmd_line, shell=True)
+        except subprocess.CalledProcessError:
+            logging.warn('WARNING: Frame extraction crashed on %s', clip_id)
+
 
 ### Phase 2: Extract Picasa faces
 faces_dir = os.path.join(DATA_ROOT_DIR, 'picasa_faces')
@@ -233,10 +237,11 @@ if extract_bbox:
             orig_path=os.path.join(frame_dir, clip_id),
             cropped_path=os.path.join(faces_dir, clip_id),
             save_path=save_path)
-        print 'executing cmd:'
-        print cmd_line
-        subprocess.check_call(cmd_line, shell=True)
-
+        try:
+            logging.debug("executing cmd: %s", cmd_line)
+            subprocess.check_call(cmd_line, shell=True)
+        except subprocess.CalledProcessError:
+            logging.warn('WARNING: module bbox crashed on %s', clip_id)
 
 ### Phase 2.1b: Fallback if Picasa did not find anything
 
@@ -269,26 +274,29 @@ if alt_path1:
         if not os.path.exists(this_clip_backup_faces_dir):
              os.mkdir(this_clip_backup_faces_dir)
  
-
         if REMOTE_RAMANAN:
-            # ensure remote directory exists
-            remote.run_remote(['mkdir', '-p', REMOTE_DATA_PATH])
+            try:
+                # ensure remote directory exists
+                remote.run_remote(['mkdir', '-p', REMOTE_DATA_PATH])
 
-            logging.info("rsync '%s' to cluster... " % this_clip_frame_dir)
-            remote.rsync_local_remote(this_clip_frame_dir, REMOTE_DATA_PATH )
+                logging.info("rsync '%s' to cluster... " % this_clip_frame_dir)
+                remote.rsync_local_remote(this_clip_frame_dir, REMOTE_DATA_PATH )
 
-            logging.info("Submitting jobs to queuing system on cluster...")
-            remote.run_remote([REMOTE_SUBMIT_SCIPT, REMOTE_NO_WORKER, REMOTE_DATA_PATH, clip_id])
+                logging.info("Submitting jobs to queuing system on cluster...")
+                remote.run_remote([REMOTE_SUBMIT_SCIPT, REMOTE_NO_WORKER, REMOTE_DATA_PATH, clip_id])
             
-            # Check for all jobs finished
-            test_cmd = ['test', '-e', REMOTE_DATA_PATH+clip_id+'/DONE.txt' ]
-            while remote.run_remote(test_cmd, except_on_error=False) == 1:
-                logging.info("... waiting for workpackage ...")
-                time.sleep(REMOTE_POLLING_TIMEOUT)
+                # Check for all jobs finished
+                test_cmd = ['test', '-e', REMOTE_DATA_PATH+clip_id+'/DONE.txt' ]
+                while remote.run_remote(test_cmd, except_on_error=False) == 1:
+                    logging.info("... waiting for workpackage ...")
+                    time.sleep(REMOTE_POLLING_TIMEOUT)
 
-            logging.info("Copy results back to local machine and deleting remote dir...")
-            remote.rsync_remote_local(REMOTE_DATA_PATH+clip_id, this_clip_backup_faces_dir)
-            remote.run_remote(['rm', '-Rf', REMOTE_DATA_PATH+clip_id])
+                logging.info("Copy results back to local machine and deleting remote dir...")
+                remote.rsync_remote_local(REMOTE_DATA_PATH+clip_id, this_clip_backup_faces_dir)
+                remote.run_remote(['rm', '-Rf', REMOTE_DATA_PATH+clip_id])
+            except remote.RemoteExecutionError:
+                logging.warn('WARNING: cluster ramanan crashed on %s -- skipping clip', clip_id)
+                input("Press Enter to continue...")
         else:
             logging.info("2.1b: demoneim filepaths = ", this_clip_frame_dir, this_clip_backup_faces_dir, '\n')
 
@@ -301,9 +309,11 @@ if alt_path1:
                 backup_faces_dir=this_clip_backup_faces_dir,
                 scriptdir = script_dir,
                 currentdir = current_dir)
-            print '\n', 'executing cmd:'
-            print cmd_line, '\n', '\n', '\n', '\n'
-            subprocess.check_call(cmd_line, shell=True)
+            try:
+                logging.debug("executing cmd: %s", cmd_line)
+                subprocess.check_call(cmd_line, shell=True)
+            except subprocess.CalledProcessError:
+                logging.warn('WARNING: module ramanan crashed on %s -- skipping clip', clip_id)
 
 ### Phase 2.2b: bbox coordinates if Picasa did not find anything
 # TODO: Raul, finish
@@ -371,7 +381,8 @@ if smooth_facetubes:
 ### Phase 3: Poly's part of the pipeline, from smoothed facetubes to SVM prediction
 #  from convnet's output
 if run_svm_convnet:
-    logging.info("Phase 3")
+    logging.info("="*77)
+    logging.info("Phase 3 -- SVM ConvNet")
     samira_model_dir = '/data/lisa/exp/faces/emotiw_final/Samira'
     cmd_line_template = 'bash %(script)s %(clip_id)s %(model_dir)s %(data_root_dir)s'
     for clip_id in CLIP_IDS:
@@ -380,13 +391,18 @@ if run_svm_convnet:
             clip_id=clip_id,
             model_dir=samira_model_dir,
             data_root_dir=DATA_ROOT_DIR)
-        print 'executing cmd:'
-        print cmd_line
-        subprocess.check_call(cmd_line, shell=True)
+        try:
+            logging.debug('executing cmd: %s', cmd_line)
+            subprocess.check_call(cmd_line, shell=True)
+        except subprocess.CalledProcessError:
+            logging.warn('WARNING: module crashed on %s -- USING DEFAULT PREDICTIONS', clip_id)
+            shutil.copyfile(os.path.join(DEFAULT_PREDICITION_DIR, 'svm_convnet_pred.mat'),
+                            os.path.join(PREDICTION_DIR, 'svm_convnet_pred_%s.npy' % clip_id))
 
 ###
 ### audio module
 if run_audio:
+    logging.info("="*77)
     logging.info("Phase 4 -- Audio")
     caglar_audio_model_dir = '/data/lisa/exp/faces/emotiw_final/caglar_audio'
     cmd_line_template = "%(python)s %(audio_script)s %(data)s %(feats)s %(output)s %(model_dir)s %(clip_id)s"
@@ -399,21 +415,26 @@ if run_audio:
             output=PREDICTION_DIR,
             model_dir=caglar_audio_model_dir,
             clip_id=clip_id)
-        print 'executing cmd:'
-        print cmd_line
-        subprocess.check_call(cmd_line, shell=True)
+        try:
+            logging.debug('executing cmd: %s', cmd_line)
+            subprocess.check_call(cmd_line, shell=True)
 
-        os.rename(os.path.join(PREDICTION_DIR, 'audio_mlp_learned_on_train_predict_on_test_scores.npy'),
-                  os.path.join(PREDICTION_DIR, 'audio_pred_%s.npy' % clip_id))
-        os.rename(os.path.join(PREDICTION_DIR, 'audio_mlp_learned_on_train_predict_on_test_scores.txt'),
-                  os.path.join(PREDICTION_DIR, 'audio_pred_%s.txt' % clip_id))
+            os.rename(os.path.join(PREDICTION_DIR, 'audio_mlp_learned_on_train_predict_on_test_scores.npy'),
+                      os.path.join(PREDICTION_DIR, 'audio_pred_%s.npy' % clip_id))
+            os.rename(os.path.join(PREDICTION_DIR, 'audio_mlp_learned_on_train_predict_on_test_scores.txt'),
+                      os.path.join(PREDICTION_DIR, 'audio_pred_%s.txt' % clip_id))
+        except subprocess.CalledProcessError:
+            logging.warn('WARNING: Audio module crashed on %s -- using default predictions', clip_id)
+            shutil.copyfile(os.path.join(DEFAULT_PREDICITION_DIR, 'audio_pred.npy'),
+                            os.path.join(PREDICTION_DIR, 'audio_pred_%s.npy' % clip_id))
+            shutil.copyfile(os.path.join(DEFAULT_PREDICITION_DIR, 'audio_pred.txt'),
+                            os.path.join(PREDICTION_DIR, 'audio_pred_%s.txt' % clip_id))
 
-
-###
 ### Second SVM script from Poly, works on top of first SVM prediction and audio
 # NB: The script is "Smodel1.bash", the first one was "Dmodel1.bash".
 if run_svm_convnet_audio:
-    logging.info("Phase 4 -- Second SVM")
+    logging.info("="*77)
+    logging.info("Phase 4 -- SVM ConvNet Audio")
     samira_model_dir = '/data/lisa/exp/faces/emotiw_final/Samira'
     cmd_line_template = 'bash %(script)s %(clip_id)s %(model_dir)s %(data_root_dir)s'
     for clip_id in CLIP_IDS:
@@ -422,14 +443,19 @@ if run_svm_convnet_audio:
             clip_id=clip_id,
             model_dir=samira_model_dir,
             data_root_dir=DATA_ROOT_DIR)
-        print 'executing cmd:'
-        print cmd_line
-        subprocess.check_call(cmd_line, shell=True)
-
+        try:
+            logging.debug('executing cmd: %s', cmd_line)
+            subprocess.check_call(cmd_line, shell=True)
+        except subprocess.CalledProcessError:
+            logging.warn('WARNING: module crashed on %s -- USING DEFAULT PREDICTIONS', clip_id)
+            shutil.copyfile(os.path.join(DEFAULT_PREDICITION_DIR, 'svm_convnet_audio_pred.mat'),
+                            os.path.join(PREDICTION_DIR, 'svm_convnet_audio_pred_%s.mat' % clip_id))
 
 ###
 ### Kishore's module (activity recognition)
 if run_kishore:
+    logging.info("="*77)
+    logging.info("Phase 5 -- Kishore's activity recognition")
     kishore_model_root = '/data/lisa/exp/faces/emotiw_final/Kishore/inference_line'
 
     # Convert from mpeg2 to mjpeg, otherwise opencv cannot read the video
@@ -444,10 +470,6 @@ if run_kishore:
         convert_line = convert_line_template % dict(
             inp=os.path.join(AVI_DIR, '%s.avi' % clip_id),
             out=os.path.join(mjpeg_dir, '%s.avi' % clip_id))
-        print 'executing cmd:'
-        print convert_line
-        subprocess.check_call(convert_line, shell=True)
-
         cmd_line = cmd_line_template % dict(
             python=sys.executable,
             inference_line=os.path.join(SCRIPTS_PATH, 'kishore', 'inference_line', 'inference_line.py'),
@@ -456,18 +478,26 @@ if run_kishore:
             videos_path=mjpeg_dir,
             train_data_file=os.path.join(kishore_model_root, 'chal_train_data.npz'),
             clip_ids=clip_id)
+        try:
+            logging.debug('executing cmd: %s', cmd_line)
+            subprocess.check_call(convert_line, shell=True)
+            logging.debug('executing cmd: %s', cmd_line)
+            subprocess.check_call(cmd_line, shell=True)
 
-        print 'executing cmd:'
-        print cmd_line
-        subprocess.check_call(cmd_line, shell=True)
+            # The output will be a one-liner file in the current directory
+            shutil.move(os.path.join('activity_recognition_test_results.txt'),
+                        os.path.join(PREDICTION_DIR, 'kishore_pred_%s.txt' % clip_id))
+        except subprocess.CalledProcessError:
+            logging.warn('WARNING: Kishores module crashed on %s -- USING DEFAULT PREFICTIONS', clip_id)
+            shutil.copy(os.path.join(DEFAULT_PREDICITION_DIR, 'kishore_pred.txt'),
+                        os.path.join(PREDICTION_DIR, 'kishore_pred_%s.txt' % clip_id))
 
-        # The output will be a one-liner file in the current directory
-        shutil.move(os.path.join('activity_recognition_test_results.txt'),
-                    os.path.join(PREDICTION_DIR, 'kishore_pred_%s.txt' % clip_id))
 
 ###
 ### Sebastien Jean's module (bag of mouth features)
 if run_bomf:
+    logging.info("="*77)
+    logging.info("Running bag of mouth module")
     #ex_cmd_line = 'python ../jeasebas/BoMF_cmdline.py /u/ebrahims/emotiw_pipeline/test1/Faces_Aligned_Test /u/ebrahims/emotiw_pipeline/test1/Faces_Aligned_Test_Small /data/lisa/exp/faces/emotiw_final/jeasebas /u/ebrahims/emotiw_pipeline/test1/bomf_pred 50 000143240'
     small_faces_outdir = ALIGNED_DIR + '_Small'
     if not os.path.exists(small_faces_outdir):
@@ -486,16 +516,20 @@ if run_bomf:
             pred_dir=PREDICTION_DIR,
             batch_size=50,
             clip_ids=clip_id)
-        print 'executing cmd:'
-        print cmd_line
-        subprocess.check_call(cmd_line, shell=True)
-        shutil.move(os.path.join(PREDICTION_DIR, 'BoMF_test_probabilities.npy'),
-                    os.path.join(PREDICTION_DIR, 'bomf_pred_%s.npy' % clip_id))
-
+        try:
+            logging.debug('executing cmd: %s', cmd_line)
+            subprocess.check_call(cmd_line, shell=True)
+            shutil.move(os.path.join(PREDICTION_DIR, 'BoMF_test_probabilities.npy'),
+                        os.path.join(PREDICTION_DIR, 'bomf_pred_%s.npy' % clip_id))
+        except subprocess.CalledProcessError:
+            logging.warn('WARNING: Bag-of-mouth module crashed on %s -- USING DEFAULT PREDICTIONS', clip_id)
+            shutil.copy(os.path.join(DEFAULT_PREDICITION_DIR, 'bomf_pred.npy'),
+                        os.path.join(PREDICTION_DIR, 'bomf_pred_%s.txt' % clip_id))
 
 # Xavier's weighted prediction
 if run_xavier:
-
+    logging.info("="*77)
+    logging.info("Running final weighted prediction")
     weights_file = "/data/lisa/exp/faces/emotiw_final/bouthilx/weights_in_paper.npy"
     cmd_line_template = "%(python)s %(xavier_cmdline)s %(weights)s %(activity)s %(audio)s %(bagofmouth)s %(convnet)s %(convnet_audio)s %(output)s"
     for clip_id in CLIP_IDS:
@@ -509,6 +543,9 @@ if run_xavier:
                 convnet = os.path.join(PREDICTION_DIR, 'svm_convnet_pred_%s.mat' % clip_id),
                 convnet_audio = os.path.join(PREDICTION_DIR, 'svm_convnet_audio_pred_%s.mat' % clip_id),
                 output = os.path.join(PREDICTION_DIR, 'xavier_output_%s.npy' % clip_id))
-        print 'executing cmd:'
-        print cmd_line
-        subprocess.check_call(cmd_line, shell = True)
+        try:
+            logging.debug('executing cmd: %s', cmd_line)
+            subprocess.check_call(cmd_line, shell = True)
+        except subprocess.CalledProcessError:
+            logging.warn('WARNING: Weighted prediction crashed on %s -- FINAL OUTPUT NOT GENERATED', clip_id)
+
