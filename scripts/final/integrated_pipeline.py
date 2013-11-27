@@ -88,9 +88,6 @@ CLIP_IDS = [
      'our-little-one'
     ]
 
-# Picasa incoming directory
-PICASA_PROCESSING_DIR = '/data/lisatmp/faces/picasa_process'
-
 
 ## Path of current script and "scripts" directory
 SELF_PATH = __file__
