@@ -88,6 +88,9 @@ CLIP_IDS = [
      'our-little-one'
     ]
 
+# Picasa incoming directory
+PICASA_PROCESSING_DIR = '/data/lisatmp/faces/picasa_process'
+
 
 ## Path of current script and "scripts" directory
 SELF_PATH = __file__
@@ -154,7 +157,7 @@ if run_picasa:
             print '%s skipping picasa processing' % clip_id
             continue
 
-        n_attempts = 2
+        n_attempts = 3
         restart_file = os.path.join(PICASA_PROCESSING_DIR, 'RESTART')
         picasa_succeeded = False
         for attempt in xrange(n_attempts):
@@ -184,13 +187,13 @@ if run_picasa:
                 # Cleanup:
                 # Remove all directories we created or expected with
                 # the clip_id in its name
-                print "Picasa timed out %i times, cleaning up" % i
+                print "Picasa timed out %i times, cleaning up" % (attempt + 1)
                 shutil.rmtree(clip_picasa_incoming, ignore_errors=1)
                 shutil.rmtree('%s.process_me' % clip_picasa_incoming, ignore_errors=1)
                 shutil.rmtree(clip_picasa_processed_dir, ignore_errors=1)
                 shutil.rmtree(clip_picasa_faces_dir, ignore_errors=1)
                 if attempt == n_attempts - 1:
-                    raise Exception("Picasa script timed out too many times, aborting" % n_attempts)
+                    raise Exception("Picasa script timed out too many times (%i), aborting" % n_attempts)
                 else:
                     # Create an empty file named 'RESTART', to signal the script to start again
                     open(restart_file, 'a').close()
