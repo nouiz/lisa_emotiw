@@ -18,11 +18,10 @@ logging.basicConfig(format="%(asctime)s: %(message)s", level=LOG_LEVEL)
 extract_frames = 1
 run_picasa = 1
 extract_bbox = 1
-smooth_facetubes = 1
-run_svm_convnet = 1
-
 alt_path1 = 1       # run Ramanan on full frames if picasa did not find anything
 alt_path2 = 1       # postprocess alt_path1 output
+smooth_facetubes = 1
+run_svm_convnet = 1
 
 run_audio = 1
 run_svm_convnet_audio = 1
@@ -34,7 +33,20 @@ run_xavier = 1
 export_final = 1
 
 ### Configureation ###
+# Root directory for the data read and generated
+DATA_ROOT_DIR = '/u/ebrahims/emotiw_pipeline/workshop_demo'
 
+# Initial directory containing the *.avi files,
+# relative to DATA_ROOT_DIR
+AVI_DIR = 'Data'
+AVI_DIR = os.path.join(DATA_ROOT_DIR, AVI_DIR)
+
+# Initial directory containing faces aligned by the organizers
+ALIGNED_DIR = 'Faces_Aligned'
+ALIGNED_DIR = os.path.join(DATA_ROOT_DIR, ALIGNED_DIR)
+
+
+# For remote execution of full-frame Ramanan on Poly's cluster
 REMOTE_RAMANAN = 1                                    # use remote ramanan computation
 REMOTE_USER_HOST='bornj@cudahead.rdgi.polymtl.ca'     # cluster account to use
 REMOTE_DATA_PATH='tmp/jobdata/'                       # directory there the workpackages will be copied
@@ -45,7 +57,6 @@ REMOTE_SUBMIT_SCIPT='lisa_emotiw/scripts/jorg/remote/submit-worker.py'
 # Picasa incoming directory
 PICASA_PROCESSING_DIR = '/data/lisatmp/faces/picasa_process'
 
-
 # Default prediction if a module fails
 DEFAULT_PREDICITION_DIR = '/data/lisa/exp/faces/emotiw_final/default_pred/uniform/'
 
@@ -55,18 +66,6 @@ sys.path.append('/data/lisa/exp/faces/emotiw_final/Kishore/inference_line/')
 
 import jorg.remote as remote
 remote.REMOTE_USER_HOST = REMOTE_USER_HOST
-
-# Root directory for the data read and generated
-DATA_ROOT_DIR = '/u/ebrahims/emotiw_pipeline/workshop_demo'
-
-# Initial directory containing the *.avi files,
-# relative to DATA_ROOT_DIR
-AVI_DIR = 'Vid_Distr/Data'
-AVI_DIR = os.path.join(DATA_ROOT_DIR, AVI_DIR)
-
-# Initial directory containing faces aligned by the organizers
-ALIGNED_DIR = 'Faces_Aligned'
-ALIGNED_DIR = os.path.join(DATA_ROOT_DIR, ALIGNED_DIR)
 
 # Data where we put the individual predictions
 PREDICTION_DIR = 'module_predictions'
