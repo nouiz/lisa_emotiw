@@ -146,11 +146,15 @@ if extract_frames:
 
 ### Phase 2: Extract Picasa faces
 faces_dir = os.path.join(DATA_ROOT_DIR, 'picasa_faces')
+bbox_dir = os.path.join(DATA_ROOT_DIR, 'bbox')
+picasa_bbox_dir = os.path.join(DATA_ROOT_DIR, 'picasa_bbox')
 if not os.path.exists(faces_dir):
     os.mkdir(faces_dir)
-bbox_dir = os.path.join(DATA_ROOT_DIR, 'picasa_bbox')
 if not os.path.exists(bbox_dir):
     os.mkdir(bbox_dir)
+if not os.path.exists(picasa_bbox_dir):
+    os.mkdir(picasa_bbox_dir)
+
 
 ## Phase 2.1: put the files at the right place, and wait for Picasa to
 #  complete
@@ -242,7 +246,8 @@ if extract_bbox:
     find_match_script = os.path.join(SCRIPTS_PATH, 'mirzamom', 'find_match.py')
     cmd_line_template = '%(python)s %(script)s %(orig_path)s %(cropped_path)s %(save_path)s'
     for clip_id in CLIP_IDS:
-        save_path = os.path.join(bbox_dir, clip_id)
+        save_path  = os.path.join(picasa_bbox_dir, clip_id)
+        save_path2 = os.path.join(bbox_dir, clip_id)
         if not os.path.exists(save_path):
             os.mkdir(save_path)
 
@@ -255,6 +260,10 @@ if extract_bbox:
         try:
             logging.debug("executing cmd: %s", cmd_line)
             subprocess.check_call(cmd_line, shell=True)
+            logging.debug("Copy from %s to %s", save_path, save_path2)
+            if os.path.exists(save_path2):
+                shutil.rmtree(save_path2)
+            shutil.copytree(save_path, save_path2)
         except subprocess.CalledProcessError:
             logging.warn('WARNING: module bbox crashed on %s', clip_id)
 
@@ -363,6 +372,11 @@ if alt_path2:
            os.mkdir(this_clip_backup_bboxes_dir)
         print 'getbbox inputs = ', this_clip_frame_dir, this_clip_backup_faces_dir, this_clip_backup_bboxes_dir
         get_bbox(this_clip_frame_dir, this_clip_backup_faces_dir, this_clip_backup_bboxes_dir, this_clip_backup_bboxes_dir)
+
+        this_clip_bbox_dir = os.path.join(bbox_dir, clip_id)
+        if os.path.exists(this_clip_bbox_dir):
+            shutil.rmtree(this_clip_bbox_dir)
+        shutil.copytree(this_clip_backup_bboxes_dir, this_clip_bbox_dir)
 
 
 
