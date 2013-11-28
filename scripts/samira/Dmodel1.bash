@@ -71,8 +71,9 @@ cd ../
 python pif_export.py -f ./data/tmp/ConvNet__2013-07-17_13.27.15 --export=afew --show-preds=probs --test-range=1-1 --test-data-path=$path6
 
 # Move the prediction from the model directory
+# If there is no prediction, abort the script, we will use default ones
 mkdir $data_root_dir/convnet_out
-cp ./data/tmp/ConvNet__2013-07-17_13.27.15_segments.csv $data_root_dir/convnet_out/$1_segments.csv
+mv ./data/tmp/ConvNet__2013-07-17_13.27.15_segments.csv $data_root_dir/convnet_out/$1_segments.csv || exit 1
 cd $script_dir
 
 # svm EXPERIMENT 4

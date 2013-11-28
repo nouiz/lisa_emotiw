@@ -299,7 +299,7 @@ if alt_path1:
 
                 logging.info("Submitting jobs to queuing system on cluster...")
                 remote.run_remote([REMOTE_SUBMIT_SCIPT, REMOTE_NO_WORKER, REMOTE_DATA_PATH, clip_id])
-            
+
                 # Check for all jobs finished
                 test_cmd = ['test', '-e', REMOTE_DATA_PATH+clip_id+'/DONE.txt' ]
                 while remote.run_remote(test_cmd, except_on_error=False) == 1:
