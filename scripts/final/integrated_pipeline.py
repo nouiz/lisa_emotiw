@@ -412,7 +412,7 @@ if run_svm_convnet:
         except subprocess.CalledProcessError:
             logging.warn('WARNING: module crashed on %s -- USING DEFAULT PREDICTIONS', clip_id)
             shutil.copyfile(os.path.join(DEFAULT_PREDICITION_DIR, 'svm_convnet_pred.mat'),
-                            os.path.join(PREDICTION_DIR, 'svm_convnet_pred_%s.npy' % clip_id))
+                            os.path.join(PREDICTION_DIR, 'svm_convnet_pred_%s.mat' % clip_id))
 
 ###
 ### audio module
