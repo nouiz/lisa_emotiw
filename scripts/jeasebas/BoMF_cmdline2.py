@@ -1,4 +1,4 @@
-#BoMF_cmdline.py arg1 arg2 [arg3]
+#BoMF_cmdline2.py arg1 arg2 [arg3]
 #arg1: Original directory
 #arg2: Target directory
 #arg3 (optional): positive integer
@@ -147,7 +147,10 @@ start = 0
 end = 0
 for j in sorted(os.listdir(target_dir)):
     end += shape(sorted(os.listdir(os.path.join(target_dir,j))))[0]
-    test_probabilities.append(mean(lr.probabilities(test_features[:,start:end]),1))
+    if end > start:
+        test_probabilities.append(mean(lr.probabilities(test_features[:,start:end]),1))
+    else:
+        test_probabilities.append([1./7,1./7,1./7,1./7,1./7,1./7,1./7])
     start = end
 
 test_probabilities = asarray(test_probabilities)
