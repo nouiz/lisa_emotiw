@@ -307,8 +307,10 @@ if alt_path1:
                     time.sleep(REMOTE_POLLING_TIMEOUT)
 
                 logging.info("Copy results back to local machine and deleting remote dir...")
-                remote.rsync_remote_local(REMOTE_DATA_PATH+clip_id, this_clip_backup_faces_dir)
-                remote.run_remote(['rm', '-Rf', REMOTE_DATA_PATH+clip_id])
+                remote_files = os.path.join(REMOTE_DATA_PATH,clip_id, "*")
+                logging.debug("remote_files: %s", remote_files)
+                remote.rsync_remote_local(remote_files, this_clip_backup_faces_dir)
+                remote.run_remote(['rm', '-Rf', os.path.join(REMOTE_DATA_PATH, clip_id) ])
             except remote.RemoteExecutionError:
                 logging.warn('WARNING: cluster ramanan crashed on %s -- skipping clip', clip_id)
                 input("Press Enter to continue...")
