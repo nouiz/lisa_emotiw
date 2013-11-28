@@ -144,7 +144,10 @@ for j in xrange(num_test_images/batch_size):
     #print j
     test_features[:,batch_size*j:batch_size*(j+1)] = feature_extract(test[batch_size*j:batch_size*(j+1)])
 
-test_features[:,num_test_images - num_test_images%batch_size:num_test_images] = feature_extract(test[num_test_images - num_test_images%batch_size:num_test_images])
+if num_test_images%batch_size > 1:
+    test_features[:,num_test_images - num_test_images%batch_size:num_test_images] = feature_extract(test[num_test_images - num_test_images%batch_size:num_test_images])
+elif num_test_images%batch_size == 1:
+    test_features[:,num_test_images - num_test_images%batch_size:num_test_images] = feature_extract(test[num_test_images - num_test_images%batch_size:num_test_images])[:,None]
 
 test_probabilities = []
 
@@ -153,7 +156,10 @@ end = 0
 #for j in sorted(os.listdir(target_dir)):
 for j in clip_ids:
     end += shape(sorted(os.listdir(os.path.join(target_dir,j))))[0]
-    test_probabilities.append(mean(lr.probabilities(test_features[:,start:end]),1))
+    if end > start:
+        test_probabilities.append(mean(lr.probabilities(test_features[:,start:end]),1))
+    else:
+        test_probabilities.append([1./7,1./7,1./7,1./7,1./7,1./7,1./7])
     start = end
 
 test_probabilities = asarray(test_probabilities)
