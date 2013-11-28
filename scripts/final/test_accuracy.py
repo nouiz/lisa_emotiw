@@ -22,6 +22,8 @@ sets = ['valid','train'] # not test because we have no labels!
 CLIPS = []
 # automatically load ids from file
 CLIPS = [line.strip("\n").split("/")[-1] for line in open(ids % 'valid').readlines()]
+
+# Where the alt path was taken
 CLIPS = ['000147200', '000256440', '000606007', '000831400', '002916678', '003024767', '004008240', '005700400', '005711000', '011018760', '011616534' ]
 
 predictions = []
