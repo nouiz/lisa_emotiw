@@ -7,7 +7,7 @@ import sys
 import warnings
 
 
-debug = True
+debug = False
 
 def get_bbox(extracted_frames_path, ramanan_keypts_path, bbox_path, bbox_on_img_path = None):
     # TODO: pas de '/' a la fin des arguments (chemins complets).
@@ -16,7 +16,10 @@ def get_bbox(extracted_frames_path, ramanan_keypts_path, bbox_path, bbox_on_img_
     clip = extracted_frames_path.split('/')[-1]
     print 'clip id: ', clip
     # TODO: jpg ou png?
-    frames_paths = glob.glob("{}/*jpg".format(extracted_frames_path))
+    if debug:
+        frames_paths = glob.glob("{}/*jpg".format(extracted_frames_path))
+    else:
+        frames_paths = glob.glob("{}/*png".format(extracted_frames_path))
     frames_paths.sort()
 
     if not os.path.exists(ramanan_keypts_path):
@@ -60,9 +63,10 @@ def get_bbox(extracted_frames_path, ramanan_keypts_path, bbox_path, bbox_on_img_
         keypoint_dict = dict([ (translation_dict[pos], coord) for pos,coord in enumerate(zip(xs,ys)) ])
         keypoint_dicts.append(keypoint_dict)
 
-        for keypt_i, keypt_x in enumerate(xs):
-            keypt_y = ys[keypt_i]
-            cv2.circle(img, (numpy.int(keypt_x), numpy.int(keypt_y)), 3, (0, 0, 255))
+        if debug:
+            for keypt_i, keypt_x in enumerate(xs):
+                keypt_y = ys[keypt_i]
+                cv2.circle(img, (numpy.int(keypt_x), numpy.int(keypt_y)), 3, (0, 0, 255))
 
         # TODO: il ne devrait qu'il n'y avoir qu'un set de keypoints par video clip.
         for face_keypts in keypoint_dicts:

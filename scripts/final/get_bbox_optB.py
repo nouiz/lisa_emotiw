@@ -8,7 +8,7 @@ import sys
 import warnings
 
 
-debug = True
+debug = False
 
 def get_output_size(path, width = 1024):
     """
@@ -77,10 +77,12 @@ def get_bbox(avi_path, extracted_frames_path, ramanan_keypts_path, bbox_path, bb
     asr, orig_dims, dims = get_output_size(avi_path)
     scale_x = dims[0] / float(orig_dims[0])
     scale_y = dims[1] / float(orig_dims[1])
-    import pdb; pdb.set_trace()
 
     # TODO: jpg ou png?
-    frames_paths = glob.glob("{}/*jpg".format(extracted_frames_path))
+    if debug:
+        frames_paths = glob.glob("{}/*jpg".format(extracted_frames_path))
+    else:
+        frames_paths = glob.glob("{}/*png".format(extracted_frames_path))
     frames_paths.sort()
 
     if not os.path.exists(ramanan_keypts_path):
@@ -178,7 +180,7 @@ def get_bbox(avi_path, extracted_frames_path, ramanan_keypts_path, bbox_path, bb
 
 if __name__ == '__main__':
     # python get_bbox_optB.py arg1 arg2 arg3 arg4 [arg5]
-    # python get_bbox_optB.py /u/ebrahims/emotiw_pipeline/validation_set/mjpeg_avi/000147200.avi
+    # python get_bbox_optB.py /u/ebrahims/emotiw_pipeline/validation_set/Valid_Vid_Distr/Data/000147200.avi
     #                    /u/ebrahims/emotiw_pipeline/validation_set/ramanan_keypoints_picassa_backup/000147200
     #                    /data/lisa/data/faces/EmotiW/Points/Happy/000147200.mat
     #                    /data/lisa/exp/chandiar/Challenge/DATA/bbox_coords/000147200
@@ -188,7 +190,7 @@ if __name__ == '__main__':
     #   arg2 is the path to the folder containing the extracted frames for the given video clip (.png)
     #   arg3 is the path to the ramanan mat file for the given video clip (.mat)
     #   arg4 is the path to the folder where we will save the bounding boxes coordinates (.txt)
-    #   arg5 is the path to the folder where we will save the images with the bounding boxes drawn (.png), this is an optionnal argument
+    #   arg5 is the path to the folder where we will save the images with the bounding boxes drawn (.png), this is an optional argument
     if debug:
         #missing_clips = ['002350040', '003044960', '005242000', '010924040', '013736360', '014429160', '003258400']
         missing_clips = [   'Happy/000147200',
@@ -212,7 +214,6 @@ if __name__ == '__main__':
                 bbox_on_img_path = '/data/lisa/exp/chandiar/Challenge/DATA/bbox_on_data/%s'%clip_id
             else:
                 bbox_on_img_path = None
-            import pdb; pdb.set_trace()
             get_bbox(   avi_path,
                         extracted_frames_path,
                         ramanan_keypts_path,
@@ -224,7 +225,7 @@ if __name__ == '__main__':
         ramanan_keypts_path = sys.argv[3]
         bbox_path = sys.argv[4]
         if len(sys.argv) == 6:
-            bbox_on_img_path = sys.argv[6]
+            bbox_on_img_path = sys.argv[5]
         else:
             bbox_on_img_path = None
         get_bbox(   avi_path,
