@@ -21,7 +21,7 @@ extract_frames = 1
 run_picasa = 1
 extract_bbox = 1
 alt_path1 = 1       # run Ramanan on full frames if picasa did not find anything
-alt_path2 = 1       # postprocess alt_path1 output
+alt_path2 = 1       # compute bboxes on alt_path1 output
 smooth_facetubes = 1
 run_svm_convnet = 1
 
@@ -290,13 +290,16 @@ if not os.path.exists(backup_faces_dir):
 script_dir = os.path.join(SCRIPTS_PATH, 'samira/RamananCodes')
 
 if alt_path1:
-    logging.info("Phase 2.1b -- Run Ramanan on full frames if Picasa did not find anythin")
+    logging.info("Phase 2.1b -- Run Ramanan on full frames if Picasa did not find anything")
     for clip_id in CLIP_IDS:
         # If picasa found a face in this clip, skip it completely
         this_clip_picasa_faces_dir = os.path.join(faces_dir, clip_id)
-        nb_picasa_faces = len([f
-                               for f in os.listdir(this_clip_picasa_faces_dir)
-                               if f.endswith('.jpg')])
+        if os.path.exists(this_clip_picasa_faces_dir):
+            nb_picasa_faces = len([f
+                                   for f in os.listdir(this_clip_picasa_faces_dir)
+                                   if f.endswith('.jpg')])
+        else:
+            nb_picasa_faces = 0
         if nb_picasa_faces > 0:
             logging.debug("2.1b: skipping clip_id %s because Picasa worked" % clip_id)
             continue
@@ -379,9 +382,12 @@ if alt_path2:
     for clip_id in CLIP_IDS:
         # If picasa found a face in this clip, skip it completely
         this_clip_picasa_faces_dir = os.path.join(faces_dir, clip_id)
-        nb_picasa_faces = len([f
-                               for f in os.listdir(this_clip_picasa_faces_dir)
-                               if f.endswith('.jpg')])
+        if os.path.exists(this_clip_picasa_faces_dir):
+            nb_picasa_faces = len([f
+                                   for f in os.listdir(this_clip_picasa_faces_dir)
+                                   if f.endswith('.jpg')])
+        else:
+            nb_picasa_faces = 0
         if nb_picasa_faces > 0:
             continue
 
