@@ -22,23 +22,28 @@ def get_output_size(path, width = 1024):
     widht: output image width
     """
 
+    if not os.path.exists(path):
+        raise Exception("Original AVI file not found! %s" % path)
     command = ["ffprobe", path]
     p = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
     res = p.communicate()[0]
     asr = res[res.find("DAR "):].split(']')[0][4:].split(':')
     orig_dims = res[res.find("Stream #0.0"):].split('[')[0].split(',')[-1]
     if 'x' not in orig_dims:
-        #orig_dims = [720, 576]
+        # Assuming default dimensions for DVD
+        orig_dims = [720, 576]
         print 'The original dimensions for the images in the avi file are not found for clip %s!'%path
-        print 'Script will exit and we will process the next clip if necessary.'
-        sys.exit(0)
+        print 'Using a default of 720x576'
+        #print 'Script will exit and we will process the next clip if necessary.'
+        #sys.exit(0)
     else:
         orig_dims = orig_dims.split('x')
         if len(orig_dims) != 2:
-            #orig_dims = [720, 576]
+            orig_dims = [720, 576]
             print 'The original dimensions for the images in the avi file are not found for clip %s!'%path
-            print 'Script will exit and we will process the next clip if necessary.'
-            sys.exit(0)
+            print 'Using a default of 720x576'
+            #print 'Script will exit and we will process the next clip if necessary.'
+            #sys.exit(0)
         else:
             orig_dims = [int(orig_dims[0]), int(orig_dims[1])]
     try:
