@@ -8,6 +8,8 @@ import logging
 import time
 
 from get_bbox import get_bbox
+from get_bbox_optA import get_bbox as get_bbox_A
+from get_bbox_optB import get_bbox as get_bbox_B
 
 #LOG_LEVEL = logging.DEBUG
 LOG_LEVEL = logging.INFO
@@ -32,7 +34,7 @@ run_bomf = 1
 run_xavier = 1
 export_final = 1
 
-### Configureation ###
+### Configuration ###
 # Root directory for the data read and generated
 DATA_ROOT_DIR = '/u/ebrahims/emotiw_pipeline/workshop_demo'
 
@@ -44,6 +46,16 @@ AVI_DIR = os.path.join(DATA_ROOT_DIR, AVI_DIR)
 # Initial directory containing faces aligned by the organizers
 ALIGNED_DIR = 'Faces_Aligned'
 ALIGNED_DIR = os.path.join(DATA_ROOT_DIR, ALIGNED_DIR)
+
+# Initial directory containing Ramanan keypoints extracted by the organizers
+# on _our_ frames (with _correct_ aspect ratio)
+RAMANAN_CORRECT_AR_DIR = 'ramanan_correct_ratio'
+RAMANAN_CORRECT_AR_DIR = os.path.join(DATA_ROOT_DIR, RAMANAN_CORRECT_AR_DIR)
+
+# Initial directory containing Ramanan keypoints extracted by the organizers
+# on _their_ fraimes (with _incorrect_ aspect ratio)
+RAMANAN_INCORRECT_AR_DIR = 'Points'
+RAMANAN_INCORRECT_AR_DIR = os.path.join(DATA_ROOT_DIR, RAMANAN_INCORRECT_AR_DIR)
 
 
 # For remote execution of full-frame Ramanan on Poly's cluster
@@ -286,7 +298,20 @@ if alt_path1:
                                for f in os.listdir(this_clip_picasa_faces_dir)
                                if f.endswith('.jpg')])
         if nb_picasa_faces > 0:
-            logging.debug("2.1b: skipping clip_id %s" % clip_id)
+            logging.debug("2.1b: skipping clip_id %s because Picasa worked" % clip_id)
+            continue
+
+        # If the organizers provided keypoints from our frames
+        # (with the right aspect ratio), we will use them
+        if os.path.exists(os.path.join(RAMANAN_CORRECT_AR_DIR, '%s.mat' % clip_id)):
+            logging.debug("2.1b: skipping clip_id %s because Ramanan on correct AR already present" % clip_id)
+            continue
+
+        # If the organizers provided keypoints from their fraimes
+        # (with incorrect aspect ratio), we will have to use them
+        # (too long otherwise)
+        if os.path.exists(os.path.join(RAMANAN_INCORRECT_AR_DIR, '%s.mat' % clip_id)):
+            logging.debug("2.1b: skipping clip_id %s because Ramanan on incorrect AR already present" % clip_id)
             continue
 
         logging.debug("2.1b: processing clip_id %s" % clip_id)
@@ -342,7 +367,6 @@ if alt_path1:
                 logging.warn('WARNING: module ramanan crashed on %s -- skipping clip', clip_id)
 
 ### Phase 2.2b: bbox coordinates if Picasa did not find anything
-# TODO: Raul, finish
 if alt_path2:
     logging.info("Phase 2.2 -- Compute bounding boxes from Ramanan runs on full frames")
     #script_name = os.path.join(SCRIPTS_PATH, 'chandiar/missing_clips', 'get_bbox.py')
@@ -364,14 +388,46 @@ if alt_path2:
         this_clip_frame_dir = os.path.join(frame_dir, clip_id)
         if not os.path.exists(this_clip_frame_dir):
             os.mkdir(this_clip_frame_dir)
+
         this_clip_backup_faces_dir = os.path.join(backup_faces_dir, clip_id)
         if not os.path.exists(this_clip_backup_faces_dir):
             os.mkdir(this_clip_backup_faces_dir)
         this_clip_backup_bboxes_dir = os.path.join(backup_bboxes_dir, clip_id)
         if not os.path.exists(this_clip_backup_bboxes_dir):
            os.mkdir(this_clip_backup_bboxes_dir)
-        print 'getbbox inputs = ', this_clip_frame_dir, this_clip_backup_faces_dir, this_clip_backup_bboxes_dir
-        get_bbox(this_clip_frame_dir, this_clip_backup_faces_dir, this_clip_backup_bboxes_dir, this_clip_backup_bboxes_dir)
+
+        # Try option A: Extracted by the organizers, correct aspect ratio
+        ramanan_correct_ar_matfile = os.path.join(RAMANAN_CORRECT_AR_DIR, '%s.mat' % clip_id)
+        ramanan_incorrect_ar_matfile = os.path.join(RAMANAN_INCORRECT_AR_DIR, '%s.mat' % clip_id)
+        if os.path.exists(ramanan_correct_ar_matfile):
+            logging.debug('2.2-A: get_bbox_A inputs: %s %s %s %s',
+                          this_clip_frame_dir,
+                          ramanan_correct_ar_matfile,
+                          this_clip_backup_bboxes_dir,
+                          this_clip_backup_bboxes_dir)
+            get_bbox_A(this_clip_frame_dir,
+                       ramanan_correct_ar_matfile,
+                       this_clip_backup_bboxes_dir,
+                       this_clip_backup_bboxes_dir)
+
+        elif os.path.exists(ramanan_incorrect_ar_matfile):
+            avi_clip_path = os.path.join(AVI_DIR, '%s.avi' % clip_id)
+            # Option B: extracted by the organizers, incorrect aspect ratio
+            logging.debug('2.2-B: get_bbox_B inputs: %s %s %s %s %s',
+                          avi_clip_path,
+                          this_clip_frame_dir,
+                          ramanan_incorrect_ar_matfile,
+                          this_clip_backup_bboxes_dir,
+                          this_clip_backup_bboxes_dir)
+            get_bbox_B(avi_clip_path,
+                       this_clip_frame_dir,
+                       ramanan_incorrect_ar_matfile,
+                       this_clip_backup_bboxes_dir,
+                       this_clip_backup_bboxes_dir)
+        else:
+            # Our Ramanan
+            print 'getbbox inputs = ', this_clip_frame_dir, this_clip_backup_faces_dir, this_clip_backup_bboxes_dir
+            get_bbox(this_clip_frame_dir, this_clip_backup_faces_dir, this_clip_backup_bboxes_dir, this_clip_backup_bboxes_dir)
 
         this_clip_bbox_dir = os.path.join(bbox_dir, clip_id)
         if os.path.exists(this_clip_bbox_dir):
