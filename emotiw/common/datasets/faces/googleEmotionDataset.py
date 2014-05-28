@@ -35,32 +35,36 @@ from faceimages import FaceImagesDataset
 class GoogleEmotionDataset(FaceImagesDataset):
 
     def __init__(self):
-        super(GoogleEmotionDataset,self).__init__("GED", "faces/GoogleEmotionDataset/")
+        dataPath = "faces/GoogleEmotionDataset/"
+        super(GoogleEmotionDataset, self).__init__("GED", dataPath)
 
         # Load the dataset's pickle file
-        data = cPickle.load(open(self.absolute_base_directory+"assignmentData.pkl","rb"))
+        pklFile = self.absolute_base_directory+"assignmentData.pkl"
+        data = cPickle.load(open(pklFile, "rb"))
 
-	images = data[0] + data[1] + data[2]
-	images = zip(*images)
-	
-	self.queryIds = images[0]
+        images = data[0] + data[1] + data[2]
+        images = zip(*images)
+
+        self.queryIds = images[0]
         self.ids = images[1]
         self.labels = data[3]
         self.tags = images[2]
-        self.tagNames = ["anger", "bored", "concern", "crying", "disappointed", "discouraged",
-                 "disgust", "displeased", "elation", "fear", "happy", "nervous", "neutral",
-                 "sad", "screaming", "shame", "surprise", "tired"]
+        self.tagNames = ["anger", "bored", "concern", "crying",
+                         "disappointed", "discouraged", "disgust",
+                         "displeased", "elation", "fear", "happy", "nervous",
+                         "neutral", "sad", "screaming", "shame", "surprise",
+                         "tired"]
         self.X1 = images[3]
         self.Y1 = images[4]
         self.X2 = images[5]
         self.Y2 = images[6]
 
         self.set_picasa_path_substitutions(
-            {"faces/GoogleEmotionDataset/":"faces/GoogleEmotionDataset/facesCoordinates/",
-             '.png':'.txt',
-             '.jpg':'.txt',
-             }
-            , csv_delimiter=',')
+            {"faces/GoogleEmotionDataset/": dataPath+"/facesCoordinates/",
+             '.png': '.txt',
+             '.jpg': '.txt',
+             },
+            csv_delimiter=',')
 
     def get_name(self):
         return "GoogleEmotionDataset"
@@ -78,7 +82,8 @@ class GoogleEmotionDataset(FaceImagesDataset):
 
     def get_original_bbox(self, i):
         return [(int(self.X1[i]), int(self.Y1[i]),
-                 int(self.X1[i]) + int(self.X2[i]), int(self.Y1[i]) + int(self.Y2[i]))]
+                 int(self.X1[i]) + int(self.X2[i]),
+                 int(self.Y1[i]) + int(self.Y2[i]))]
 
     def get_picasa_bbox(self, i):
         """Returns a list of bounding boxes precomputed by picasa.
@@ -92,7 +97,7 @@ class GoogleEmotionDataset(FaceImagesDataset):
                 reader = csv.reader(f, delimiter=self.picasa_csv_delimiter)
                 for row in reader:
                     picasaBatchNumber, idxInPicasaBatch, row, col, height, width = row
-                    if picasaBatchNumber!="picasaBatchNumber":
+                    if picasaBatchNumber != "picasaBatchNumber":
                         print bboxpath, ":", picasaBatchNumber, idxInPicasaBatch, row, col, height, width
                         row, col, height, width = float(row), float(col), float(height), float(width)
                         bbox = [col, row, col+width, row+height]
@@ -101,9 +106,12 @@ class GoogleEmotionDataset(FaceImagesDataset):
             return bboxes
 
         return None
-    
+
     def get_detailed_emotion_label(self, i):
-        return self.tagNames[self.labels[int(self.queryIds[i])][int(self.tags[i])].argmax()]
+        queryId = int(self.queryIds[i])
+        tag = int(self.tags[i])
+        tagIndex = self.labels[queryId][tag].argmax()
+        return self.tagNames[tagIndex]
 
 
 if __name__ == "__main__":
