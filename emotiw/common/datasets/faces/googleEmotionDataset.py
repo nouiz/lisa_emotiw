@@ -1,4 +1,4 @@
-# Copyright (c) 2013 University of Montreal, Pierre-Luc Carrier
+# Copyright (c) 2013 University of Montreal
 #
 # All rights reserved.
 #
