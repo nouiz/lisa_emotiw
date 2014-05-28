@@ -40,20 +40,20 @@ class GoogleEmotionDataset(FaceImagesDataset):
         # Load the dataset's pickle file
         data = cPickle.load(open(self.absolute_base_directory+"assignmentData.pkl","rb"))
 
-	sets = data[0] + data[1] + data[2]
-	sets = zip(*sets)
+	images = data[0] + data[1] + data[2]
+	images = zip(*images)
 	
-	self.queryIds = sets[0]
-        self.ids = sets[1]
+	self.queryIds = images[0]
+        self.ids = images[1]
         self.labels = data[3]
-        self.tags = sets[2]
+        self.tags = images[2]
         self.tagNames = ["anger", "bored", "concern", "crying", "disappointed", "discouraged",
                  "disgust", "displeased", "elation", "fear", "happy", "nervous", "neutral",
                  "sad", "screaming", "shame", "surprise", "tired"]
-        self.X1 = sets[3]
-        self.Y1 = sets[4]
-        self.X2 = sets[5]
-        self.Y2 = sets[6]
+        self.X1 = images[3]
+        self.Y1 = images[4]
+        self.X2 = images[5]
+        self.Y2 = images[6]
 
         self.set_picasa_path_substitutions(
             {"faces/GoogleEmotionDataset/":"faces/GoogleEmotionDataset/facesCoordinates/",
@@ -102,13 +102,6 @@ class GoogleEmotionDataset(FaceImagesDataset):
 
         return None
     
-    #def get_7emotion_index(self, i):
-    #    return self.labels[int(self.queryIds[i])][int(self.tags[i])].argmax()
-  
-    #def get_7emotion_label(self, i):
-     #   emo_index = self.get_7emotion_index(i)
-      #  return emotion_names[emo_index]
-            
     def get_detailed_emotion_label(self, i):
         return self.tagNames[self.labels[int(self.queryIds[i])][int(self.tags[i])].argmax()]
 
