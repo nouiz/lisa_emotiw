@@ -59,6 +59,14 @@ class GoogleEmotionDataset(FaceImagesDataset):
         self.X2 = images[5]
         self.Y2 = images[6]
 
+        # Mapping from 18 emotions to 7
+        self.emo_18_to_7 = {'anger': 0, 'bored': 0, 'concern': 6, 'crying': 4,
+                            'disappointed': 4, 'discouraged': 4, 'disgust': 1,
+                            'displeased': 0, 'elation': 3, 'fear': 2,
+                            'happy': 3, 'nervous': 6, 'neutral': 6, 'sad': 4,
+                            'screaming': 2, 'shame': 6, 'surprise': 5,
+                            'tired': 0}
+
         self.set_picasa_path_substitutions(
             {"faces/GoogleEmotionDataset/": dataPath+"/facesCoordinates/",
              '.png': '.txt',
@@ -112,6 +120,10 @@ class GoogleEmotionDataset(FaceImagesDataset):
         tag = int(self.tags[i])
         tagIndex = self.labels[queryId][tag].argmax()
         return self.tagNames[tagIndex]
+
+    def get_7emotion_index(self, i):
+        emo_18 = self.get_detailed_emotion_label(i)
+        return self.emo_18_to_7[emo_18]
 
 
 if __name__ == "__main__":
