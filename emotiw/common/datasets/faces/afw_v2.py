@@ -25,6 +25,7 @@ class AFW(FaceImagesDataset):
                         [zip(coords[0][0], coords[0][1]) for coords in
                             [map(lambda a: f[a].value, coord_ref) for coord_ref in
                                 [flatten(f[coord_col]) for coord_col in f['anno'].value[3]]]]]
+        points = [[point for point in keypoints if not math.isnan(point)] for keypoints in points]
 
         bbox = [flatten(zipped) for zipped in
                 [zip(coords[0][0], coords[0][1]) for coords in
