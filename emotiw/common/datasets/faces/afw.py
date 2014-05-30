@@ -62,8 +62,10 @@ class AFW(FaceImagesDataset):
             ref4 = f["anno"].value[3].item(imIndex)
             count4= f[ref4].value.shape[0]
             for k in xrange(count4):
-                valid_kp = [kp[~np.isnan(kp)] for kp in f[f[ref4].value[k][0]].value]
-                self.lstkeypoints.append(np.asarray(valid_kp))  #[[x1 x2 ..],[y1 y2 ...]]
+                keypoints = f[f[ref4].value[k][0]].value
+                valid_kp = [kp[~np.isnan(kp)] for kp in keypoints]
+                # [[x1 x2 ..],[y1 y2 ...]]
+                self.lstkeypoints.append(np.asarray(valid_kp))
 
             for c in xrange(len(lstfacebb)):
                 self.lstImages.append([name,lstfacebb[c],lstPose[c],self.lstkeypoints[c]])
@@ -83,7 +85,7 @@ class AFW(FaceImagesDataset):
         print self.lstkeypoints[i]
         print 'OK'
         return [self.lstkeypoints[i][0][0],self.lstkeypoints[i][1][0],self.lstkeypoints[i][0][1],self.lstkeypoints[i][1][1]]
-    
+
     def get_keypoints_location(self,i):
         """
         contains 6 landmarks. [(the center of eyes, tip of nose, the two corners and center of mouth)]
@@ -91,4 +93,3 @@ class AFW(FaceImagesDataset):
         landmarks = ['left_eye_center', 'right_eye_center', 'nose_tip', 'mouth_left_corner', 'mouse_right_corner', 'mouth_center']
         keypoints = dict(enumerate(zip(*self.lstkeypoints[i])))
         return dict((landmarks[k], v) for (k, v) in keypoints.items())
-
