@@ -8,6 +8,7 @@ from afw_v2 import AFW as AFW_v2
 from caltech import Caltech
 from lfpw import Lfpw
 from googleFaceDataset import GoogleFaceDataset
+from googleEmotionDataset import GoogleEmotionDataset
 
 from HIIT6HeadPose import HIIT6HeadPose
 from IHDPHeadPose import IHDPHeadPose
@@ -28,6 +29,7 @@ image_datasets_constructors_list = [ ("AFLW", AFLW, ""),
                                      ("MultiPie", MultiPie, ""),
                                      ("BoiID", BioID, ""),
                                      ("GoogleFaceDataset", GoogleFaceDataset, ""),
+                                     ("GoogleEmotionDataset", GoogleEmotionDataset, ""),
                                      ("HIIT6HeadPose", HIIT6HeadPose, ""),
                                      ("IHDPHeadPose",IHDPHeadPose, ""),
                                      ("InrialpesHeadPose",InrialpesHeadPose, ""),
