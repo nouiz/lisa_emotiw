@@ -880,7 +880,7 @@ class FaceImagesSubset(FaceImagesDataset):
         return self.img_dataset.get_is_mouth_opened(self.indices[i])
 
     def _get_subject_ids(self):
-        if hasattr(self,'subject_ids'):
+        if hasattr(self, 'subject_ids'):
             return self.subject_ids
 
         subject_ids = []
