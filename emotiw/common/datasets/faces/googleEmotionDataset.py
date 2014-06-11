@@ -27,37 +27,57 @@
 
 import cPickle
 import csv
+import numpy as np
 import os
 from faceimages import FaceImagesDataset
+from imageseq import ImageSequenceDataset
 
 
-# Subclasses of FaceImagesDataset
-class GoogleEmotionDataset(FaceImagesDataset):
-
+class GoogleEmotionDataset(ImageSequenceDataset):
     def __init__(self):
         dataPath = "faces/GoogleEmotionDataset/"
-        super(GoogleEmotionDataset, self).__init__("GED", dataPath)
-
         # Load the dataset's pickle file
-        pklFile = self.absolute_base_directory+"assignmentData.pkl"
-        data = cPickle.load(open(pklFile, "rb"))
+        pklFile = "/data/lisa/data/" + dataPath + "assignmentData.pkl"
+        self.data = cPickle.load(open(pklFile, "rb"))
+        self.sequences = []
 
-        images = data[0] + data[1] + data[2]
-        images = zip(*images)
+        allSets = zip(*self.data[0] + self.data[1] + self.data[2])
+        self.ids = range(0, len(allSets[0]))
+        self.sequences.append(GoogleEmotionSequence(allSets, self.data[3]))
+        super(GoogleEmotionDataset, self).__init__('Google emotion frames')
 
-        self.queryIds = images[0]
-        self.ids = images[1]
-        self.labels = data[3]
-        self.tags = images[2]
+    def __len__(self):
+        return len(self.sequences)
+
+    def get_sequence(self, i):
+        return self.sequences[i]
+
+    def get_standard_train_test_splits(self):
+        trainIdx = self.ids[:len(self.data[0])]
+        validIdx = self.ids[len(trainIdx):len(trainIdx) + len(self.data[1])]
+        testIdx = self.ids[-len(self.data[2]):]
+        return [(trainIdx, ), (validIdx, ), (testIdx, )]
+
+
+class GoogleEmotionSequence(FaceImagesDataset):
+
+    def __init__(self, data, labels):
+        dataPath = "faces/GoogleEmotionDataset/"
+        super(GoogleEmotionSequence, self).__init__("GED", dataPath)
+
+        self.queryIds = data[0]
+        self.ids = data[1]
+        self.labels = labels
+        self.tags = data[2]
         self.tagNames = ["anger", "bored", "concern", "crying",
                          "disappointed", "discouraged", "disgust",
                          "displeased", "elation", "fear", "happy", "nervous",
                          "neutral", "sad", "screaming", "shame", "surprise",
                          "tired"]
-        self.X1 = images[3]
-        self.Y1 = images[4]
-        self.X2 = images[5]
-        self.Y2 = images[6]
+        self.X1 = data[3]
+        self.Y1 = data[4]
+        self.X2 = data[5]
+        self.Y2 = data[6]
 
         # Mapping from 18 emotions to 7
         self.emo_18_to_7 = {'anger': 0, 'bored': 0, 'concern': 6, 'crying': 4,
@@ -68,7 +88,7 @@ class GoogleEmotionDataset(FaceImagesDataset):
                             'tired': 0}
 
         self.set_picasa_path_substitutions(
-            {"faces/GoogleEmotionDataset/": dataPath+"/facesCoordinates/",
+            {"faces/GoogleEmotionDataset/": dataPath+"facesCoordinates/",
              '.png': '.txt',
              '.jpg': '.txt',
              },
