@@ -133,19 +133,18 @@ class ImageSequenceSubset(ImageSequenceDataset):
     def __init__(self, orig_dataset, indices, name=None):
         if name is None:
             name = "subset of "+orig_dataset.name
-        super(ImageSequenceSubset,self).__init__(name)
+        super(ImageSequenceSubset, self).__init__(name)
         self.orig_dataset = orig_dataset
         self.indices = indices
-        
+
     def __len__(self):
-        return len(self.indices)
-        
+        return len(self.orig_dataset)
+
     def get_sequence(self, i):
-        return self.orig_dataset.get_sequence(self.indices[i])        
+        return self.orig_dataset.get_sequence(i)[self.indices]
 
     def get_label(self, i):
-        return self.orig_dataset.get_label(self.indices[i])        
-        
+        return self.orig_dataset.get_label(self.indices[i])
 
 
 class SimpleImageSequenceDataset(ImageSequenceDataset):
