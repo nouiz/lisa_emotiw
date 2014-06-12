@@ -94,6 +94,9 @@ class GoogleEmotionSequence(FaceImagesDataset):
              },
             csv_delimiter=',')
 
+        self.set_ramanan_path_substitutions(
+            {"faces/GoogleEmotionDataset": "faces/GoogleDataset/ramanan_keypoints/"})
+
     def get_name(self):
         return "GoogleEmotionDataset"
 
