@@ -48,6 +48,13 @@ class GoogleFaceDataset(FaceImagesDataset):
         #ipdb.set_trace()
         data = data[1:]
 
+        # Remove unaccessible images
+        img_ids = [1022, 1704, 1857, 6931, 10136, 14496, 18786, 20284, 20894,
+                   21466, 28510, 29660]
+        data = np.asarray(data)
+        for i in range(len(data)):
+            data[i] = np.delete(data[i], img_ids, axis=0)
+
         # print data
         self.labels = data[0]
         self.ids = data[2]
