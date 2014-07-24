@@ -1,4 +1,4 @@
-# Copyright (c) 2013 University of Montreal, Thomas Rohee 
+# Copyright (c) 2013 University of Montreal, Thomas Rohee
 #
 # All rights reserved.
 #
@@ -30,14 +30,17 @@ import numpy as np
 import os
 from faceimages import FaceImagesDataset
 
+
 class FDDB(FaceImagesDataset):
 
     def __init__(self):
         super(FDDB, self).__init__('FDDB', 'faces/FDDB/')
 
         self.img_infos = []
-        infos_dir = os.path.join(self.absolute_base_directory, 'FDDB-folds/')
-        folds = [fold for fold in os.listdir(infos_dir) if 'ellipseList' in fold]
+        base_dir = self.absolute_base_directory
+        infos_dir = os.path.join(base_dir, 'FDDB-folds/')
+        folds = [fold for fold in os.listdir(infos_dir)
+                 if 'ellipseList' in fold]
 
         for fold in folds:
             infos = open(infos_dir + fold).readlines()
@@ -50,7 +53,7 @@ class FDDB(FaceImagesDataset):
                 # Item can be a path, a number of faces or ellipse
                 if '2002/' in item or '2003/' in item:
                     if len(cur_ellipses) > 0:
-                        self.img_infos.append((cur_path + '.jpg', cur_ellipses))
+                        self.img_infos.append((cur_path+'.jpg', cur_ellipses))
                         cur_ellipses = []
                     cur_path = item
                 elif nb_ellipses != 0:
@@ -92,4 +95,3 @@ class FDDB(FaceImagesDataset):
 
 if __name__ == "__main__":
     FDDB()
-
