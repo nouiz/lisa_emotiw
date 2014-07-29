@@ -25,8 +25,7 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 # SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-import cv2
-import numpy as np
+import math
 import os
 from faceimages import FaceImagesDataset
 
@@ -80,18 +79,27 @@ class FDDB(FaceImagesDataset):
     def ellipse_to_bbox(self, ellipse):
         """
         Method to get 4 points from an ellipse.
-        The 4 points correspond to a parallelogram inscribed in the ellipse.
+        The points correspond to the smallest circumscribed parallelogram
+        around the ellipse.
         """
         maj_rad = ellipse[0]
         min_rad = ellipse[1]
         angle = ellipse[2]
         xcenter = ellipse[3]
         ycenter = ellipse[4]
-        bbox = cv2.ellipse2Poly((xcenter, ycenter),
-                                (min_rad, maj_rad), angle, 0, 360, 90)
-        # Reorder the 4 points
-        bbox = bbox[1:]
-        return np.concatenate((bbox[2:], bbox[:2])).flatten().tolist()
+        cosin = math.cos(math.radians(-angle))
+        sin = math.sin(math.radians(-angle))
+        
+        x1 = cosin * (-min_rad) - sin * (-maj_rad) + xcenter
+        y1 = sin * (-min_rad) + cosin * (-maj_rad) + ycenter
+        x2 = cosin * (min_rad) - sin * (-maj_rad) + xcenter
+        y2 = sin * (min_rad) + cosin * (-maj_rad) + ycenter
+        x3 = cosin * (min_rad) - sin * (maj_rad) + xcenter
+        y3 = sin * (min_rad) + cosin * (maj_rad) + ycenter
+        x4 = cosin * (-min_rad) - sin * (maj_rad) + xcenter
+        y4 = sin * (-min_rad) + cosin * (maj_rad) + ycenter
+
+        return (x1, y1, x2, y2, x3, y3, x4, y4)
 
 if __name__ == "__main__":
     FDDB()
