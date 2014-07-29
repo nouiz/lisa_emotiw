@@ -197,7 +197,7 @@ class MultiPie(FaceImagesDataset):
         """
         Check MPie_Labels/examples/ to see which corresponds to what
         """        
-        return self.lstImages[i][2]    
+        return [self.lstImages[i][2]]    
         
     def get_subject_id_of_ith_face(self, i):
         return self.subject_id_to_idx[self.lstImages[i][1]]
