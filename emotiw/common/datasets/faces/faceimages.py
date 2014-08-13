@@ -26,22 +26,23 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 # SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-import pdb
-
 import os
 import os.path
 import glob
 import sys
 import cv
+import cv2
 import Image
 import ImageDraw
 import ImageFont
 import numpy
+import Pyro4
 import sys
 import csv
 from scipy import io as sio
 
 from emotiw.common.utils.pathutils import locate_data_path, search_replace
+from emotiw.common.utils.facepp import API, File
 
 #sys.path.append(os.getcwd()+"/../../../vincentp")
 #from preprocess_face import * # getEyesPositions,getFaceBoundingBox
@@ -574,6 +575,45 @@ class FaceImagesDataset(object):
             # return keypoint_dict
 
         return keypoint_dicts
+
+    def get_faceplusplus_keypoints(self, i):
+        # Face++ API access
+        API_KEY = ''
+        API_SECRET = ''
+        SERVER = 'http://apius.faceplusplus.com/'
+        api = API(API_KEY, API_SECRET, SERVER)
+
+        imagepath = self.get_original_image_path(i)
+        img = cv2.imread(imagepath)
+        kpts_list = []
+
+        try:
+            faces = api.detection.detect(img=File(imagepath))
+
+            for face in faces['face']:
+                result = api.detection.landmark(face_id=face['face_id'])
+                keypoints = result['result'][0]['landmark']
+                for kpt in keypoints:
+                    x = int(img.shape[1] * keypoints[kpt]['x']/100)
+                    y = int(img.shape[0] * keypoints[kpt]['y']/100)
+                    keypoints[kpt] = (x, y)
+                kpts_list.append(keypoints)
+
+        except Exception, e:
+            print e
+
+        return kpts_list
+
+    def get_deep_cascade_keypoints(self, i):
+        try:
+            convCascade = Pyro4.Proxy("PYRONAME:deepConvCascade")
+            imagepath = self.get_original_image_path(i)
+            keypoints = convCascade.get_keypoints(imagepath)
+        except Exception, e:
+            print e
+            keypoints = None
+
+        return keypoints
 
     def get_n_subjects(self):
         """
