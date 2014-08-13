@@ -577,10 +577,8 @@ class FaceImagesDataset(object):
         return keypoint_dicts
 
     def get_faceplusplus_keypoints(self, i):
-        # Face++ API access
-        API_KEY = ''
-        API_SECRET = ''
-        SERVER = 'http://apius.faceplusplus.com/'
+        # Read config file for Face++ API access
+        execfile('../../utils/apikey.cfg')
         api = API(API_KEY, API_SECRET, SERVER)
 
         imagepath = self.get_original_image_path(i)
