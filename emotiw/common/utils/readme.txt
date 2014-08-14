@@ -6,7 +6,7 @@ The API can detect 83 keypoints (inner point + contour) or 51 (inner points),
 so they added some keypoints not initially in the paper (63 keypoints).
 
 You need to have a face++ account to use the API (free to register, a Lisa account already exist) and to create an application on the website.
-On the application page, you can see the API KEY and API SECRET, you need to add them on the apikey.cfg file.
+On the application page, you can see the API KEY and API SECRET, you need to add them on the apikey.py file.
 You can now use the face++ keypoint detection system.
 The facepp.py file is from https://github.com/FacePlusPlus/facepp-python-sdk.
 
