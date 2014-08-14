@@ -31,18 +31,16 @@ import os.path
 import glob
 import sys
 import cv
-import cv2
 import Image
 import ImageDraw
 import ImageFont
 import numpy
-import Pyro4
 import sys
 import csv
+import emotiw.common.utils.keypoints_models as keypoints_models
 from scipy import io as sio
 
 from emotiw.common.utils.pathutils import locate_data_path, search_replace
-from emotiw.common.utils.facepp import API, File
 
 #sys.path.append(os.getcwd()+"/../../../vincentp")
 #from preprocess_face import * # getEyesPositions,getFaceBoundingBox
@@ -51,9 +49,19 @@ basic_7emotion_names = ["anger", "disgust", "fear", "happy", "sad", "surprise", 
 basic_7emotion_name2index = dict( [ (name,pos) for pos,name in enumerate(basic_7emotion_names) ] )
 keypoints_names = ['left_eyebrow_inner_end', 'bottom_lip_top_left_midpoint', 'right_ear_top', 'mouth_bottom_lip_top', 'face_left', 'left_eyebrow_outer_midpoint', 'left_jaw_1', 'left_jaw_0', 'bottom_lip_top_left_center', 'left_eyebrow_center_top', 'left_eye_outer_corner', 'top_lip_bottom_right_midpoint', 'mouth_bottom_lip', 'left_mouth_outer_corner', 'left_eyebrow_center_bottom', 'top_lip_bottom_left_center', 'right_eyebrow_inner_end', 'chin_center', 'right_eyebrow_outer_midpoint', 'left_ear_bottom', 'right_eye_outer_corner', 'left_eyebrow_outer_end', 'top_lip_bottom_left_midpoint', 'bottom_lip_bottom_right_midpoint', 'right_eye_center_top', 'right_nostril_inner_end', 'top_lip_bottom_center', 'face_center', 'right_eye_inner_corner', 'right_eyebrow_center_top', 'left_eyebrow_center', 'right_ear_bottom', 'mouth_left_corner', 'nostrils_center', 'right_eyebrow_inner_midpoint', 'mouth_right_corner', 'chin_center_top', 'nose_ridge_bottom', 'right_eye_center', 'left_eye_bottom_outer_midpoint', 'left_eye_pupil', 'right_jaw_2', 'right_jaw_1', 'right_jaw_0', 'top_lip_bottom_right_center', 'top_lip_top_right_center', 'left_nostril_inner_end', 'right_eyebrow_center_bottom', 'chin_right', 'mouth_top_lip_bottom', 'right_ear_canal', 'bottom_lip_bottom_center', 'mouth_top_lip', 'right_eyebrow_center', 'chin_left', 'left_eye_top_outer_midpoint', 'left_jaw_2', 'nose_tip', 'bottom_lip_bottom_left_center', 'left_eye_top_inner_midpoint', 'right_eye_top_outer_midpoint', 'left_eye_bottom_inner_midpoint', 'top_lip_top_left_center', 'bottom_lip_bottom_right_center', 'bottom_lip_top_center', 'left_eye_center', 'bottom_lip_top_right_midpoint', 'left_eye_center_top', 'left_ear_center', 'top_lip_top_right_midpoint', 'bottom_lip_bottom_left_midpoint', 'right_eye_center_bottom', 'right_eye_bottom_outer_midpoint', 'left_eye_inner_corner', 'right_mouth_outer_corner', 'left_eyebrow_inner_midpoint', 'left_ear_top', 'right_ear_center', 'nose_center_top', 'right_eye_pupil', 'bottom_lip_top_right_center', 'left_eye_center_bottom', 'right_eye_top_inner_midpoint', 'left_cheek_2', 'face_right', 'right_nostril', 'top_lip_top_left_midpoint', 'right_eye_bottom_inner_midpoint', 'left_cheek_1', 'left_cheek_0', 'right_eyebrow_outer_end', 'nose_ridge_top', 'mouth_center', 'left_nostril', 'right_cheek_1', 'right_cheek_0', 'right_cheek_2', 'left_ear_canal']
 
+
 def bbox_size(bbox):
     x1,y1,x2,y2 = bbox
     return (x2-x1)*(y2-y1)
+
+
+def safe_save_npy_if_not_already_there(filepath, arr):
+    if not os.path.exists(filepath):
+        os.umask(0002)
+        dirpath,filename = os.path.split(filepath)
+        if not os.path.exists(dirpath):
+            os.makedirs(dirpath)
+        numpy.save(filepath, arr)
 
 
 class FaceImagesDataset(object):
@@ -577,41 +585,44 @@ class FaceImagesDataset(object):
         return keypoint_dicts
 
     def get_faceplusplus_keypoints(self, i):
-        # Read config file for Face++ API access
-        execfile('../../utils/apikey.cfg')
-        api = API(API_KEY, API_SECRET, SERVER)
-
         imagepath = self.get_original_image_path(i)
-        img = cv2.imread(imagepath)
-        kpts_list = []
 
-        try:
-            faces = api.detection.detect(img=File(imagepath))
+        if hasattr(self, "cache_directory"):
+            kp_filepath = os.path.join(self.cache_directory,
+                                       "faceplusplus_keypoints",
+                                       "%03d" % (i/1000), "kp_%07d.npy" % i)
 
-            for face in faces['face']:
-                result = api.detection.landmark(face_id=face['face_id'])
-                keypoints = result['result'][0]['landmark']
-                for kpt in keypoints:
-                    x = int(img.shape[1] * keypoints[kpt]['x']/100)
-                    y = int(img.shape[0] * keypoints[kpt]['y']/100)
-                    keypoints[kpt] = (x, y)
-                kpts_list.append(keypoints)
+            if os.path.exists(kp_filepath):
+                kp_mat = numpy.load(kp_filepath)
+                kp_dictlist = keypoints_models.facepp_keypoints_mat_to_dictlist(kp_mat)
+            else:
+                kp_dictlist = keypoints_models.get_faceplusplus_keypoints(imagepath)
+                kp_mat = keypoints_models.facepp_keypoints_dictlist_to_mat(kp_dictlist)
+                safe_save_npy_if_not_already_there(kp_filepath, kp_mat)
+        else:
+            kp_dictlist = keypoints_models.get_faceplusplus_keypoints(imagepath)
 
-        except Exception, e:
-            print e
-
-        return kpts_list
+        return kp_dictlist
 
     def get_deep_cascade_keypoints(self, i):
-        try:
-            convCascade = Pyro4.Proxy("PYRONAME:deepConvCascade")
-            imagepath = self.get_original_image_path(i)
-            keypoints = convCascade.get_keypoints(imagepath)
-        except Exception, e:
-            print e
-            keypoints = None
+        imagepath = self.get_original_image_path(i)
 
-        return keypoints
+        if hasattr(self, "cache_directory"):
+            kp_filepath = os.path.join(self.cache_directory,
+                                       "deepconvcascade_keypoints",
+                                       "%03d" % (i/1000), "kp_%07d.npy" % i)
+
+            if os.path.exists(kp_filepath):
+                kp_mat = numpy.load(kp_filepath)
+                kp_dictlist = keypoints_models.deep_conv_cascade_keypoints_mat_to_dictlist(kp_mat)
+            else:
+                kp_dictlist = keypoints_models.get_deep_cascade_keypoints(imagepath)
+                kp_mat = keypoints_models.deep_conv_cascade_keypoints_dictlist_to_mat(kp_dictlist)
+                safe_save_npy_if_not_already_there(kp_filepath, kp_mat)
+        else:
+            kp_dictlist = keypoints_models.get_deep_cascade_keypoints(imagepath)
+
+        return kp_dictlist
 
     def get_n_subjects(self):
         """

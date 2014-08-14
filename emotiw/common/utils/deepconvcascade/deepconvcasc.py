@@ -29,6 +29,9 @@ import Pyro4
 import subprocess
 import struct
 
+keypoints_name = ['left_eye_center', 'right_eye_center', 'nose_tip',
+                  'mouth_left_corner', 'mouth_right_corner']
+
 
 class DeepConvCascade(object):
 
@@ -119,7 +122,8 @@ class DeepConvCascade(object):
                 kpts = {}
                 for i in range(pointNum):
                     # C double (float64), 2 for each point
-                    kpts[str(i)] = struct.unpack('dd', fresult.read(16))
+                    kpts[keypoints_name[i]] = struct.unpack('dd',
+                                                            fresult.read(16))
                 keypoints.append(kpts)
 
         return keypoints
