@@ -87,7 +87,7 @@ def get_deep_cascade_keypoints(imagepath):
         keypoints = convCascade.get_keypoints(imagepath)
     except Exception, e:
         print e
-        keypoints = None
+        keypoints = []
 
     return keypoints
 

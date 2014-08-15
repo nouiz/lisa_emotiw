@@ -99,7 +99,7 @@ class DeepConvCascade(object):
             self.detect_keypoints()
             keypoints = self.kpts_from_binary()
         else:
-            keypoints = None
+            keypoints = []
 
         return keypoints
 
