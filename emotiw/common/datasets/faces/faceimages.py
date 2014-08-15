@@ -41,6 +41,7 @@ import emotiw.common.utils.keypoints_models as keypoints_models
 from scipy import io as sio
 
 from emotiw.common.utils.pathutils import locate_data_path, search_replace
+from emotiw.common.utils.pyvisionutils import pyvision_detect_faces_bboxes
 
 #sys.path.append(os.getcwd()+"/../../../vincentp")
 #from preprocess_face import * # getEyesPositions,getFaceBoundingBox
@@ -253,57 +254,74 @@ class FaceImagesDataset(object):
         return bbox
 
     def get_pyvision_bbox(self, i):
-        if not hasattr(self, "pyvision_bbox_start_indexes"):
-            if not hasattr(self, "cache_directory"):
-                self.pyvision_bbox_start_indexes = None
-                self.pyvision_bbox_list = None
+        if hasattr(self, "cache_directory"):
+            pyvision_bbox_filepath = os.path.join(self.cache_directory,
+                                                  "pyvision_bbox",
+                                                  "%03d" % (i/1000),
+                                                  "kp_%07d.npy" % i)
+
+            if os.path.exists(pyvision_bbox_filepath):
+                bboxes_mat = numpy.load(pyvision_bbox_filepath)
+                bboxes = list(bboxes_mat)
             else:
-                indexfile = os.path.join(self.cache_directory, "pyvision_bboxes_start_indexes.npy")
-                bboxfile = os.path.join(self.cache_directory, "pyvision_bboxes_list.npy")
+                bboxes = pyvision_detect_faces_bboxes(self.get_original_image(i))
+                bboxes_mat = numpy.array(bboxes)
+                safe_save_npy_if_not_already_there(pyvision_bbox_filepath, bboxes_mat)
+        else:
+            bboxes = pyvision_detect_faces_bboxes(self.get_original_image(i))
 
-                if os.path.exists(indexfile):
-                    self.pyvision_bbox_start_indexes = numpy.load(indexfile)
-                    self.pyvision_bbox_list = numpy.load(bboxfile)
-                else:
-                    print "*** Precomputing pyvision_bbox ***"
-                    from emotiw.common.utils.pyvisionutils import pyvision_detect_faces_bboxes
-                    prev_umask = os.umask(0002)
-                    if not os.path.exists(self.cache_directory):
-                        os.makedirs(self.cache_directory)
-                    n = len(self)
-                    bbox_start_indexes = numpy.zeros((n+1), numpy.uint32)
-                    bbox_list = numpy.zeros((10,4), numpy.uint16)
-                    bbox_num = 0
-                    for image_num in xrange(n):
-                        print "Image #%d (/%d)" % (image_num,n)
-                        bbox_start_indexes[image_num] = bbox_num
-                        bboxes = pyvision_detect_faces_bboxes(self.get_original_image(image_num))
-                        print "    pyvision detected %d faces" % len(bboxes)
-                        for bbox in bboxes:
-                            if bbox_num>=len(bbox_list):
-                                bbox_list = numpy.resize(bbox_list, (len(bbox_list)+n, 4) )
-                            bbox_list[bbox_num] = bbox
-                            bbox_num += 1
-                    bbox_start_indexes[n] = bbox_num
-                    bbox_list = numpy.resize(bbox_list, (bbox_num,4) )
+        return bboxes
+        #if not hasattr(self, "pyvision_bbox_start_indexes"):
+        #    if not hasattr(self, "cache_directory"):
+        #        self.pyvision_bbox_start_indexes = None
+        #        self.pyvision_bbox_list = None
+        #    else:
+        #        indexfile = os.path.join(self.cache_directory, "pyvision_bboxes_start_indexes.npy")
+        #        bboxfile = os.path.join(self.cache_directory, "pyvision_bboxes_list.npy")
+        #
+        #        if os.path.exists(indexfile):
+        #            self.pyvision_bbox_start_indexes = numpy.load(indexfile)
+        #            self.pyvision_bbox_list = numpy.load(bboxfile)
+        #        else:
+        #            print "*** Precomputing pyvision_bbox ***"
+        #            from emotiw.common.utils.pyvisionutils import pyvision_detect_faces_bboxes
+        #            prev_umask = os.umask(0002)
+        #            if not os.path.exists(self.cache_directory):
+        #                os.makedirs(self.cache_directory)
+        #            n = len(self)
+        #            bbox_start_indexes = numpy.zeros((n+1), numpy.uint32)
+        #            bbox_list = numpy.zeros((10,4), numpy.uint16)
+        #            bbox_num = 0
+        #            for image_num in xrange(n):
+        #                print "Image #%d (/%d)" % (image_num,n)
+        #                bbox_start_indexes[image_num] = bbox_num
+        #                bboxes = pyvision_detect_faces_bboxes(self.get_original_image(image_num))
+        #                print "    pyvision detected %d faces" % len(bboxes)
+        #                for bbox in bboxes:
+        #                    if bbox_num>=len(bbox_list):
+        #                        bbox_list = numpy.resize(bbox_list, (len(bbox_list)+n, 4) )
+        #                    bbox_list[bbox_num] = bbox
+        #                    bbox_num += 1
+        #            bbox_start_indexes[n] = bbox_num
+        #            bbox_list = numpy.resize(bbox_list, (bbox_num,4) )
+        #
+        #            print "Saving precomputed pyvision bboxes in cache files:",
+        #            print "  -> ",indexfile
+        #            numpy.save(indexfile,bbox_start_indexes) 
+        #            print "  -> ",bboxfile
+        #            numpy.save(bboxfile,bbox_list)
+        #            os.umask(prev_umask)
+        #            self.pyvision_bbox_start_indexes = bbox_start_indexes
+        #            self.pyvision_bbox_list = bbox_list
 
-                    print "Saving precomputed pyvision bboxes in cache files:",
-                    print "  -> ",indexfile
-                    numpy.save(indexfile,bbox_start_indexes) 
-                    print "  -> ",bboxfile
-                    numpy.save(bboxfile,bbox_list)
-                    os.umask(prev_umask)
-                    self.pyvision_bbox_start_indexes = bbox_start_indexes
-                    self.pyvision_bbox_list = bbox_list
-
-        if self.pyvision_bbox_start_indexes is None:
-            return None
+        #if self.pyvision_bbox_start_indexes is None:
+        #    return None
         
-        startpos = self.pyvision_bbox_start_indexes[i]
-        endpos = self.pyvision_bbox_start_indexes[i+1]
-        if startpos==endpos:
-            return []
-        return self.pyvision_bbox_list[startpos:endpos,:]
+        #startpos = self.pyvision_bbox_start_indexes[i]
+        #endpos = self.pyvision_bbox_start_indexes[i+1]
+        #if startpos==endpos:
+        #    return []
+        #return self.pyvision_bbox_list[startpos:endpos,:]
     
     def get_opencv_bbox(self, i):
         return None
