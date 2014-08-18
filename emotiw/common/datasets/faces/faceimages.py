@@ -41,7 +41,6 @@ import emotiw.common.utils.keypoints_models as keypoints_models
 from scipy import io as sio
 
 from emotiw.common.utils.pathutils import locate_data_path, search_replace
-from emotiw.common.utils.pyvisionutils import pyvision_detect_faces_bboxes
 
 #sys.path.append(os.getcwd()+"/../../../vincentp")
 #from preprocess_face import * # getEyesPositions,getFaceBoundingBox
@@ -254,6 +253,10 @@ class FaceImagesDataset(object):
         return bbox
 
     def get_pyvision_bbox(self, i):
+        # pyvision_detect_faces_bboxes import bbox_size,
+        # so must be import after the function
+        from emotiw.common.utils.pyvisionutils import pyvision_detect_faces_bboxes
+
         if hasattr(self, "cache_directory"):
             pyvision_bbox_filepath = os.path.join(self.cache_directory,
                                                   "pyvision_bbox",
