@@ -261,8 +261,9 @@ class FaceImagesDataset(object):
             pyvision_bbox_filepath = os.path.join(self.cache_directory,
                                                   "pyvision_bbox",
                                                   "%03d" % (i/1000),
-                                                  "kp_%07d.npy" % i)
+                                                  "bbox_%07d.npy" % i)
 
+            print "Bboxes cache file:", pyvision_bbox_filepath
             if os.path.exists(pyvision_bbox_filepath):
                 bboxes_mat = numpy.load(pyvision_bbox_filepath)
                 bboxes = list(bboxes_mat)
@@ -613,6 +614,7 @@ class FaceImagesDataset(object):
                                        "faceplusplus_keypoints",
                                        "%03d" % (i/1000), "kp_%07d.npy" % i)
 
+            print "Keypoints cache file:", kp_filepath
             if os.path.exists(kp_filepath):
                 kp_mat = numpy.load(kp_filepath)
                 kp_dictlist = keypoints_models.facepp_keypoints_mat_to_dictlist(kp_mat)
@@ -633,6 +635,7 @@ class FaceImagesDataset(object):
                                        "deepconvcascade_keypoints",
                                        "%03d" % (i/1000), "kp_%07d.npy" % i)
 
+            print "Keypoints cache file:", kp_filepath
             if os.path.exists(kp_filepath):
                 kp_mat = numpy.load(kp_filepath)
                 kp_dictlist = keypoints_models.deep_conv_cascade_keypoints_mat_to_dictlist(kp_mat)
