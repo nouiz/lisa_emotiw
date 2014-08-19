@@ -67,7 +67,7 @@ class BioID(FaceImagesDataset):
 
     def get_keypoints_location(self, i):
         if within_bounds(i, len(self.keyPointsDict)):
-            return self.keyPointsDict[i]
+            return [self.keyPointsDict[i]]
         else:
             return None
 

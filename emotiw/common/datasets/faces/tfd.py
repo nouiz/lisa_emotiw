@@ -123,14 +123,14 @@ class TorontoFaceDataset(FaceImagesDataset):
         return self.images[idx]
 
     def get_keypoints_location(self, idx):
-        return {'right_eye_inner_corner': (15, 10), 
-                'right_eye_outer_corner': (5, 10),
-                'left_eye_inner_corner': (32, 10),
-                'left_eye_outer_corner': (43, 10),
-                'nose_tip': (24, 24), 
-                'mouth_center': (24, 39), 
-                'mouth_right_corner': (14, 36), 
-                'mouth_left_corner': (34, 36)}
+        return [{'right_eye_inner_corner': (15, 10), 
+                 'right_eye_outer_corner': (5, 10),
+                 'left_eye_inner_corner': (32, 10),
+                 'left_eye_outer_corner': (43, 10),
+                 'nose_tip': (24, 24), 
+                 'mouth_center': (24, 39), 
+                 'mouth_right_corner': (14, 36), 
+                 'mouth_left_corner': (34, 36)}]
 
     def get_original_image_path_relative_to_base_directory(self, i):
         return None
@@ -383,7 +383,7 @@ class SFEW(FaceImagesDataset):
             return None
 
     def get_keypoints_location(self, i):
-        return self.keyPointsDict[i]
+        return [self.keyPointsDict[i]]
 
 
 class MSFDE(FaceImagesDataset):
@@ -935,7 +935,7 @@ class ArFace(FaceImagesDataset):
             return None
 
     def get_keypoints_location(self, i):
-        return self.keyPointsDict[i]
+        return [self.keyPointsDict[i]]
 
 
 class Kdef(FaceImagesDataset):

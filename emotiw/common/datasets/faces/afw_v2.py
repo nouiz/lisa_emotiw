@@ -94,7 +94,7 @@ class AFW(FaceImagesDataset):
 
     def get_keypoints_location(self, i):
         if within_bounds(i, len(self.keyPointsDict)):
-            return self.keyPointsDict[i]
+            return [self.keyPointsDict[i]]
 
     def get_pan_tilt_and_roll(self, i):
         if within_bounds(i, len(self.yawPitchRoll)):

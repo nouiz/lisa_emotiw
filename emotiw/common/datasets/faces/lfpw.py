@@ -80,7 +80,7 @@ class Lfpw(FaceImagesDataset):
 
     def get_keypoints_location(self, i):
         if within_bounds(i, len(self.keyPointsDict)):
-            return self.keyPointsDict[i]
+            return [self.keyPointsDict[i]]
 
     def get_standard_train_test_splits(self):
         return (range(len(self.lstImages)-1, self.last_test_index, -1), 

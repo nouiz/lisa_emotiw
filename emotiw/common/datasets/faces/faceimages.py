@@ -392,7 +392,7 @@ class FaceImagesDataset(object):
 
     def get_keypoints_location(self, i):
         """
-        Returns a dictionary of keypoint_names -> (x,y) image coordinates (or None if not available).
+        Returns a list of dictionaries (for each face) of keypoint_names -> (x,y) image coordinates (or None if not available).
         This should ideally return (hand) labeled keypoints from the (original) dataset.
         Default version however calls self.get_ramanan_keypoints_location(i) (which returns keypoints precomputed with ramanan's algo)
 

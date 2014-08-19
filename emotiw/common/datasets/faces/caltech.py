@@ -36,7 +36,7 @@ class Caltech(FaceImagesDataset):
 
     def get_keypoints_location(self, i):
         if within_bounds(i, len(self.keyPointsDict)):
-            return self.keyPointsDict[i]
+            return [self.keyPointsDict[i]]
         return None
 
     def get_eyes_location(self, i):

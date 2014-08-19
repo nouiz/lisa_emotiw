@@ -92,4 +92,4 @@ class AFW(FaceImagesDataset):
         """
         landmarks = ['left_eye_center', 'right_eye_center', 'nose_tip', 'mouth_left_corner', 'mouse_right_corner', 'mouth_center']
         keypoints = dict(enumerate(zip(*self.lstkeypoints[i])))
-        return dict((landmarks[k], v) for (k, v) in keypoints.items())
+        return [dict((landmarks[k], v) for (k, v) in keypoints.items())]

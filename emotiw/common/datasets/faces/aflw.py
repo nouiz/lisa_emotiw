@@ -84,7 +84,7 @@ class AFLW(FaceImagesDataset):
         res = self.conn.execute('select FeatureCoords.x ,FeatureCoords.y,descr  from FeatureCoords,FeatureCoordTypes where face_id ='+str(self.valid_id[i][0])+' and FeatureCoordTypes.feature_id =FeatureCoords.feature_id order by FeatureCoords.feature_id').fetchall()
         for t in res:
             dic[translation_dict[str(t[2])]] = (t[0], t[1])
-        return dic
+        return [dic]
     
     def get_n_subjects(self):
         return self.__len__()
