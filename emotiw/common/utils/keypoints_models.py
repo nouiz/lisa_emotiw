@@ -1,4 +1,4 @@
-import apikey
+import apicfg
 import cv2
 import numpy
 import Pyro4
@@ -83,8 +83,13 @@ def facepp_keypoints_mat_to_dictlist(kpts_mat):
 
 def get_deep_cascade_keypoints(imagepath):
     try:
-        convCascade = Pyro4.Proxy("PYRONAME:deepConvCascade")
-        keypoints = convCascade.get_keypoints(imagepath)
+        Pyro4.config.SERIALIZER = 'marshal'
+
+        with open(imagepath, 'rb') as image:
+            image_data = image.read()
+
+        conv_cascade = Pyro4.Proxy(apicfg.PYRO_OBJECT_URI)
+        keypoints = conv_cascade.get_keypoints(imagepath, image_data)
     except Exception, e:
         print e
         keypoints = []
@@ -94,7 +99,7 @@ def get_deep_cascade_keypoints(imagepath):
 
 def get_faceplusplus_keypoints(imagepath):
     # face++ API access
-    api = API(apikey.API_KEY, apikey.API_SECRET, apikey.SERVER)
+    api = API(apicfg.API_KEY, apicfg.API_SECRET, apicfg.SERVER)
 
     img = cv2.imread(imagepath)
     kpts_list = []

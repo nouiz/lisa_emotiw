@@ -25,6 +25,7 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 # SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+import os
 import Pyro4
 import subprocess
 import struct
@@ -36,18 +37,18 @@ keypoints_name = ['left_eye_center', 'right_eye_center', 'nose_tip',
 class DeepConvCascade(object):
 
     def __init__(self):
-        self.path = ''
-        self.bin_fname = 'result.bin'
-        self.imglist_fname = 'imagelist.txt'
-        self.bboxes_fname = 'bbox.txt'
+        self.local_path = os.path.join('C:', 'deepconvcascade')
+        self.imgList_local = os.path.join(self.local_path, 'imagelist.txt')
+        self.bboxes_local = os.path.join(self.local_path, 'bbox.txt')
+        self.bin_local = os.path.join(self.local_path, 'result.bin')
 
     def detect_face(self):
         subprocess.call(['FacePartDetect.exe', 'data',
-                         self.imglist_fname, self.bboxes_fname])
+                         self.imgList_local, self.bboxes_local])
 
     def detect_keypoints(self):
-        subprocess.call(['TestNet.exe', self.bboxes_fname, self.path,
-                         'Input', self.bin_fname])
+        subprocess.call(['TestNet.exe', self.bboxes_local, self.local_path,
+                         'Input', self.bin_local])
 
     def format_bbox_file(self, img_name, data):
         """
@@ -62,7 +63,7 @@ class DeepConvCascade(object):
             bounding box informations with the form (imagepath int int int int)
         """
 
-        with open(self.bboxes_fname, 'w+') as fbbox:
+        with open(self.bboxes_local, 'w+') as fbbox:
             # remove path
             bboxes = data.split(' ')[1:]
             for i in range(0, len(bboxes), 4):
@@ -71,31 +72,38 @@ class DeepConvCascade(object):
 
     def get_bbox_data(self):
         """ Return current bouding box data """
-        with open(self.bboxes_fname, 'r') as fbbox:
+        with open(self.bboxes_local, 'r') as fbbox:
             data = fbbox.read()
 
         return data
 
-    def get_keypoints(self, imagepath):
+    def get_keypoints(self, image_path, image_data):
         """
         Call necessary methods to return keypoints associated
         with the given imagepath.
 
         Parameters
         ----------
-        imagepath: str
+        image_path: str
             absolute path to the image from which to detect keypoints
+        image_data: bin
+            binary data of the image to process
         """
+        print 'Using serializer', Pyro4.config.SERIALIZER
 
-        self.set_image_path(imagepath)
-        img_name = imagepath.split('/')[-1]
+        base_path, ext = os.path.splitext(image_path)
+        image_name = 'image' + ext
+        img_local_path = os.path.join(self.local_path, image_name)
 
-        self.update_imagelist(img_name)
+        with open(img_local_path, 'wb') as f:
+            f.write(image_data)
+
+        self.update_imagelist(img_local_path)
         self.detect_face()
-        data = self.get_bbox_data()
+        bbox_data = self.get_bbox_data()
 
-        if self.is_face_detected(data):
-            self.format_bbox_file(img_name, data)
+        if self.is_face_detected(bbox_data):
+            self.format_bbox_file(image_name, bbox_data)
             self.detect_keypoints()
             keypoints = self.kpts_from_binary()
         else:
@@ -110,7 +118,7 @@ class DeepConvCascade(object):
         """ Read keypoints coordinates from the generated binary file. """
         keypoints = []
 
-        with open(self.bin_fname, 'rb') as fresult:
+        with open(self.bin_local, 'rb') as fresult:
             # read the binary file sequentially
             imageNum = struct.unpack('i', fresult.read(4))[0]  # C int (int32)
             pointNum = struct.unpack('i', fresult.read(4))[0]  # C int (int32)
@@ -128,25 +136,20 @@ class DeepConvCascade(object):
 
         return keypoints
 
-    def set_image_path(self, imagepath):
-        # Replace /data/lisa by Q: (letter of network drive mounted on burns)
-        self.path = 'Q:/' + '/'.join(imagepath.split('/')[3:-1]) + '/'
-
-    def update_imagelist(self, img_name):
+    def update_imagelist(self, img_local_path):
         """
         Update the file, containing the images to process,
         used by the face detector.
         """
-
-        with open(self.imglist_fname, 'w+') as flist:
+        with open(self.imgList_local, 'w+') as flist:
             flist.write('1\n')
-            flist.write(self.path + img_name)
+            flist.write(img_local_path)
 
 
 deepConvCascade = DeepConvCascade()
 
-daemon = Pyro4.Daemon()
-ns = Pyro4.locateNS()
-uri = daemon.register(deepConvCascade)
-ns.register("deepConvCascade", uri)
+Pyro4.config.SERIALIZER = 'marshal'
+daemon = Pyro4.Daemon(port=61605)
+uri = daemon.register(deepConvCascade, 'deepconvcascade')
+print uri
 daemon.requestLoop()
