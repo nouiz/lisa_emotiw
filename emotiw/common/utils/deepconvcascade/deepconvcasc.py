@@ -37,7 +37,7 @@ keypoints_name = ['left_eye_center', 'right_eye_center', 'nose_tip',
 class DeepConvCascade(object):
 
     def __init__(self):
-        self.local_path = os.path.join('C:', 'deepconvcascade')
+        self.local_path = os.path.join('C:/', 'deepconvcascade')
         self.imgList_local = os.path.join(self.local_path, 'imagelist.txt')
         self.bboxes_local = os.path.join(self.local_path, 'bbox.txt')
         self.bin_local = os.path.join(self.local_path, 'result.bin')

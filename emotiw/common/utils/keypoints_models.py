@@ -111,8 +111,6 @@ def get_faceplusplus_keypoints(imagepath):
             result = api.detection.landmark(face_id=face['face_id'])
             keypoints = result['result'][0]['landmark']
             for kpt in keypoints:
-                # x = int(img.shape[1] * keypoints[kpt]['x']/100)
-                # y = int(img.shape[0] * keypoints[kpt]['y']/100)
                 x = img.shape[1] * keypoints[kpt]['x']/100
                 y = img.shape[0] * keypoints[kpt]['y']/100
                 keypoints[kpt] = (x, y)
