@@ -16,6 +16,7 @@ from IHDPHeadPose import IHDPHeadPose
 from inrialpesWrapper import InrialpesHeadPose
 
 from concatDatasets import ConcatDatasets
+from flattenDataset import FlattenDataset
 
 from emotiw.common.datasets.faces.afew import AFEWImageSequenceDataset
 from emotiw.common.datasets.faces.afew2 import AFEW2ImageSequenceDataset
@@ -24,14 +25,20 @@ from emotiw.common.datasets.faces.new_clips import NewClipsImageSequenceDataset
 
 # The following are lists of triples (dataset_name, dataset_constructor, description)
 
+
 def concatDatasets():
     return ConcatDatasets([BioID, GoogleEmotionDataset, AFEWImageSequenceDataset])
+
+
+def flattenDataset():
+    return FlattenDataset(GoogleFaceDataset, "get_picasa_bbox")
 
 image_datasets_constructors_list = [ ("AFLW", AFLW, ""),
                                      ("AFW_v1", AFW_v1, ""),
                                      ("AFW_v2", AFW_v2, ""),
                                      ("Caltech", Caltech, ""),
                                      ("ConcatDatasets", concatDatasets, ""),
+                                     ("FlattenDataset", flattenDataset, ""),
                                      ("MultiPie", MultiPie, ""),
                                      ("BoiID", BioID, ""),
                                      ("FDDB", FDDB, ""),
